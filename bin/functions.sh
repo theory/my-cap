@@ -18,7 +18,7 @@ download() {
 	fi
 
 	if [ ! -f $file ]; then
-		curl -O $1
+		curl -kO $1
 	fi
 }
 
