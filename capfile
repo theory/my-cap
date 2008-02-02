@@ -1,0 +1,79 @@
+
+load 'lib/util.rb'
+
+role :backup, 'theory'
+role :svn,    'svn.kineticode.com'
+role :local,  'localhost'
+
+namespace :offlineimap do
+
+  task :install, :roles => :backup do
+    sudo_script 'offlineimap/install_offlineimap'
+    config
+  end
+
+  task :config, :roles => :backup do
+    upload 'offlineimap/offlineimap.conf', '/root/.offlineimaprc'
+    %w[david julie anna].each { |who| sudo "mkdir -p /data/backup/imap/#{ who }" }
+  end
+
+end
+
+namespace :my do
+  namespace :build do
+    task :default, :roles => :local do
+      xml
+      graphics
+    end
+
+    task :gems, :roles => :local do
+      sudol( 'gem install rubygems-update' )
+      sudol( 'gem install capistrano' )
+    end
+
+    task :xml, :roles => :local do
+      sudol_scripts( 'expat', 'libxml2', 'libxslt' )
+    end
+
+    task :graphics, :roles => :local do
+      sudol_scripts( 'libpng', 'libjpeg', 'libtiff', 'giflib' )
+    end
+
+    task :uuid, :roles => :local do
+      perl
+      sudol_scripts( 'uuid' )
+    end
+
+    task :emacs, :roles => :local do
+      graphics
+      sudol_scripts( 'aspell', 'emacs' 'elisp' )
+    end
+
+    task :perl, :roles => :local do
+      graphics
+      xml
+      sudol_scripts( 'perl' )
+    end
+
+    task :pg, :roles => :local do
+      perl
+      uuid
+      sudol_scripts( 'postgresql' )
+    end
+
+    task :apache,  :roles => :local do
+      sudol_scripts( 'apache' )
+    end
+    
+    task :modperl, :roles => :local do
+      perl
+      apache
+      sudol_scripts( 'modperl' )
+    end
+
+    task :modssl, :roles => :local do
+      sudol_scripts( 'mm', 'modssl' )
+    end
+
+  end
+end

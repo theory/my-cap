@@ -1,0 +1,95 @@
+diff -u -r emacs-22.1/src/unexmacosx.c emacs-22.1.ndm/src/unexmacosx.c
+--- emacs-22.1/src/unexmacosx.c	2007-01-21 05:18:15.000000000 +0100
++++ emacs-22.1.ndm/src/unexmacosx.c	2007-10-30 07:43:24.000000000 +0100
+@@ -112,6 +112,9 @@
+ 
+ #include <assert.h>
+ 
++// This patch was found on http://tinyurl.com/2nmagx
++#define NDM_BIZARRO_PATCH
++
+ #ifdef _LP64
+ #define mach_header			mach_header_64
+ #define segment_command			segment_command_64
+@@ -443,6 +446,7 @@
+ 
+   while (num && num_unexec_regions < MAX_UNEXEC_REGIONS)
+     {
++#ifndef NDM_BIZARRO_PATCH
+       /* Subtract the size of trailing null pages from filesize.  It
+ 	 can be smaller than vmsize in segment commands.  In such a
+ 	 case, trailing pages are initialized with zeros.  */
+@@ -452,6 +456,15 @@
+ 	  break;
+       filesize = ROUNDUP_TO_PAGE_BOUNDARY (p - ranges->address);
+       assert (filesize <= ranges->size);
++#else
++       /* Subtract the size of trailing null bytes from filesize.  It 
++        can be smaller than vmsize in segment commands.  In such a 
++        case, trailing bytes are initialized with zeros.  */ 
++       for (p = ranges->address + ranges->size; p > ranges->address; p--) 
++               if (*(((char *) p)-1)) 
++                 break; 
++       filesize = p - ranges->address; 
++#endif
+ 
+       unexec_regions[num_unexec_regions].filesize = filesize;
+       unexec_regions[num_unexec_regions++].range = *ranges;
+@@ -503,11 +516,23 @@
+ {
+   int i, n;
+   unexec_region_info r;
++#ifdef NDM_BIZARRO_PATCH
++  vm_size_t padsize;
++#endif
+ 
+   qsort (unexec_regions, num_unexec_regions, sizeof (unexec_regions[0]),
+ 	 &unexec_regions_sort_compare);
+   n = 0;
+   r = unexec_regions[0];
++#ifdef NDM_BIZARRO_PATCH
++   padsize = r.range.address & (pagesize - 1); 
++   if (padsize) 
++     { 
++       r.range.address -= padsize; 
++       r.range.size += padsize; 
++       r.filesize += padsize; 
++     } 
++#endif
+   for (i = 1; i < num_unexec_regions; i++)
+     {
+       if (r.range.address + r.range.size == unexec_regions[i].range.address
+@@ -520,6 +545,19 @@
+ 	{
+ 	  unexec_regions[n++] = r;
+ 	  r = unexec_regions[i];
++#ifdef NDM_BIZARRO_PATCH
++         padsize = r.range.address & (pagesize - 1); 
++         if (padsize) 
++           { 
++             if ((unexec_regions[n-1].range.address 
++                  + unexec_regions[n-1].range.size) == r.range.address) 
++               unexec_regions[n-1].range.size -= padsize; 
++ 
++             r.range.address -= padsize; 
++             r.range.size += padsize; 
++             r.filesize += padsize; 
++           } 
++#endif
+ 	}
+     }
+   unexec_regions[n++] = r;
+@@ -562,6 +600,13 @@
+     case LC_TWOLEVEL_HINTS:
+       printf ("LC_TWOLEVEL_HINTS");
+       break;
++#ifdef NDM_BIZARRO_PATCH
++#ifdef LC_UUID 
++     case LC_UUID: 
++       printf ("LC_UUID          "); 
++       break; 
++#endif
++#endif
+     default:
+       printf ("unknown          ");
+     }

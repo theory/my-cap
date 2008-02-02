@@ -1,0 +1,11 @@
+--- pkg.sslmod/libssl.module~      Fri Oct  4 06:09:50 2002
++++ pkg.sslmod/libssl.module       Sat Nov 30 15:17:23 2002
+@@ -411,7 +411,7 @@
+     if [ ".$SSL_BASE" = .SYSTEM ]; then
+         SSL_LIBDIR=""
+         for p in . /lib /usr/lib /usr/local/lib; do
+-            if [ -f "$p/libssl.a" -o -f "$p/libssl.so" ]; then
++            if [ -f "$p/libssl.a" -o -f "$p/libssl.so" -o -f "$p/libssl.dylib" ]; then
+                 SSL_LIBDIR="$p"
+                 my_real_ssl_libdir="$p"
+                 break
