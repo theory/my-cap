@@ -1,0 +1,11 @@
+--- Makefile.old	2008-02-02 17:41:04.000000000 -0800
++++ Makefile	2008-02-02 17:42:22.000000000 -0800
+@@ -3,7 +3,7 @@
+ RM=/bin/rm
+ 
+ build:
+-	$(APXS) -Wc,-Wall,-O3,-fomit-frame-pointer,-pipe -c mod_gzip.c mod_gzip_debug.c mod_gzip_compress.c -o mod_gzip.so
++	$(APXS) -Wc "-Wall -O3 -fomit-frame-pointer -pipe" -c mod_gzip.c mod_gzip_debug.c mod_gzip_compress.c -o mod_gzip.so
+ 
+ install:
+ 	$(APXS) -A -i mod_gzip.so

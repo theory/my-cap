@@ -71,5 +71,10 @@ namespace :my do
       sudol_scripts( 'modperl' )
     end
 
+    task :modgzip, :roles => :local do
+      apache
+      sudol_scripts( 'modgzip' )
+    end
+
   end
 end
