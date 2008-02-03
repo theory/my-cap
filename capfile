@@ -68,7 +68,7 @@ namespace :my do
     task :modperl, :roles => :local do
       perl
       apache
-      sudol_scripts( 'modperl' )
+      sudol_scripts( 'modperl', 'apreq' )
     end
 
     task :modgzip, :roles => :local do
