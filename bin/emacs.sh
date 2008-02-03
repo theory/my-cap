@@ -6,11 +6,10 @@ export VERSION=22.1
 
 setup /Applications/Emacs.app/Contents/MacOS/Emacs
 download http://ftp.gnu.org/pub/gnu/emacs/emacs-$VERSION.tar.gz
-download https://svn.kineticode.com/cap/patches/emacs-22.1-10.5.patch
 rm -rf emacs-$VERSION
 tar zxf emacs-$VERSION.tar.gz
 cd emacs-$VERSION
-patch -p1 < ../emacs-22.1-10.5.patch
+patch -p1 < `dirname $0`/../patches/emacs-22.1-10.5.patch
 #./configure --with-carbon --without-x
 ./configure --with-carbon --without-x --without-pop --with-xpm --with-jpeg --with-tiff --with-png --with-gif --with-x-toolkit=lucid
 # Might need to apply http://article.gmane.org/gmane.emacs.bugs/16867

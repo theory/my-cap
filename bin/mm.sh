@@ -11,5 +11,6 @@ tar zxf mm-$MMVERSION.tar.gz
 cd mm-$MMVERSION
 ./configure --disable-shared
 make
+make install
 cd ..
 
