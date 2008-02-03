@@ -61,17 +61,13 @@ namespace :my do
       sudol_scripts( 'postgresql' )
     end
 
-    task :apachessl, :roles => :local do
-      sudol_scripts( 'mm', 'apachessl' )
+    task :apache, :roles => :local do
+      sudol_scripts( 'mm', 'apache' )
     end
 
-    task :apache,  :roles => :local do
-      sudol_scripts( 'apache' )
-    end
-    
     task :modperl, :roles => :local do
       perl
-      apachessl
+      apache
       sudol_scripts( 'modperl' )
     end
 
