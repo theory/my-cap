@@ -50,9 +50,14 @@ namespace :my do
     end
 
     task :perl, :roles => :local do
-      graphics
-      xml
       sudol_scripts( 'perl' )
+    end
+
+    task :cpan, :roles => :local do
+      graphics
+      perl
+      xml
+      runl "#{ BASE }/bin/cpan.sh"
     end
 
     task :pg, :roles => :local do
