@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=8.3RC2
+export VERSION=8.3.0
 export PERL=/usr/local/bin/perl
 OS=`uname`
 
