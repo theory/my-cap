@@ -22,4 +22,5 @@ if [ $OS = 'Darwin' ]; then
     fi
 fi
 
+/usr/local/bin/cpan CPAN::Reporter
 /usr/local/bin/cpan Bundle::Theory
