@@ -1,5 +1,7 @@
 #!/bin/bash
 
+OS=`uname`
+
 setup() {
 	if [ ! $FORCE ]; then
 		if [ -f $1 ]; then

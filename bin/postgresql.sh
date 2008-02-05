@@ -2,7 +2,6 @@
 
 export VERSION=8.3.0
 export PERL=/usr/local/bin/perl
-OS=`uname`
 
 . `dirname $0`/functions.sh
 
