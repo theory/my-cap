@@ -1,5 +1,7 @@
 #!/bin/bash
 
+. `dirname $0`/functions.sh
+
 mkdir -p ~/.cpan/CPAN
 cp `dirname $0`/../config/CPANConfig.pm ~/.cpan/CPAN/MyConfig.pm
 mkdir -p '~/Library/Application Support/.cpan/CPAN'
