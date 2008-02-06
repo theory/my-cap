@@ -1,20 +1,26 @@
 
 load 'lib/util.rb'
 
-role :backup, 'theory'
+role :backup, 'theory.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
 
-namespace :offlineimap do
+namespace :build do
 
-  task :install, :roles => :backup do
-    sudo_script 'offlineimap/install_offlineimap'
-    config
-  end
+  namespace :offlineimap do
 
-  task :config, :roles => :backup do
-    upload 'offlineimap/offlineimap.conf', '/root/.offlineimaprc'
-    %w[david julie anna].each { |who| sudo "mkdir -p /data/backup/imap/#{ who }" }
+    task :default, :roles => :backup do
+      sudo_script 'bin/offlineimap.sh'
+      config
+    end
+
+    task :config, :roles => :backup do
+      upload 'config/offlineimap.conf', '/root/.offlineimaprc'
+      %w[david julie anna].each { |who|
+        sudo "mkdir -p /data/backup/imap/#{ who }"
+      }
+    end
+
   end
 
 end

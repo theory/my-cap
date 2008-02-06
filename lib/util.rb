@@ -3,7 +3,9 @@ BASE = File.dirname(File.expand_path(File.dirname(__FILE__)))
 def sudo_script( file )
   script = File.read( "#{ BASE }/#{ file }" )
   put script, '/tmp/cap_script', :mode => 0755
-  sudo "/tmp/cap_script; rm /tmp/cap_script"
+  script = File.read( "#{ BASE }/bin/functions.sh" )
+  put script, '/tmp/functions.sh', :mode => 0755
+  sudo '/tmp/cap_script; rm /tmp/cap_script; rm /tmp/functions.sh'
 end
 
 def upload( file, dest, params = {} )
