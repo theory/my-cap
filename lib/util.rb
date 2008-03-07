@@ -11,7 +11,7 @@ end
 def upload( file, dest, params = {} )
   data = File.read( "#{ BASE }/#{ file }" )
   put data, '/tmp/cap_upload', :mode => params[:mode]
-  sudo "chown #{ params[:owner] || 'root' }:#{ params[:group] || 'wheel' } /tmp/cap_upload"
+  sudo "chown #{ params[:owner] || 'root' }:#{ params[:group] || 'root' } /tmp/cap_upload"
   sudo "mv /tmp/cap_upload #{dest}"
 end
 

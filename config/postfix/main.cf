@@ -1,0 +1,54 @@
+##############################################################################
+# Host information.
+inet_interfaces  = all
+myhostname       = smtp.kineticode.com
+myorigin         = $mydomain
+mynetworks_style = host
+mydestination   = rt.$mydomain
+
+##############################################################################
+# TLS parameters                                                                                              
+smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+smtpd_use_tls=yes
+smtpd_tls_session_cache_database = btree:${queue_directory}/smtpd_scache
+smtp_tls_session_cache_database = btree:${queue_directory}/smtp_scache
+
+##############################################################################
+# Miscellaneous.
+mail_owner = postfix
+append_dot_mydomain = no
+recipient_delimiter = +
+
+##############################################################################
+# Junk Mail Controls.
+body_checks_size_limit = 150000
+
+##############################################################################
+# Authentication configuration.
+# http://flurdy.com/docs/postfix/
+
+smtpd_sasl_auth_enable = yes
+broken_sasl_auth_clients = yes
+smtpd_sasl_path = smtpd
+smtpd_sasl_security_options = noanonymous
+smtpd_sasl_local_domain = 
+
+##############################################################################
+# Delivery configuration.
+mailbox_size_limit = 0
+local_transport          = local
+virtual_transport        = virtual
+
+virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com, rt.kineticode.com
+virtual_mailbox_base     = /var/mail/vhosts
+virtual_mailbox_maps     = hash:/etc/postfix/virtual/mailbox_maps.cf
+virtual_alias_maps       = pcre:/etc/postfix/virtual/alias_maps.cf
+virtual_minimum_uid      = 100
+virtual_uid_maps         = static:65533
+virtual_gid_maps         = static:65533
+virtual_mailbox_limit    = 0
+
+
+# propagate_unmatched_extensions = canonical, virtual
+# virtual_mailbox_limit    = 51200000

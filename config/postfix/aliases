@@ -1,0 +1,115 @@
+# Root.
+root: david
+
+# Basic system aliases -- these MUST be present
+MAILER-DAEMON: postmaster
+postmaster: root
+
+# General redirections for pseudo accounts
+bin:	root
+daemon:	root
+games:	root
+man:	root
+news:	root
+nobody:	root
+operator: root
+pop:	root
+system:	root
+toor:	root
+usenet: news
+uucp:	root
+xten:	root
+postfix: root
+
+# NETWORK OPERATIONS MAILBOX NAMES
+abuse:	root
+noc:		root
+security:	root
+
+# Register Support RT Aliases.
+support-register:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-Register --action correspond --url https://rt.kineticode.com/"
+support-register-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-Register --action comment --url https://rt.kineticode.com/"
+
+# Bricolage 2.0 RT Aliases.
+bricolage-dev:     "|/usr/local/rt3/bin/rt-mailgate --queue 'Bricolage 2.0' --action correspond --url https://rt.kineticode.com/"
+bricolage-dev-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue 'Bricolage 2.0' --action comment --url https://rt.kineticode.com/"
+
+# RAND Project.
+rand-project:     "|/usr/local/rt3/bin/rt-mailgate --queue 'RAND Project' --action correspond --url https://rt.kineticode.com/"
+rand-project-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue 'RAND Project' --action comment --url https://rt.kineticode.com/"
+
+# DFA Project.
+dfa-project:     "|/usr/local/rt3/bin/rt-mailgate --queue 'DFA Project' --action correspond --url https://rt.kineticode.com/"
+dfa-project-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue 'DFA Project' --action comment --url https://rt.kineticode.com/"
+
+# RFA Project.
+rfa-project:     "|/usr/local/rt3/bin/rt-mailgate --queue 'RFA Project' --action correspond --url https://rt.kineticode.com/"
+rfa-project-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue 'RFA Project' --action comment --url https://rt.kineticode.com/"
+
+# PLS Project.
+pls-project:     "|/usr/local/rt3/bin/rt-mailgate --queue 'PLS Project' --action correspond --url https://rt.kineticode.com/"
+pls-project-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue 'PLS Project' --action comment --url https://rt.kineticode.com/"
+
+# Manitoba FS&H Support.
+support-manitobafsh:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-ManitobaFSH --action correspond --url https://rt.kineticode.com/"
+support-manitobafsh-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-ManitobaFSH --action comment --url https://rt.kineticode.com/"
+
+# Manitoba FS&H Temlating Support.
+template-manitobafsh:     "|/usr/local/rt3/bin/rt-mailgate --queue Template-ManitobaFSH --action correspond --url https://rt.kineticode.com/"
+template-manitobafsh-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Template-Manitobafsh --action comment --url https://rt.kineticode.com/"
+
+# IT assistance Templating Support.
+template-itassistance:     "|/usr/local/rt3/bin/rt-mailgate --queue Template-ITassistance --action correspond --url https://rt.kineticode.com/"
+template-itassistance-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Template-ITassistance --action comment --url https://rt.kineticode.com/"
+
+# RFA Technical Support.
+support-rfa:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-RFA --action correspond --url https://rt.kineticode.com/"
+support-rfa-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-RFA --action comment --url https://rt.kineticode.com/"
+
+# RFA Software Maintenance.
+maint-rfa:     "|/usr/local/rt3/bin/rt-mailgate --queue Maint-Rfa --action correspond --url https://rt.kineticode.com/"
+maint-rfa-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Maint-Rfa --action comment --url https://rt.kineticode.com/"
+
+# RAND Technical Support.
+support-rand:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-RAND --action correspond --url https://rt.kineticode.com/"
+support-rand-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-RAND --action comment --url https://rt.kineticode.com/"
+
+# RAND Template Support.
+template-rand:     "|/usr/local/rt3/bin/rt-mailgate --queue Template-RAND --action correspond --url https://rt.kineticode.com/"
+template-rand-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Template-RAND --action comment --url https://rt.kineticode.com/"
+
+# RAND Maintenance Support.
+maint-rand:     "|/usr/local/rt3/bin/rt-mailgate --queue Maint-RAND --action correspond --url https://rt.kineticode.com/"
+maint-rand-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Maint-RAND --action comment --url https://rt.kineticode.com/"
+
+# Kinetic Project.
+kinetic:     "|/usr/local/rt3/bin/rt-mailgate --queue Kinetic --action correspond --url https://rt.kineticode.com/"
+kinetic-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Kinetic --action comment --url https://rt.kineticode.com/"
+
+# Vibe Project.
+vibe-project:     "|/usr/local/rt3/bin/rt-mailgate --queue 'Vibe Project' --action correspond --url https://rt.kineticode.com/"
+vibe-project-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue 'Vibe Project' --action comment --url https://rt.kineticode.com/"
+
+# EPE Technical Maintenance.
+maint-epe:     "|/usr/local/rt3/bin/rt-mailgate --queue Maintenance-EPE --action correspond --url https://rt.kineticode.com/"
+maint-epe-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Maintenance-EPE --action comment --url https://rt.kineticode.com/"
+
+# PLS Technical Support.
+support-pls:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-PLS --action correspond --url https://rt.kineticode.com/"
+support-pls-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-PLS --action comment --url https://rt.kineticode.com/"
+
+# Vibe Technical Support.
+support-vibe:     "|/usr/local/rt3/bin/rt-mailgate --queue 'Support-Vibe' --action correspond --url https://rt.kineticode.com/"
+support-vibe-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue 'Support-Vibe' --action comment --url https://rt.kineticode.com/"
+
+# EPE Technical Support.
+support-epe:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-EPE --action correspond --url https://rt.kineticode.com/"
+support-epe-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-EPE --action comment --url https://rt.kineticode.com/"
+
+# AfricaNewsNet Templating Support.
+template-africanewsnet:     "|/usr/local/rt3/bin/rt-mailgate --queue Template-AfricaNewsNet --action correspond --url https://rt.kineticode.com/"
+template-africanewsnet-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Template-AfricaNewsNet --action comment --url https://rt.kineticode.com/"
+
+# Mac Publishing Technical Support.
+support-macpublishing:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-MacPublishing --action correspond --url https://rt.kineticode.com/"
+support-macpublishing-comment:     "|/usr/local/rt3/bin/rt-mailgate --queue Support-MacPublishing --action comment --url https://rt.kineticode.com/"

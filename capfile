@@ -4,11 +4,79 @@ load 'lib/util.rb'
 role :backup, 'theory.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
+role :mail,   '192.168.1.15'
+
+namespace :apt do
+  task :update do
+    sudo 'apt-get update'
+  end
+end
 
 namespace :build do
 
-  namespace :offlineimap do
+  namespace :ubuntu do
+    task :default, :roles => :mail do
+      apt::update
+      sudo 'apt-get ugrade'
+      sudo 'apt-get install emacs screen'
+    end
+  end
 
+  namespace :sasl do
+    task :default, :roles => :mail do
+      apt::update
+      sudo 'apt-get install libsasl2-2 libsasl2-modules sasl2-bin'
+      sudo 'perl -i -pe "s/START=no/START=yes/" /etc/default/saslauthd'
+      # Create sasldb by creating a test user, but not really creating it.
+      sudo 'echo "foo" | sudo /usr/sbin/saslpasswd2 -c -n -p  test'
+      sudo '/etc/init.d/saslauthd start'
+      config
+    end
+
+    task :config, :roles => :mail do
+      upload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
+    end
+  end
+
+  namespace :postfix do
+    task :default, :roles => :mail do
+      build::sasl::default
+      # swaks is a nice tool for testin smtp.
+      sudo 'apt-get install postfix postfix-pcre swaks'
+      sudo 'addgroup --gid 65533 courier'
+      sudo 'adduser --disabled-login --home /nonexistent --no-create-home --quiet --shell /bin/sh --uid 65533 --gid 65533 courier'
+      # Un-chroot postfix so make SASL less of a PITA.
+      sudo %q{perl -i -pe 's/^(smtp\s+inet\s+n\s+-\s+)-/$1n/ms' /etc/postfix/master.cf}
+      # Add the postfix user to the sasl group.
+      sudo 'usermod -a -G sasl postfix'
+      config
+    end
+    
+    task :config, :roles => :mail do
+      sudo 'mkdir -p /etc/postfix/virtual'
+
+      upload 'config/postfix/main.cf', '/etc/postfix/main.cf', :mode => 0644
+      upload 'config/postfix/mailbox_maps.cf', '/etc/postfix/virtual/mailbox_maps.cf', :mode => 0644
+      upload 'config/postfix/alias_maps.cf', '/etc/postfix/virtual/alias_maps.cf', :mode => 0644
+      upload 'config/postfix/aliases', '/etc/aliases', :mode => 0644
+
+      sudo 'mkdir -p /var/mail/vhosts'
+      sudo 'chown courier:courier /var/mail/vhosts'
+
+      sudo 'postmap /etc/postfix/virtual/mailbox_maps.cf'
+      sudo 'newaliases'
+      sudo 'postfix reload'
+    end
+  end
+
+  namespace :imap do
+    task :default, :roles => :mail do
+      apt::update
+      sudo ''
+    end
+  end
+
+  namespace :offlineimap do
     task :default, :roles => :backup do
       sudo_script 'bin/offlineimap.sh'
       config
@@ -21,6 +89,12 @@ namespace :build do
       }
     end
 
+  end
+
+  namespace :svn do
+    task :default, :roles => :svn do
+      sudo_script 'bin/subversion.sh'
+    end
   end
 
 end
