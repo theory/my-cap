@@ -49,6 +49,7 @@ namespace :build do
       sudo %q{perl -i -pe 's/^(smtp\s+inet\s+n\s+-\s+)-/$1n/ms' /etc/postfix/master.cf}
       # Add the postfix user to the sasl group.
       sudo 'usermod -a -G sasl postfix'
+      tls
       config
     end
     
@@ -67,6 +68,15 @@ namespace :build do
       sudo 'newaliases'
       sudo 'postfix reload'
     end
+
+    task :tls, :roles => :mail do
+      sudo 'mkdir -p /etc/postfix/tls'
+      sudo 'openssl req -new -outform PEM -out /etc/postfix/tls/postfix.cert -newkey rsa:2048 -nodes -keyout /etc/postfix/tls/postfix.key -keyform PEM -days 1024 -x509'
+      sudo 'chown -R postfix:postfix /etc/postfix/tls'
+      sudo 'chmod 644 /etc/postfix/tls/postfix.cert'
+      sudo 'chmod 400 /etc/postfix/tls/postfix.key'
+    end
+
   end
 
   namespace :imap do
