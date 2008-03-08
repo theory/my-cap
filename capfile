@@ -29,6 +29,7 @@ namespace :build do
       sudo 'perl -i -pe "s/START=no/START=yes/" /etc/default/saslauthd'
       # Create sasldb by creating a test user, but not really creating it.
       sudo 'echo "foo" | sudo /usr/sbin/saslpasswd2 -c -n -p  test'
+      sudo 'chown root:sasl /etc/sasldb2'
       sudo '/etc/init.d/saslauthd start'
       config
     end
@@ -45,8 +46,6 @@ namespace :build do
       sudo 'apt-get install postfix postfix-pcre swaks'
       sudo 'addgroup --gid 65533 courier'
       sudo 'adduser --disabled-login --home /nonexistent --no-create-home --quiet --shell /bin/sh --uid 65533 --gid 65533 courier'
-      # Un-chroot postfix so make SASL less of a PITA.
-      sudo %q{perl -i -pe 's/^(smtp\s+inet\s+n\s+-\s+)-/$1n/ms' /etc/postfix/master.cf}
       # Add the postfix user to the sasl group.
       sudo 'usermod -a -G sasl postfix'
       tls
@@ -56,6 +55,7 @@ namespace :build do
     task :config, :roles => :mail do
       sudo 'mkdir -p /etc/postfix/virtual'
 
+      upload 'config/postfix/master.cf', '/etc/postfix/master.cf', :mode => 0644
       upload 'config/postfix/main.cf', '/etc/postfix/main.cf', :mode => 0644
       upload 'config/postfix/mailbox_maps.cf', '/etc/postfix/virtual/mailbox_maps.cf', :mode => 0644
       upload 'config/postfix/alias_maps.cf', '/etc/postfix/virtual/alias_maps.cf', :mode => 0644
