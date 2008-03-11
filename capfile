@@ -18,7 +18,7 @@ namespace :build do
     task :default, :roles => :mail do
       apt::update
       sudo 'apt-get ugrade'
-      sudo 'apt-get install emacs screen'
+      sudo 'apt-get install emacs screen sysstat'
     end
   end
 
@@ -44,8 +44,8 @@ namespace :build do
       build::sasl::default
       # swaks is a nice tool for testin smtp.
       sudo 'apt-get install postfix postfix-pcre swaks'
-      sudo 'addgroup --gid 65533 courier'
-      sudo 'adduser --disabled-login --home /nonexistent --no-create-home --quiet --shell /bin/sh --uid 65533 --gid 65533 courier'
+      sudo 'addgroup --gid 65533 imap'
+      sudo 'adduser --disabled-login --home /nonexistent --no-create-home --quiet --shell /bin/sh --uid 65533 --gid 65533 imap'
       # Add the postfix user to the sasl group.
       sudo 'usermod -a -G sasl postfix'
       tls
