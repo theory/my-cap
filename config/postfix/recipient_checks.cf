@@ -1,0 +1,27 @@
+# Note: You must have PCRE support support built in to Postfix at
+# compile time to use this.  (Tho I've been told the following are
+# valid POSIX RE's ["regexp:" map type], as well.)
+#
+# Postfix doesn't relay by default.  But it may *appear* to do so
+# to some testers.  The first two statements below remove all
+# doubt.
+
+/^\@/               550 Invalid address format.
+/[!%\@].*\@/        550 This server disallows weird address syntax.
+
+# Let email to the following destinations bypass all the remaining
+# "reject" and "check" tests.  We always want to let email for these
+# recipients in.
+
+/^[ph]ostmaster\@/  OK
+/^abuse\@/          OK
+
+# Note: The "OK"s above, for postmaster, etc., will *not*
+# bypass header and body checks.  There is currently no way
+# to do so with Postfix :(
+#
+# Remember where I said, at the very beginning, about how
+# order is important?  Whatever you do, do *not* place an
+# access map like this one before the "permit mynetworks"
+# and "reject_unauth_destination" statements.  Not unless
+# you want to be an open relay, anyway.

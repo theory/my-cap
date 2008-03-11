@@ -1,0 +1,20 @@
+# This file must be "compiled" with "postmap"
+
+# Using a domain name
+# example.tld       554 Spam not tolerated here
+# .example.tld      554 Spam not tolerated here
+
+# Maybe example2.tld is on a DNSbl, but we want to let their
+# email in anyway.
+# example2.tld      OK
+# .example2.tld     OK
+
+# We get lots of spam from example3.tld, but we have somebody
+# there from which we do want to hear
+# someuser@example3.tld OK
+# example3.tld      REJECT
+# .example3.tld     REJECT
+
+# Also full email addresses:
+# joe@example.com  OK
+# bob@example.com  REJECT

@@ -1,0 +1,18 @@
+# This file has to be "compiled" with "postmap"
+
+# Reject anybody that HELO's as being in our own domain(s)
+# (Note that if you followed the order suggested in the main.cf
+# examples, above, that machines in mynetworks will be okay.)
+
+kineticode.com          REJECT You are not in kineticode.com
+.kineticode.com         REJECT You are not in kineticode.com
+strongrrl.com           REJECT You are not in strongrrl.com
+.strongrrl.com          REJECT You are not in strongrrl.com
+justatheory.com         REJECT You are not in justatheory.com
+.justatheory.com        REJECT You are not in justatheory.com
+
+# Somebody HELO'ing with our IP address?
+192.168.1.15            REJECT You are not 192.168.1.15
+
+# Somebody HELO'ing as "localhost?"  Impossible, we're "localhost"
+localhost               REJECT You are not me

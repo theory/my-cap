@@ -53,21 +53,20 @@ namespace :build do
     end
     
     task :config, :roles => :mail do
-      sudo 'mkdir -p /etc/postfix/virtual'
+      %w[ master main mailbox_maps header_checks body_checks recipient_checks helo_checks sender_checks client_checks ].each do |f|
+        upload "config/postfix/#{f}.cf", "/etc/postfix/#{f}.cf", :mode => 0644
+      end
 
-      upload 'config/postfix/master.cf', '/etc/postfix/master.cf', :mode => 0644
-      upload 'config/postfix/main.cf', '/etc/postfix/main.cf', :mode => 0644
-      upload 'config/postfix/mailbox_maps.cf', '/etc/postfix/virtual/mailbox_maps.cf', :mode => 0644
-      upload 'config/postfix/header_checks.cf', '/etc/postfix/header_checks.cf', :mode => 0644
-      upload 'config/postfix/body_checks.cf', '/etc/postfix/body_checks.cf', :mode => 0644
-
-      upload '../Corporate/config/alias_maps.cf', '/etc/postfix/virtual/alias_maps.cf', :mode => 0644
+      upload '../Corporate/config/alias_maps.cf', '/etc/postfix/alias_maps.cf', :mode => 0644
       upload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
 
       sudo 'mkdir -p /var/mail/vhosts'
-      sudo 'chown courier:courier /var/mail/vhosts'
+      sudo 'chown imap:imap /var/mail/vhosts'
 
-      sudo 'postmap /etc/postfix/virtual/mailbox_maps.cf'
+      %w[ mailbox_maps helo_checks sender_checks client_checks ]. each do |f|
+        sudo "postmap /etc/postfix/#{f}.cf"
+      end
+
       sudo 'newaliases'
       sudo 'postfix reload'
     end

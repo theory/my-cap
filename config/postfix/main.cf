@@ -22,7 +22,45 @@ recipient_delimiter = +
 
 ##############################################################################
 # Junk Mail Controls.
+# See http://jimsun.linxnet.com/misc/postfix-anti-UCE.txt
+smtpd_delay_reject = yes
 body_checks_size_limit = 150000
+smtpd_helo_required = yes
+disable_vrfy_command = yes
+
+smtpd_helo_restrictions =
+    reject_invalid_helo_hostname,
+    reject_non_fqdn_helo_hostname,
+    # reject_unknown_helo_hostname,
+    permit
+
+smtpd_sender_restrictions =
+    permit_mynetworks,
+    reject_non_fqdn_sender,
+    reject_unknown_sender_domain,
+    permit
+
+smtpd_recipient_restrictions =
+    reject_invalid_hostname,
+    reject_non_fqdn_hostname,
+    reject_non_fqdn_sender,
+    reject_non_fqdn_recipient,
+    reject_unknown_sender_domain,
+    reject_unknown_recipient_domain,
+    permit_mynetworks,
+    reject_unauth_destination,
+    check_recipient_access pcre:/etc/postfix/recipient_checks.cf,
+    check_helo_access hash:/etc/postfix/helo_checks.cf,
+    check_sender_access hash:/etc/postfix/sender_checks.cf,
+    check_client_access hash:/etc/postfix/client_checks.cf,
+    reject_rbl_client zen.spamhaus.org,
+    reject_rbl_client list.dsbl.org,
+    permit
+
+smtpd_data_restrictions =
+    reject_unauth_pipelining,
+    permit
+
 header_checks = pcre:/etc/postfix/header_checks.cf
 body_checks = pcre:/etc/postfix/body_checks.cf
 
@@ -40,10 +78,10 @@ mailbox_size_limit = 0
 local_transport          = local
 virtual_transport        = virtual
 
-virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com, rt.kineticode.com
+virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com, rt.kineticode.com, smtp.kineticode.com
 virtual_mailbox_base     = /var/mail/vhosts
-virtual_mailbox_maps     = hash:/etc/postfix/virtual/mailbox_maps.cf
-virtual_alias_maps       = pcre:/etc/postfix/virtual/alias_maps.cf
+virtual_mailbox_maps     = hash:/etc/postfix/mailbox_maps.cf
+virtual_alias_maps       = pcre:/etc/postfix/alias_maps.cf
 virtual_minimum_uid      = 100
 virtual_uid_maps         = static:65533
 virtual_gid_maps         = static:65533
