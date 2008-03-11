@@ -7,6 +7,3 @@ if /^Received:/
 /^Received:.* +by +((?:kineticode|strongrrl|justatheory)\.com)\b/
     reject forged mail server name in Received: header: $1
 endif
-/^Message-ID:.* <!&!/ DUNNO
-/^Message-ID:.*@((?:kineticode|strongrrl|justatheory)\.com)/
-reject forged domain name in Message-ID: header: $1
