@@ -58,6 +58,8 @@ namespace :build do
       upload 'config/postfix/master.cf', '/etc/postfix/master.cf', :mode => 0644
       upload 'config/postfix/main.cf', '/etc/postfix/main.cf', :mode => 0644
       upload 'config/postfix/mailbox_maps.cf', '/etc/postfix/virtual/mailbox_maps.cf', :mode => 0644
+      upload 'config/postfix/header_checks.cf', '/etc/postfix/header_checks.cf', :mode => 0644
+
       upload '../Corporate/config/alias_maps.cf', '/etc/postfix/virtual/alias_maps.cf', :mode => 0644
       upload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
 
