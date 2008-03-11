@@ -24,6 +24,7 @@ recipient_delimiter = +
 # Junk Mail Controls.
 body_checks_size_limit = 150000
 header_checks = pcre:/etc/postfix/header_checks.cf
+body_checks = pcre:/etc/postfix/body_checks.cf
 
 ##############################################################################
 # Authentication configuration. Enabled only for submission daemon in master.cf.

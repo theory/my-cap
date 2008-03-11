@@ -1,0 +1,8 @@
+if /^[> ]*Received:/
+/^[> ]*Received: +from +((?:kineticode|justatheory|strongrrl)\.com) /
+    reject forged client name in Received: header: $1
+/^[> ]*Received: +from +[^ ]+ +\(([^ ]+ +[he]+lo=|[he]+lo +)((?:kineticode|justatheory|strongrrl)\.com)\)/
+    reject forged client name in Received: header: $2
+/^[> ]*Received:.* +by +((?:kineticode|justatheory|strongrrl)\.com)\b/
+    reject forged mail server name in Received: header: $1
+endif
