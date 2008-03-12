@@ -38,12 +38,13 @@ namespace :build do
       upload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
     end
   end
-
+  
   namespace :postfix do
     task :default, :roles => :mail do
       build::sasl::default
       # swaks is a nice tool for testin smtp.
-      sudo 'apt-get install postfix postfix-pcre swaks'
+      # postgrey, grefix (no package), policyd, 
+      sudo 'apt-get install postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl'
       sudo 'addgroup --gid 65533 imap'
       sudo 'adduser --disabled-login --home /nonexistent --no-create-home --quiet --shell /bin/sh --uid 65533 --gid 65533 imap'
       # Add the postfix user to the sasl group.
@@ -59,6 +60,7 @@ namespace :build do
 
       upload '../Corporate/config/alias_maps.cf', '/etc/postfix/alias_maps.cf', :mode => 0644
       upload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
+      upload 'config/postgrey.conf', '/etc/default/postgrey', :mode => 0644
 
       sudo 'mkdir -p /var/mail/vhosts'
       sudo 'chown imap:imap /var/mail/vhosts'

@@ -55,6 +55,8 @@ smtpd_recipient_restrictions =
     check_client_access hash:/etc/postfix/client_checks.cf,
     reject_rbl_client zen.spamhaus.org,
     reject_rbl_client list.dsbl.org,
+    check_policy_service unix:private/spfpolicy,
+    check_policy_service inet:127.0.0.1:60000,
     permit
 
 smtpd_data_restrictions =
