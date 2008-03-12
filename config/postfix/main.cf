@@ -31,7 +31,7 @@ disable_vrfy_command = yes
 smtpd_helo_restrictions =
     reject_invalid_helo_hostname,
     reject_non_fqdn_helo_hostname,
-    # reject_unknown_helo_hostname,
+    reject_unknown_helo_hostname,
     permit
 
 smtpd_sender_restrictions =
