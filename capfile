@@ -16,16 +16,16 @@ namespace :build do
 
   namespace :ubuntu do
     task :default, :roles => :mail do
-      apt::update
-      sudo 'apt-get ugrade'
-      sudo 'apt-get install emacs screen sysstat'
+      sudo 'apt-get -y update'
+      sudo 'apt-get -y ugrade'
+      sudo 'apt-get -y install emacs screen sysstat'
     end
   end
 
   namespace :sasl do
     task :default, :roles => :mail do
-      apt::update
-      sudo 'apt-get install libsasl2-2 libsasl2-modules sasl2-bin'
+      sudo 'apt-get -y update'
+      sudo 'apt-get -y install libsasl2-2 libsasl2-modules sasl2-bin'
       sudo 'perl -i -pe "s/START=no/START=yes/" /etc/default/saslauthd'
       # Create sasldb by creating a test user, but not really creating it.
       sudo 'echo "foo" | sudo /usr/sbin/saslpasswd2 -c -n -p  test'
@@ -44,7 +44,7 @@ namespace :build do
       build::sasl::default
       # swaks is a nice tool for testin smtp.
       # postgrey, grefix (no package), policyd, 
-      sudo 'apt-get install postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl'
+      sudo 'apt-get -y install postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl'
       sudo 'addgroup --gid 65533 imap'
       sudo 'adduser --disabled-login --home /nonexistent --no-create-home --quiet --shell /bin/sh --uid 65533 --gid 65533 imap'
       # Add the postfix user to the sasl group.
@@ -85,9 +85,25 @@ namespace :build do
 
   namespace :imap do
     task :default, :roles => :mail do
-      apt::update
-      sudo ''
+      sudo 'apt-get -y update'
+      sudo 'apt-get -y install fam courier-imap courier-authdaemon courier-imap-ssl'
+      config
     end
+
+    task :config, :roles => :mail do
+      upload 'config/courier/authdaemonrc', '/etc/courier/authdaemonrc', :owner => 'daemon', :group => 'daemon', :mode => 0660
+      upload 'config/courier/imapd.cnf', '/etc/courier/imapd.cnf', :owner => 'daemon', :group => 'daemon', :mode => 0600
+      %w[ imapd imapd-ssl ].each do |f|
+        upload "config/courier/#{f}", "/etc/courier/#{f}", :mode => 0644
+      end
+    end
+
+    task :tls, :roles => :mail do
+      upload 'config/courier/imapd.cnf', '/etc/courier/imapd.cnf', :owner => 'daemon', :group => 'daemon', :mode => 0600
+      sudo 'rm /etc/courier/imapd.pem'
+      sudo 'mkimapdcert'
+    end
+
   end
 
   namespace :offlineimap do
