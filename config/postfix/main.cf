@@ -76,19 +76,16 @@ smtpd_sasl_local_domain =
 
 ##############################################################################
 # Delivery configuration.
-mailbox_size_limit = 0
+mailbox_size_limit       = 0
 local_transport          = local
-virtual_transport        = virtual
+virtual_transport        = maildrop
+maildrop_destination_recipient_limit = 1
 
 virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com, rt.kineticode.com, smtp.kineticode.com
 virtual_mailbox_base     = /var/mail/vhosts
 virtual_mailbox_maps     = hash:/etc/postfix/mailbox_maps.cf
 virtual_alias_maps       = pcre:/etc/postfix/alias_maps.cf
 virtual_minimum_uid      = 100
-virtual_uid_maps         = static:65533
-virtual_gid_maps         = static:65533
+# virtual_uid_maps         = static:8
+# virtual_gid_maps         = static:8
 virtual_mailbox_limit    = 0
-
-
-# propagate_unmatched_extensions = canonical, virtual
-# virtual_mailbox_limit    = 51200000

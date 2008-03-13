@@ -58,7 +58,9 @@ scache	  unix	-	-	-	-	1	scache
 # Also specify in main.cf: maildrop_destination_recipient_limit=1
 #
 maildrop  unix  -       n       n       -       -       pipe
-  flags=DRhu user=vmail argv=/usr/bin/maildrop -d ${recipient}
+  flags=ODRhu user=mail argv=/usr/bin/maildrop
+  -d ${user}
+#  -d ${user}@${nexthop} ${extension} ${recipient} ${user} ${nexthop}
 #
 # See the Postfix UUCP_README file for configuration details.
 #

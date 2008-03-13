@@ -1,0 +1,5 @@
+# Global maildrop filter file
+
+# Uncomment this line to make maildrop default to ~/Maildir for
+# delivery- this is where courier-imap (amongst others) will look.
+DEFAULT="$HOME/Maildir"
