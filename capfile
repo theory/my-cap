@@ -5,6 +5,7 @@ role :backup, 'theory.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
 role :mail,   '192.168.1.15'
+role :ldap,   '192.168.1.15'
 
 namespace :apt do
   task :update do
@@ -20,6 +21,40 @@ namespace :build do
       sudo 'apt-get -y ugrade'
       sudo 'apt-get -y install emacs screen sysstat'
     end
+  end
+
+  namespace :ldap do
+    task :default, :roles => :ldap do
+      sudo 'apt-get -y update'
+      run 'echo "slapd slapd/password1 select foo" | sudo debconf-set-selections'
+      run 'echo "slapd slapd/password2 select foo" | sudo debconf-set-selections'
+      sudo 'apt-get -y install slapd ldap-utils'
+      sudo '/etc/init.d/slapd stop'
+      sudo 'rm -rf /var/lib/ldap/*'
+      config_files
+      upload '../Corporate/config/kineticode.ldif', '/tmp/kineticode.ldif'
+      sudo 'slapadd -v -l /tmp/kineticode.ldif'
+      sudo 'chown -R openldap:openldap /var/lib/ldap'
+      sudo 'rm /tmp/kineticode.ldif'
+      sudo 'mkdir /etc/ldap/tls'
+      sudo '/etc/init.d/slapd start'
+    end
+
+    task :config, :roles => :ldap do
+      config_files
+      sudo '/etc/init.d/slapd restart'
+    end
+
+    task :tls, :roles => :ldap do
+    end
+
+    task :config_files, :roles => :ldap do
+      upload 'config/openldap/slapd', '/etc/default/slapd', :mode => 0644
+      upload 'config/openldap/slapd.conf', '/etc/ldap/slapd.conf', :mode => 0600
+      upload 'config/openldap/ldap.conf', '/etc/ldap/ldap.conf', :mode => 0600
+      upload 'config/openldap/DB_CONFIG', '/var/lib/ldap/DB_CONFIG', :mode => 0644
+    end
+
   end
 
   namespace :sasl do
