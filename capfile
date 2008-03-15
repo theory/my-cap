@@ -4,8 +4,10 @@ load 'lib/util.rb'
 role :backup, 'theory.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
-role :mail,   '192.168.1.15'
 role :ldap,   '192.168.1.15'
+#role :mail,   '207.173.203.201'
+role :mail,   '192.168.1.15'
+role :dns,    '207.173.203.201'
 
 namespace :apt do
   task :update do
@@ -20,6 +22,20 @@ namespace :build do
       sudo 'apt-get -y update'
       sudo 'apt-get -y ugrade'
       sudo 'apt-get -y install emacs screen sysstat'
+    end
+  end
+
+  namespace :bind do
+    task :default, :roles => :dns do
+      sudo 'apt-get -y update'
+      sudo 'apt-get -y install bind9'
+      config
+    end
+
+    task :config, :roles => :dns do
+      upload 'config/named.conf.options', '/etc/bind/named.conf.options', :owner => 'root', :group => 'bind', :mode => 0644
+      upload 'config/resolv.conf', '/etc/resolv.conf', :mode => 0644
+      sudo '/etc/init.d/bind9 restart'
     end
   end
 
