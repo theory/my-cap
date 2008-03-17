@@ -20,6 +20,7 @@ openssl ca -batch -out servercert.pem.tmp -config openssl.cnf -infiles serverreq
 openssl x509 -in servercert.pem.tmp -out servercert.pem
 
 # Make sure that the SSL directories exist.
+# XXX Modify for other OSs. This is for Ubuntu.
 mkdir -p /etc/ssl/private
 mkdir -p /etc/ssl/certs
 chmod 710 /etc/ssl/private
