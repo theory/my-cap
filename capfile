@@ -4,7 +4,7 @@ load 'lib/util.rb'
 role :backup, 'theory.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
-role :ldap,   '192.168.1.15'
+role :ldap,   '207.173.203.201'
 # role :mail,   '192.168.1.15'
 role :mail,   '207.173.203.201'
 role :dns,    '207.173.203.201'
@@ -65,7 +65,7 @@ namespace :build do
       sudo 'mkdir /var/lib/ldap'
       sudo 'chown openldap:openldap /var/lib/ldap'
       # Add the openldap user to the ssl-cert group.
-      sudo 'usermod -a -G ssl-cert openldap'
+      sudo 'gpasswd -a openldap ssl-cert'
       config_files
       upload '../Corporate/config/kineticode.ldif', '/tmp/kineticode.ldif'
       sudo 'slapadd -v -l /tmp/kineticode.ldif'
@@ -112,7 +112,7 @@ namespace :build do
       # postgrey, grefix (no package), policyd, 
       sudo 'apt-get -y install maildrop postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl'
       # Add the postfix user to the sasl group.
-      sudo 'usermod -a -G sasl postfix'
+      sudo 'gpasswd -a postfix sasl'
       # Make sure that maildrop is suid for root.
       sudo 'chmod u+s /usr/bin/maildrop'
       tls
