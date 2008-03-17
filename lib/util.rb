@@ -9,7 +9,6 @@ def sudo_script( file )
 end
 
 def upload( file, dest, params = {} )
-  data = 
   sput File.read( "#{ BASE }/#{ file }" ), dest, params
 end
 
