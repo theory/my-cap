@@ -9,7 +9,11 @@ def sudo_script( file )
 end
 
 def upload( file, dest, params = {} )
-  data = File.read( "#{ BASE }/#{ file }" )
+  data = 
+  sput File.read( "#{ BASE }/#{ file }" ), dest, params
+end
+
+def sput ( data, dest, params = {} )
   put data, '/tmp/cap_upload', :mode => params[:mode]
   sudo "chown #{ params[:owner] || 'root' }:#{ params[:group] || 'root' } /tmp/cap_upload"
   sudo "mv /tmp/cap_upload #{dest}"
