@@ -5,8 +5,8 @@ role :backup, 'theory.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
 role :ldap,   '192.168.1.15'
-#role :mail,   '207.173.203.201'
-role :mail,   '192.168.1.15'
+# role :mail,   '192.168.1.15'
+role :mail,   '207.173.203.201'
 role :dns,    '207.173.203.201'
 
 namespace :apt do
@@ -17,14 +17,21 @@ end
 
 namespace :build do
 
+  desc 'Installs the base packages that I needs, and upgrades all existing packages.'
   namespace :ubuntu do
     task :default, :roles => :mail do
-      sudo 'apt-get -y update'
-      sudo 'apt-get -y ugrade'
+      upgrade
       sudo 'apt-get -y install emacs screen sysstat'
+    end
+
+    desc 'Upgrade all installed packages.'
+    task :upgrade, :roles => :mail do
+      sudo 'apt-get -y update'
+      sudo 'apt-get -y upgrade'
     end
   end
 
+  desc 'Builds a wildcard SSL certificate for kineticode.com using bin/sslcert.sh and config/openssl.cnf.'
   namespace :cert do
     task :default, :roles => :mail do
       sudo 'apt-get -y update'
