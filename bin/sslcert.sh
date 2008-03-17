@@ -2,7 +2,9 @@
 
 mkdir -p /tmp/ssl
 cd /tmp/ssl
-wget https://svn.kineticode.com/cap/config/openssl.cnf
+wget --no-check-certificate https://svn.kineticode.com/cap/config/openssl.cnf
+echo 01 > serial
+touch index.txt
 
 # Create the certificate authority certificate and its private key.
 openssl req -new -x509 -extensions v3_ca -keyout cakey.pem -out cacert.pem -days 3650 -config openssl.cnf
@@ -12,18 +14,20 @@ perl -i -pe 's/^distinguished_name = ca_dn/distinguished_name = req_dn/' openssl
 openssl req -new -nodes -keyout serverkey.pem -out serverreq.pem -config openssl.cnf -days 3650
 
 # Sign the certificate.
-openssl ca -batch -out server.pem.tmp -config openssl.cnf -infiles serverreq.pem
+openssl ca -batch -out servercert.pem.tmp -config openssl.cnf -infiles serverreq.pem
 
 # Strip out the human-readable portion.
-openssl x509 -in server.pem.tmp -out server.pem
+openssl x509 -in servercert.pem.tmp -out servercert.pem
 
 # Copy the files to their new home.
 mkdir -p /etc/ssl/private
 mkdir -p /etc/ssl/certs
 chmod 700 /etc/ssl/private
 
-mv cacert.pem /etc/ssl/certs
-mv server.pem /etc/ssl/certs
-mv serverkey.pem /etc/ssl/private
-chown 440 /etc/ssl/private/serverkey.pem
+mv cacert.pem /etc/ssl/certs        # CA certifcate
+mv servercert.pem /etc/ssl/certs    # wildcard server certificate
+mv serverkey.pem /etc/ssl/private   # private key for wildcard certficate
+chmod 440 /etc/ssl/private/serverkey.pem
 chgrp ssl-cert /etc/ssl/private/serverkey.pem
+cd ..
+rm -rf ssl
