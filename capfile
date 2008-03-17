@@ -54,22 +54,22 @@ namespace :build do
       run 'echo "slapd slapd/password2 select foo" | sudo debconf-set-selections'
       sudo 'apt-get -y install slapd ldap-utils'
       sudo '/etc/init.d/slapd stop'
-      sudo 'rm -rf /var/lib/ldap/*'
+      sudo 'rm -rf /var/lib/ldap'
+      sudo 'mkdir /var/lib/ldap'
+      sudo 'chown openldap:openldap /var/lib/ldap'
+      # Add the openldap user to the ssl-cert group.
+      sudo 'usermod -a -G ssl-cert openldap'
       config_files
       upload '../Corporate/config/kineticode.ldif', '/tmp/kineticode.ldif'
       sudo 'slapadd -v -l /tmp/kineticode.ldif'
       sudo 'chown -R openldap:openldap /var/lib/ldap'
       sudo 'rm /tmp/kineticode.ldif'
-      sudo 'mkdir /etc/ldap/tls'
       sudo '/etc/init.d/slapd start'
     end
 
     task :config, :roles => :ldap do
       config_files
       sudo '/etc/init.d/slapd restart'
-    end
-
-    task :tls, :roles => :ldap do
     end
 
     task :config_files, :roles => :ldap do
