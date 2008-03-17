@@ -1,4 +1,3 @@
-
 RANDFILE = /usr/lib/courier/imapd.rand
 
 [ req ]
@@ -16,7 +15,6 @@ O=Kineticode, Inc.
 OU=Kineticode, Inc.
 CN=mail.kineticode.com
 emailAddress=postmaster@kineticode.com
-
 
 [ cert_type ]
 nsCertType = server

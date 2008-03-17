@@ -25,6 +25,14 @@ namespace :build do
     end
   end
 
+  namespace :cert do
+    task :default, :roles => :mail do
+      sudo 'apt-get -y update'
+      sudo 'apt-get -y install openssl'
+      sudo_script 'bin/sslcert.sh'
+    end
+  end
+
   namespace :bind do
     task :default, :roles => :dns do
       sudo 'apt-get -y update'

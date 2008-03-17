@@ -1,0 +1,70 @@
+# 
+# OpenSSL configuration file.
+# http://www.eclectica.ca/howto/ssl-cert-howto.php
+#
+
+dir			= .
+
+[ ca ]
+default_ca		= CA_default
+
+[ CA_default ]
+serial			= $dir/serial
+database		= $dir/index.txt
+new_certs_dir		= $dir/certs
+certificate		= $dir/certs/cacert.pem
+private_key		= $dir/private/cakey.pem
+default_days		= 3650
+default_md		= md5
+preserve		= no
+email_in_dn		= no
+nameopt			= default_ca
+certopt			= default_ca
+policy			= policy_match
+
+[ policy_match ]
+countryName		= match
+stateOrProvinceName	= match
+organizationName	= match
+organizationalUnitName	= optional
+commonName		= supplied
+emailAddress		= optional
+
+[ req ]
+default_bits = 1024
+default_keyfile = key.pem
+encrypt_key = no
+distinguished_name = ca_dn
+req_extensions = v3_req
+x509_extensions = cert_type
+prompt = no
+
+[ ca_dn ]
+C=US
+ST=Oregon
+L=Portland
+O=Kineticode, Inc.
+OU=Kineticode CA
+CN=Kineticode CA
+emailAddress=ca@kineticode.com
+
+[ req_dn ]
+C=US
+ST=Oregon
+L=Portland
+O=Kineticode, Inc.
+OU=Kineticode
+CN=*.kineticode.com
+emailAddress=info@kineticode.com
+
+[ cert_type ]
+nsCertType = server
+
+[ v3_ca ] 
+basicConstraints = CA:TRUE 
+subjectKeyIdentifier = hash 
+authorityKeyIdentifier = keyid:always,issuer:always
+
+[ v3_req ] 
+basicConstraints = CA:FALSE 
+subjectKeyIdentifier = hash
