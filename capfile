@@ -4,9 +4,10 @@ load 'lib/util.rb'
 role :backup, 'theory.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
-role :ldap,   '207.173.203.201'
-# role :mail,   '192.168.1.15'
-role :mail,   '207.173.203.201'
+# role :ldap,   '207.173.203.201'
+role :ldap,   '192.168.1.15'
+role :mail,   '192.168.1.15'
+# role :mail,   '207.173.203.201'
 role :dns,    '207.173.203.201'
 
 namespace :apt do
@@ -59,7 +60,7 @@ namespace :build do
       sudo 'apt-get -y update'
       run 'echo "slapd slapd/password1 select foo" | sudo debconf-set-selections'
       run 'echo "slapd slapd/password2 select foo" | sudo debconf-set-selections'
-      sudo 'apt-get -y install slapd ldap-utils'
+      sudo 'apt-get -y install slapd ldap-utils libsasl2-modules-ldap'
       sudo '/etc/init.d/slapd stop'
       sudo 'rm -rf /var/lib/ldap'
       sudo 'mkdir /var/lib/ldap'
@@ -110,7 +111,7 @@ namespace :build do
       build::sasl::default
       # swaks is a nice tool for testin smtp.
       # postgrey, grefix (no package), policyd, 
-      sudo 'apt-get -y install maildrop postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl'
+      sudo 'apt-get -y install maildrop postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl postfix-ldap'
       # Add the postfix user to the sasl group.
       sudo 'gpasswd -a postfix sasl'
       # Make sure that maildrop is suid for root.
