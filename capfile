@@ -56,6 +56,14 @@ namespace :build do
   end
 
   namespace :ldap do
+    desc 'Install and configure OpenLDAP with Kineticode’s directory.'
+    # change password:
+    # ldappasswd -U david -S -W -ZZ "uid=julie,ou=people,dc=kineticode,dc=com"
+    # do a search for people with a few of their attributes:
+    # ldapsearch -U david -ZZ (objectClass=inetOrgPerson) dn uid mail uidNumber gidNumber
+    # Add stuff to the directory.
+    # ldapadd -U david -ZZ -f add.ldif
+
     task :default, :roles => :ldap do
       sudo 'apt-get -y update'
       run 'echo "slapd slapd/password1 select foo" | sudo debconf-set-selections'
@@ -92,17 +100,19 @@ namespace :build do
   namespace :sasl do
     task :default, :roles => :mail do
       sudo 'apt-get -y update'
-      sudo 'apt-get -y install libsasl2-2 libsasl2-modules sasl2-bin'
-      sudo 'perl -i -pe "s/START=no/START=yes/" /etc/default/saslauthd'
+      sudo 'apt-get -y install libsasl2-2 libsasl2-modules sasl2-bin libsasl2-modules-ldap'
+
       # Create sasldb by creating a test user, but not really creating it.
       sudo 'echo "foo" | sudo /usr/sbin/saslpasswd2 -c -n -p  test'
       sudo 'chown root:sasl /etc/sasldb2'
-      sudo '/etc/init.d/saslauthd start'
       config
     end
 
     task :config, :roles => :mail do
       upload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
+      upload 'config/sasl/saslauthd', '/etc/default/saslauthd', :mode => 0644
+      upload 'config/sasl/saslauthd.conf', '/etc/saslauthd.conf', :mode => 0644
+      sudo '/etc/init.d/saslauthd restart'
     end
   end
   
