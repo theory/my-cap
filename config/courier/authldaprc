@@ -220,7 +220,7 @@ LDAP_DEREF		never
 #
 # For additional LDAP-related options, see the authdaemonrc config file.
 
-LDAP_TLS		0
+LDAP_TLS		1
 
 ##NAME: LDAP_EMAILMAP:0
 #
