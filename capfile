@@ -115,18 +115,36 @@ namespace :build do
       sudo '/etc/init.d/saslauthd restart'
     end
   end
+
+  namespace :authdaemon do
+    task :default, :roles => :mail do
+      sudo 'apt-get -y update'
+      sudo 'apt-get -y install courier-authlib courier-authdaemon'
+      config
+    end
+
+    task :config, :roles => :mail do
+      upload 'config/courier/authdaemonrc', '/etc/courier/authdaemonrc', :owner => 'daemon', :group => 'daemon', :mode => 0660
+      upload 'config/courier/authldaprc', '/etc/courier/authldaprc', :owner => 'daemon', :group => 'daemon', :mode => 0660
+      pass = Capistrano::CLI.password_prompt('Password for uid=mail,ou=daemons,dc=kineticode,dc=com: ')
+      sudo %{perl -i -pe 's/-PASSWORD-/#{pass}/' /etc/courier/authldaprc}
+      sudo '/etc/init.d/courier-authdaemon restart'
+    end
+  end
   
   namespace :postfix do
     task :default, :roles => :mail do
       build::sasl::default
+      build::authdaemon::default
       # swaks is a nice tool for testin smtp.
       # postgrey, grefix (no package), policyd, 
       sudo 'apt-get -y install maildrop postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl postfix-ldap'
-      # Add the postfix user to the sasl group.
+      # Add the postfix user to the sasl group so it can authenticate users.
       sudo 'gpasswd -a postfix sasl'
+      # Add the mail user to the daemon group so that it can connect to authdaemond.
+      sudo 'gpasswd -a mail daemon'
       # Make sure that maildrop is suid for root.
       sudo 'chmod u+s /usr/bin/maildrop'
-      tls
       config
     end
     
@@ -147,26 +165,16 @@ namespace :build do
       sudo 'newaliases'
       sudo 'postfix reload'
     end
-
-    task :tls, :roles => :mail do
-      sudo 'mkdir -p /etc/postfix/tls'
-      sudo 'openssl req -new -outform PEM -out /etc/postfix/tls/postfix.cert -newkey rsa:2048 -nodes -keyout /etc/postfix/tls/postfix.key -keyform PEM -days 1024 -x509'
-      sudo 'chown -R postfix:postfix /etc/postfix/tls'
-      sudo 'chmod 644 /etc/postfix/tls/postfix.cert'
-      sudo 'chmod 400 /etc/postfix/tls/postfix.key'
-    end
-
   end
 
   namespace :imap do
     task :default, :roles => :mail do
       sudo 'apt-get -y update'
-      sudo 'apt-get -y install fam courier-imap courier-authdaemon courier-imap-ssl'
+      sudo 'apt-get -y install fam courier-imap courier-authdaemon courier-imap-ssl courier-authlib-ldap'
       config
     end
 
     task :config, :roles => :mail do
-      upload 'config/courier/authdaemonrc', '/etc/courier/authdaemonrc', :owner => 'daemon', :group => 'daemon', :mode => 0660
       upload 'config/courier/imapd.cnf', '/etc/courier/imapd.cnf', :owner => 'daemon', :group => 'daemon', :mode => 0600
       %w[ imapd imapd-ssl ].each do |f|
         upload "config/courier/#{f}", "/etc/courier/#{f}", :mode => 0644
