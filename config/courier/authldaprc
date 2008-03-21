@@ -46,7 +46,7 @@ LDAP_BASEDN             ou=people,dc=kineticode,dc=com
 #
 # You may or may not need to specify the following.  Because you've got
 # a password here, authldaprc should not be world-readable!!!
-
+# These are required for maildrop to get access to the uid and gid. --DEW
 LDAP_BINDDN       uid=mail,ou=daemons,dc=kineticode,dc=com
 LDAP_BINDPW       -PASSWORD-
 
@@ -65,7 +65,7 @@ LDAP_TIMEOUT		5
 # Additionally, if LDAP_AUTHBIND is 1 then password changes are done under
 # the credentials of the user themselves, not LDAP_BINDDN/BINDPW
 #
-# LDAP_AUTHBIND		1
+LDAP_AUTHBIND		1
 
 ##NAME: LDAP_MAIL:0
 #
@@ -219,8 +219,9 @@ LDAP_DEREF		never
 # set this option.
 #
 # For additional LDAP-related options, see the authdaemonrc config file.
+# XXX Why does this fail when I set it to 1? See sasl_postfix.conf for details.
 
-LDAP_TLS		1
+LDAP_TLS		0
 
 ##NAME: LDAP_EMAILMAP:0
 #

@@ -97,7 +97,7 @@ LOGGEROPTS=""
 # Options documented in ldap.conf(5) can be set here, prefixed with 'LDAP'.
 # Examples:
 #
-#LDAPTLS_CACERT=/path/to/cacert.pem
-#LDAPTLS_REQCERT=demand
-#LDAPTLS_CERT=/path/to/clientcert.pem
-#LDAPTLS_KEY=/path/to/clientkey.pem
+LDAPTLS_CACERT=/etc/ssl/certs/cacert.pem
+LDAPURI=ldap://ldap.kineticode.com/
+LDAPBASE=dc=kineticode,dc=com
+LDAPSASL_MECH=DIGEST-MD5

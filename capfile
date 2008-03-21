@@ -136,7 +136,7 @@ namespace :build do
     task :default, :roles => :mail do
       build::sasl::default
       build::authdaemon::default
-      # swaks is a nice tool for testin smtp.
+      # swaks is a nice tool for testing SMTP.
       # postgrey, grefix (no package), policyd, 
       sudo 'apt-get -y install maildrop postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl postfix-ldap'
       # Add the postfix user to the sasl group so it can authenticate users.
@@ -169,24 +169,19 @@ namespace :build do
 
   namespace :imap do
     task :default, :roles => :mail do
+      build::authdaemon::default
       sudo 'apt-get -y update'
-      sudo 'apt-get -y install fam courier-imap courier-authdaemon courier-imap-ssl courier-authlib-ldap'
+      sudo 'apt-get -y install fam courier-imap courier-imap-ssl courier-authlib-ldap'
+      sudo 'rm -rf /etc/courier/imapd.pem /etc/courier/imapd.cnf'
       config
     end
 
     task :config, :roles => :mail do
-      upload 'config/courier/imapd.cnf', '/etc/courier/imapd.cnf', :owner => 'daemon', :group => 'daemon', :mode => 0600
       %w[ imapd imapd-ssl ].each do |f|
         upload "config/courier/#{f}", "/etc/courier/#{f}", :mode => 0644
       end
+      sudo '/etc/init.d/courier-imap restart'
     end
-
-    task :tls, :roles => :mail do
-      upload 'config/courier/imapd.cnf', '/etc/courier/imapd.cnf', :owner => 'daemon', :group => 'daemon', :mode => 0600
-      sudo 'rm /etc/courier/imapd.pem'
-      sudo 'mkimapdcert'
-    end
-
   end
 
   namespace :offlineimap do

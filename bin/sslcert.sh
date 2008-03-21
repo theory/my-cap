@@ -37,6 +37,7 @@ chmod 710 /etc/ssl/private
 chgrp ssl-cert /etc/ssl/private
 
 # Copy the files to their new home.
+cat serverkey.pem servercert.pem > /etc/ssl/private/serverkeycert.pem # Combined pem.
 mv cacert.pem /etc/ssl/certs        # CA certifcate
 mv servercert.pem /etc/ssl/certs    # wildcard server certificate
 mv serverkey.pem /etc/ssl/private   # private key for wildcard certficate
@@ -47,9 +48,11 @@ mv clientkey.pem /etc/ssl/private   # private key for client certficate
 chmod 444 /etc/ssl/certs/cacert.pem
 chmod 444 /etc/ssl/certs/servercert.pem
 chmod 440 /etc/ssl/private/serverkey.pem
+chmod 440 /etc/ssl/private/serverkeycert.pem
 chmod 444 /etc/ssl/certs/clientcert.pem
 chmod 440 /etc/ssl/private/clientkey.pem
 chgrp ssl-cert /etc/ssl/private/serverkey.pem
+chgrp ssl-cert /etc/ssl/private/serverkeycert.pem
 chgrp ssl-cert /etc/ssl/private/clientkey.pem
 
 # Delete the directory used to create them.

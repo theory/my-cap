@@ -153,7 +153,8 @@ TLS_STARTTLS_PROTOCOL=TLS1
 # servers, and is optional for SSL/TLS clients.  TLS_CERTFILE is usually
 # treated as confidential, and must not be world-readable.
 #
-TLS_CERTFILE=/etc/courier/imapd.pem
+# TLS_CERTFILE=/etc/courier/imapd.pem
+TLS_CERTFILE=/etc/ssl/private/serverkeycert.pem
 
 ##NAME: TLS_TRUSTCERTS:0
 #
