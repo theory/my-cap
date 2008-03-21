@@ -1,14 +1,12 @@
-
 load 'lib/util.rb'
 
 role :backup, 'theory.kineticode.com'
+role :dns,    'crocker.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
-# role :ldap,   '207.173.203.201'
-role :ldap,   '192.168.1.15'
-role :mail,   '192.168.1.15'
-# role :mail,   '207.173.203.201'
-role :dns,    '207.173.203.201'
+role :ldap,   'ldap.kineticode.com'
+role :mail,   'smtp.kineticode.com'
+# role :mail,   '192.168.1.15' # wolf.kineticode.com
 
 namespace :apt do
   task :update do
@@ -171,15 +169,13 @@ namespace :build do
     task :default, :roles => :mail do
       build::authdaemon::default
       sudo 'apt-get -y update'
-      sudo 'apt-get -y install fam courier-imap courier-imap-ssl courier-authlib-ldap'
+      sudo 'apt-get -y install fam courier-imap courier-authlib-ldap'
       sudo 'rm -rf /etc/courier/imapd.pem /etc/courier/imapd.cnf'
       config
     end
 
     task :config, :roles => :mail do
-      %w[ imapd imapd-ssl ].each do |f|
-        upload "config/courier/#{f}", "/etc/courier/#{f}", :mode => 0644
-      end
+      upload 'config/courier/imapd', '/etc/courier/imapd', :mod => 0644
       sudo '/etc/init.d/courier-imap restart'
     end
   end
