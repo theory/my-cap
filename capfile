@@ -64,9 +64,7 @@ namespace :build do
 
     task :default, :roles => :ldap do
       sudo 'apt-get -y update'
-      run 'echo "slapd slapd/password1 select foo" | sudo debconf-set-selections'
-      run 'echo "slapd slapd/password2 select foo" | sudo debconf-set-selections'
-      sudo 'apt-get -y install slapd ldap-utils libsasl2-modules-ldap'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install slapd ldap-utils libsasl2-modules-ldap'
       sudo '/etc/init.d/slapd stop'
       sudo 'rm -rf /var/lib/ldap'
       sudo 'mkdir /var/lib/ldap'
@@ -107,7 +105,6 @@ namespace :build do
     end
 
     task :config, :roles => :mail do
-      upload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
       upload 'config/sasl/saslauthd', '/etc/default/saslauthd', :mode => 0644
       upload 'config/sasl/saslauthd.conf', '/etc/saslauthd.conf', :mode => 0644
       sudo '/etc/init.d/saslauthd restart'
@@ -135,8 +132,8 @@ namespace :build do
       build::sasl::default
       build::authdaemon::default
       # swaks is a nice tool for testing SMTP.
-      # postgrey, grefix (no package), policyd, 
-      sudo 'apt-get -y install maildrop postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl postfix-ldap'
+      # postgrey, grefix (no package), policyd,
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install maildrop postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl postfix-ldap'
       # Add the postfix user to the sasl group so it can authenticate users.
       sudo 'gpasswd -a postfix sasl'
       # Add the mail user to the daemon group so that it can connect to authdaemond.
@@ -155,6 +152,7 @@ namespace :build do
       upload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
       upload 'config/postgrey.conf', '/etc/default/postgrey', :mode => 0644
       upload 'config/maildroprc', '/etc/maildroprc', :mode => 0644
+      upload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
 
       %w[ mailbox_maps helo_checks sender_checks client_checks ]. each do |f|
         sudo "postmap /etc/postfix/#{f}.cf"
@@ -162,6 +160,7 @@ namespace :build do
 
       sudo 'newaliases'
       sudo 'postfix reload'
+      sudo '/etc/init.d/saslauthd restart'
     end
   end
 
@@ -169,20 +168,24 @@ namespace :build do
     task :default, :roles => :mail do
       build::authdaemon::default
       sudo 'apt-get -y update'
-      sudo 'apt-get -y install fam courier-imap courier-authlib-ldap'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install fam courier-imap courier-authlib-ldap'
       sudo 'rm -rf /etc/courier/imapd.pem /etc/courier/imapd.cnf'
       config
     end
 
     task :config, :roles => :mail do
       upload 'config/courier/imapd', '/etc/courier/imapd', :mod => 0644
+      upload 'config/courier/portmap', '/etc/default/portmap', :mod => 0644
+      sudo '/etc/init.d/portmap restart'
+      sudo '/etc/init.d/fam restart'
       sudo '/etc/init.d/courier-imap restart'
     end
   end
 
   namespace :offlineimap do
     task :default, :roles => :backup do
-      sudo_script 'bin/offlineimap.sh'
+      sudo 'apt-get -y install offlineimap'
+      # sudo_script 'bin/offlineimap.sh'
       config
     end
 
