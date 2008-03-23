@@ -46,7 +46,7 @@ namespace :sys do
     set :pass, self[:pass] || genpass
 
     # Create the system user and set the password.
-    sudo "useradd -m #{ user }"
+    sudo "useradd -m #{ user } -s /bin/bash"
     sudo "chfn -f '#{ self[:name] }' -r '#{ self[:room] }' -w '#{ self[:work] }' -h '#{ self[:home] }' #{ user }"
     chpass( user, pass )
 
