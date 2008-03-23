@@ -19,6 +19,7 @@ smtp_tls_session_cache_database = btree:${queue_directory}/smtp_scache
 mail_owner = postfix
 append_dot_mydomain = no
 recipient_delimiter = +
+alias_maps = hash:/etc/aliases
 
 ##############################################################################
 # Junk Mail Controls.
@@ -82,10 +83,7 @@ virtual_transport        = maildrop
 maildrop_destination_recipient_limit = 1
 
 virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com, rt.kineticode.com, smtp.kineticode.com
-# virtual_mailbox_base     = /var/mail/vhosts
 virtual_mailbox_maps     = hash:/etc/postfix/mailbox_maps.cf
 virtual_alias_maps       = pcre:/etc/postfix/alias_maps.cf
 virtual_minimum_uid      = 100
-# virtual_uid_maps         = static:8
-# virtual_gid_maps         = static:8
 virtual_mailbox_limit    = 0

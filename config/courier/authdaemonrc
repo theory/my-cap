@@ -98,6 +98,6 @@ LOGGEROPTS=""
 # Examples:
 #
 LDAPTLS_CACERT=/etc/ssl/certs/cacert.pem
-LDAPURI=ldap://ldap.kineticode.com/
+LDAPURI=ldap://localhost/
 LDAPBASE=dc=kineticode,dc=com
 LDAPSASL_MECH=DIGEST-MD5

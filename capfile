@@ -5,12 +5,74 @@ role :dns,    'crocker.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
 role :ldap,   'ldap.kineticode.com'
-role :mail,   'smtp.kineticode.com'
-# role :mail,   '192.168.1.15' # wolf.kineticode.com
+# role :mail,   'smtp.kineticode.com'
+role :mail,   '192.168.1.15' # wolf.kineticode.com
+
+# For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
+# methods on Capistrano::CLI.ui, e.g., Capistrano::CLI.ui.ask().
 
 namespace :apt do
   task :update do
     sudo 'apt-get update'
+  end
+end
+
+namespace :sys do
+  # cap sys:adduser -s uname=foo -s name='Foo Bar' -s last=Bar -s first=Foo \
+  # -s room=101 -s work=555-1212 -s home=544-2345 -s url=http:/foo.com/ \
+  # -s mobile=566-1234 -s fax=232-4233 -s init=FB -s title=President -s sn=Bar
+  task :adduser, :roles => :mail do
+    
+    unless user = self[:uname]
+      puts 'You must specify a username via the "-s uname=foo" option'
+      puts 'Other -s options include:
+      name   - full name
+      last   - surname
+      first  - given name
+      init   - initials
+      room   - room number
+      work   - work phone number
+      home   - home phone number
+      mobile - mobile phone number
+      fax    - fax number
+      url    - URL
+      email  - email address
+      title  - title
+      '
+      exit
+    end
+
+    # Generate a random password
+    pass = genpass
+
+    # Create the system user.
+    sudo "useradd -m -p `openssl passwd '#{ pass }'` #{ user }"
+    sudo "chfn -f '#{ self[:name] }' -r '#{ self[:room] }' -w '#{ self[:work] }' -h '#{ self[:home] }' #{ user }"
+
+    # Determine the new usergroup and ID.
+    uid = nil
+    gid = nil
+    run( "id -u #{ user }" ) { |ch, st, data| uid = data.strip }
+    run( "id -g #{ user }" ) { |ch, st, data| gid = data.strip }
+
+    # Create the LDIF for the user and add it.
+    put user_ldif( user, pass, uid, gid ), '/tmp/user.ldif'
+    run_ldap "ldapadd -U #{ ENV['USER'] } -ZZ -Y DIGEST-MD5 -f /tmp/user.ldif"
+
+    # We're outta here.
+    run 'rm /tmp/user.ldif'
+    logger.info( "User “#{ user }” created with password “#{ pass }”")
+  end
+
+  task :deluser, :roles => :mail do
+    unless user = self[:uname]
+      puts 'You must specify a username via the "-s uname=foo" option'
+      exit
+    end
+    exit unless Capistrano::CLI.ui.agree("Are you sure you want to delete #{ user }? ")
+    sudo "userdel #{ user }"
+    sudo "rm -rf /home/#{ user }"
+    run_ldap "ldapdelete -U #{ ENV['USER'] } -ZZ -Y DIGEST-MD5 uid=#{ user },ou=people,dc=kineticode,dc=com"
   end
 end
 
@@ -168,17 +230,20 @@ namespace :build do
     task :default, :roles => :mail do
       build::authdaemon::default
       sudo 'apt-get -y update'
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install fam courier-imap courier-authlib-ldap'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install fam courier-imap ourier-imap-ssl courier-authlib-ldap'
       sudo 'rm -rf /etc/courier/imapd.pem /etc/courier/imapd.cnf'
+      sudo 'maildirmake /etc/skel/Maildir'
       config
     end
 
     task :config, :roles => :mail do
       upload 'config/courier/imapd', '/etc/courier/imapd', :mod => 0644
+      upload 'config/courier/imapd-ssl', '/etc/courier/imapd-ssl', :mod => 0644
       upload 'config/courier/portmap', '/etc/default/portmap', :mod => 0644
       sudo '/etc/init.d/portmap restart'
       sudo '/etc/init.d/fam restart'
       sudo '/etc/init.d/courier-imap restart'
+      sudo '/etc/init.d/courier-imap-ssl restart'
     end
   end
 
