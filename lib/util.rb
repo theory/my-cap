@@ -40,7 +40,7 @@ end
 def run_ldap( cmd )
   run cmd do |ch, stream, data|
     if data =~ /^Please enter your password:/
-      ch.send_data( Capistrano::CLI.password_prompt + "\n" )
+      ch.send_data( Capistrano::CLI.password_prompt( "LDAP Password for #{ ENV['USER'] }: " ) + "\n" )
     end
   end
 end
@@ -91,4 +91,13 @@ def genpass
   chars = (33 .. 126).map { |i| i.chr }
   size  = (8..16).to_a[ rand(9) ]
   ( 1 .. size ).map { |a| chars[ rand( chars.size ) ] }.join
+end
+
+def chpass( user, pass )
+  sudo "passwd #{ user }" do |ch, st, data|
+    puts data
+    if data =~ /^(?:Enter|Retype) new UNIX password:/
+      ch.send_data( pass + "\n" )
+    end
+  end
 end

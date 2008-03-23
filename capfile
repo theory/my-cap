@@ -42,12 +42,13 @@ namespace :sys do
       exit
     end
 
-    # Generate a random password
-    pass = genpass
+    # Get or generate the password.
+    set :pass, self[:pass] || genpass
 
-    # Create the system user.
-    sudo "useradd -m -p `openssl passwd '#{ pass }'` #{ user }"
+    # Create the system user and set the password.
+    sudo "useradd -m #{ user }"
     sudo "chfn -f '#{ self[:name] }' -r '#{ self[:room] }' -w '#{ self[:work] }' -h '#{ self[:home] }' #{ user }"
+    chpass( user, pass )
 
     # Determine the new usergroup and ID.
     uid = nil
@@ -74,6 +75,21 @@ namespace :sys do
     sudo "rm -rf /home/#{ user }"
     run_ldap "ldapdelete -U #{ ENV['USER'] } -ZZ -Y DIGEST-MD5 uid=#{ user },ou=people,dc=kineticode,dc=com"
   end
+
+  task :passwd, :roles => :mail do
+    unless user = self[:uname]
+      puts 'You must specify a username via the "-s uname=foo" option'
+      exit
+    end
+
+    Capistrano::CLI.ui.agree("Are you sure you want to reset the password for #{ user }? ")
+
+    pass = self[:pass] || genpass
+    chpass( user, pass )
+    run_ldap "ldappasswd -U #{ ENV['USER'] } -ZZ -Y DIGEST-MD5 -s '#{ pass }' uid=#{ user },ou=people,dc=kineticode,dc=com"
+    logger.info( "Password for “#{ user }” changed to “#{ pass }”")
+  end
+
 end
 
 namespace :build do
