@@ -276,7 +276,6 @@ namespace :build do
         sudo "mkdir -p /data/backup/imap/#{ who }"
       }
     end
-
   end
 
   namespace :svn do
