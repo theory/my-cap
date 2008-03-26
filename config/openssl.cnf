@@ -57,6 +57,15 @@ OU=Kineticode
 CN=*.kineticode.com
 emailAddress=info@kineticode.com
 
+[ imap_dn ]
+C=US
+ST=Oregon
+L=Portland
+O=Kineticode, Inc.
+OU=Kineticode
+CN=imap.kineticode.com
+emailAddress=info@kineticode.com
+
 [ cert_type ]
 nsCertType = server
 
