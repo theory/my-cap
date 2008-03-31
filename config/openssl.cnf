@@ -1,7 +1,6 @@
 # 
 # OpenSSL configuration file.
 # http://www.eclectica.ca/howto/ssl-cert-howto.php
-#
 
 dir			= .
 

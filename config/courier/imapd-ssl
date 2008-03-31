@@ -88,7 +88,6 @@ IMAPDSTARTTLS=YES
 
 IMAP_TLS_REQUIRED=1
 
-
 #########################################################################
 #
 # The following variables configure IMAP over SSL.  If OpenSSL is available
