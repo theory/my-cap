@@ -3,3 +3,9 @@
 DEFAULT="$HOME/Maildir"
 SHELL="/bin/bash"
 
+UNAME       = "$1"
+EXTENSION   = "$2"
+DOMAIN      = tolower( "$3" )
+RECIP       = tolower( "$4" )
+ORIG_RECIP  = tolower( "$5" )
+SENDER      = tolower( "$6" )

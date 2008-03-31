@@ -59,7 +59,7 @@ scache	  unix	-	-	-	-	1	scache
 #
 maildrop  unix  -       n       n       -       -       pipe
   flags=ODRhu user=mail argv=/usr/bin/maildrop
-  -d ${user} ${user}@${nexthop} ${extension} ${recipient} ${nexthop}
+  -d ${user} ${user} ${extension} ${domain} ${recipient} ${original_recipient} ${sender}
 #
 # See the Postfix UUCP_README file for configuration details.
 #
