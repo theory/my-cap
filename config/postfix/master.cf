@@ -59,7 +59,9 @@ scache	  unix	-	-	-	-	1	scache
 #
 maildrop  unix  -       n       n       -       -       pipe
   flags=ODRhu user=mail argv=/usr/bin/maildrop
-  -d ${user} ${user} ${extension} ${domain} ${recipient} ${original_recipient} ${sender}
+  -d ${user} ${user} ${extension} ${nexthop} ${recipient} ${recipient} ${sender}
+#  -d ${user} ${user} ${extension} ${domain} ${recipient} ${original_recipient} ${sender}
+# XXX Switch the above two once upgraded to postfix 2.5.
 #
 # See the Postfix UUCP_README file for configuration details.
 #
