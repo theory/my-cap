@@ -306,6 +306,11 @@ namespace :build do
     end
   end
 
+  task :modperl2, :roles => :web do
+    apache2
+    sudo_script 'bin/modperl2.sh'
+  end
+
 end
 
 namespace :my do

@@ -5,7 +5,13 @@ OS=`uname`
 setup() {
 	if [ ! $FORCE ]; then
 		if [ -f $1 ]; then
-			exit
+		    if [ "$2" ];
+        	    if [ grep $2 $1 ]; then
+        		    exit
+        		fi
+	        else
+			    exit
+		    fi
 		fi
 	fi
 
