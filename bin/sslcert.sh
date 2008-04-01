@@ -1,5 +1,9 @@
 #!/bin/bash
 
+. `dirname $0`/functions.sh
+
+setup /etc/ssl/certs/cacert.pem
+
 mkdir -p /tmp/ssl
 cd /tmp/ssl
 wget --no-check-certificate https://svn.kineticode.com/cap/config/openssl.cnf

@@ -6,6 +6,7 @@ role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
 role :ldap,   'ldap.kineticode.com'
 role :mail,   'smtp.kineticode.com'
+role :web,    '192.168.1.15'
 role :wolf,   '192.168.1.15'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
@@ -284,13 +285,25 @@ namespace :build do
     end
   end
 
-  task :perl, :roles => :mail do
+  task :perl, :roles => :web do
     sudo_script 'bin/perl.sh'
   end
 
-  task :uuid, :roles => :mail do
+  task :uuid, :roles => :web do
     perl
     sudo_script 'bin/uuid.sh'
+  end
+
+  namespace :apache2 do
+    task :default, :roles => :web do
+      sudo 'apt-get -y install zlib1g zlib1g-dev libssl-dev'
+      build::cert
+      sudo_script 'bin/apache2.sh'
+      config
+    end
+
+    task :config, :roles => :web do
+    end
   end
 
 end
