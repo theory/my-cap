@@ -98,7 +98,7 @@ namespace :build do
   namespace :ubuntu do
     task :default, :roles => :mail do
       upgrade
-      sudo 'apt-get -y install emacs screen sysstat gcc libc6-dev'
+      sudo 'apt-get -y install emacs screen sysstat make gcc libc6-dev'
     end
 
     desc 'Upgrade all installed packages.'
