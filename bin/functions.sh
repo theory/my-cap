@@ -4,8 +4,6 @@ OS=`uname`
 
 setup() {
 	if [ ! $FORCE ]; then
-	    echo $1
-	    exit
 		if [ -f $1 ]; then
 			exit
 		fi
