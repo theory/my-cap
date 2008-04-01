@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=8.3.0
+export VERSION=8.3.1
 export PERL=/usr/local/bin/perl
 
 . `dirname $0`/functions.sh
