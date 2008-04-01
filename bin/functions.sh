@@ -20,7 +20,11 @@ download() {
 	fi
 
 	if [ ! -f $file ]; then
-		curl -kO $1
+        if [ $OS = 'Darwin' ]; then
+		    curl -kO $1
+		else
+		    wget $1
+	    fi
 	fi
 }
 
