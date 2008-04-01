@@ -4,6 +4,8 @@ OS=`uname`
 
 setup() {
 	if [ ! $FORCE ]; then
+	    echo $1
+	    exit
 		if [ -f $1 ]; then
 			exit
 		fi
@@ -23,7 +25,7 @@ download() {
         if [ $OS = 'Darwin' ]; then
 		    curl -kO $1
 		else
-		    wget $1
+		    wget --no-check-certificate $1
 	    fi
 	fi
 }
