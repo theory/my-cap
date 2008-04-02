@@ -367,6 +367,7 @@ namespace :my do
     task :modperl, :roles => :local do
       perl
       apache
+      runl( %w[cpan Apache::Test] )
       sudol_scripts( 'modperl', 'apreq' )
     end
 

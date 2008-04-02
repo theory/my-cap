@@ -20,15 +20,16 @@ end
 
 def runl( cmd )
   block ||= self.class.default_io_proc
-  logger.trace "executing #{cmd.strip.inspect}" if logger
-  system( *cmd ) or raise $?
+  logger.trace "executing #{cmd.to_s.strip.inspect}" if logger
+  system( *cmd ) or exit
   logger.trace "command finished" if logger
 end
 
 def sudol( cmd )
   block ||= self.class.default_io_proc
   to_run = ['sudo', *cmd]
-  system( *to_run ) or raise $?
+  puts "executing #{to_run.join(' ').strip.inspect}"
+  system( *to_run ) or exit
 end
 
 def sudol_scripts( *scripts )

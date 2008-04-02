@@ -14,10 +14,10 @@ setup() {
 		if [ -f $1 ]; then
 		    if [ -n "$2" ]; then
         	    if [ -n "`grep -l $2 $1`" ]; then
-        		    exit
+        		    exit 0
         		fi
 	        else
-			    exit
+			    exit 0
 		    fi
 		fi
 	fi

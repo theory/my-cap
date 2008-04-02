@@ -11,6 +11,9 @@ cd httpd-$VERSION
 export CPPFLAGS="-I/usr/local/include"
 export LDFLAGS="-L/usr/local/lib"
 export CFLAGS="-DAP_UNSAFE_ERROR_LOG_UNESCAPED"
+# Force APR to use /dev/urandom instead of /dev/random. Details on the issue
+# I found are here: http://www.andrewsavory.com/blog/archives/001408.html
+perl -i -pe 's{(/arandom\s+)/dev/random\s+}{$1}' srclib/apr/configure
 ./configure \
  --prefix=/usr/local/apache2  \
  --with-mpm=prefork \

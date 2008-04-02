@@ -3,9 +3,14 @@
 . `dirname $0`/functions.sh
 
 mkdir -p ~/.cpan/CPAN
-cp `dirname $0`/../config/CPANConfig.pm ~/.cpan/CPAN/MyConfig.pm
-mkdir -p '~/Library/Application Support/.cpan/CPAN'
-cp `dirname $0`/../config/CPANConfig.pm '~/Library/Application Support/.cpan/CPAN/MyConfig.pm'
+if [ $OS = 'Darwin' ]; then
+    cp `dirname $0`/../config/CPANConfig.pm ~/.cpan/CPAN/MyConfig.pm
+    mkdir -p '~/Library/Application Support/.cpan/CPAN'
+    cp `dirname $0`/../config/CPANConfig.pm '~/Library/Application Support/.cpan/CPAN/MyConfig.pm'
+else
+    wget --no-check-certificate -O ~/.cpan/CPAN/MyConfig.pm https://svn.kineticode.com/cap/config/CPANConfig.pm
+    perl -i -pe 's{/Users}{/home}g' ~/.cpan/CPAN/MyConfig.pm
+fi
 
 # Mac::Carbon currently has a failing test. Delete this section when fixed.
 if [ $OS = 'Darwin' ]; then
