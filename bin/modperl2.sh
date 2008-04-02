@@ -4,7 +4,7 @@ export VERSION=2.0.4-rc1
 
 . `dirname $0`/functions.sh
 
-setup /usr/local/apache2/include/modperl_perl_includes.h "mod_perl/$VERSION"
+setup /usr/local/apache2/include/modperl_trace.h "MP_VERSION_STRING mod_perl/$VERSION"
 download http://www.apache.org/~gozer/mp2/mod_perl-$VERSION.tar.gz
 #download http://perl.apache.org/dist/mod_perl-$VERSION.tar.gz
 tar zxf mod_perl-$VERSION.tar.gz
