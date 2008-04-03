@@ -9,24 +9,24 @@ setup /usr/local/pgsql/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[
 setup /usr/local/pgsql/bin/pg_config
 download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
 rm -rf postgresql-$VERSION
-tar jxf postgresql-$VERSION.tar.bz2
+tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
 
 # Append --enable-cassert for debugging C library development
 ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
  --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap --with-ossp-uuid \
- --with-libs=/usr/local/lib --with-includes=/usr/local/include
-make
+ --with-libs=/usr/local/lib --with-includes=/usr/local/include || exit $?
+make || exit $?
 #D_LIBRARY_PATH=./src/interfaces/libpq ./src/bin/pg_dump/pg_dumpall -U postgres > db.backup
-make install
+make install || exit $?
 
 # Install contrib modules
 cd contrib
 for dir in adminpack isn fuzzystrmatch hstore pgcrypto dblink intagg lo ltree pg_standby uuid-ossp
 do
     cd $dir
-    make
-    make install
+    make || exit $?
+    make install || exit $?
     cd ..
 done
 cd ..

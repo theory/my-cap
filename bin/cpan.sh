@@ -28,4 +28,4 @@ if [ $OS = 'Darwin' ]; then
 fi
 
 /usr/local/bin/cpan CPAN::Reporter
-/usr/local/bin/cpan Bundle::Theory
+env PERL_MM_USE_DEFAULT=1 /usr/local/bin/cpan Bundle::Theory

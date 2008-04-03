@@ -311,6 +311,22 @@ namespace :build do
     sudo_script 'bin/modperl2.sh'
   end
 
+  task :graphics, :roles => :web do
+    sudo 'apt-get update'
+    sudo 'apt-get -y install libjpeg62 libjpeg62-dev libpng3 libpng12-dev libtiff4 libtiff4-dev libgif4 libgif-dev'
+  end
+
+  task :xml, :roles => :web do
+    sudo 'apt-get update'
+    sudo 'apt-get -y install libxml2 libxml2-dev libxslt1-dev'
+  end
+
+  task :cpan, :roles => :web do
+    graphics
+    perl
+    xml
+    run_script 'bin/cpan.sh'
+  end
 end
 
 namespace :my do

@@ -22,8 +22,8 @@ setup() {
 		fi
 	fi
 
-	mkdir -p /usr/local/src
-	cd /usr/local/src
+	mkdir -p /usr/local/src || exit $?
+	cd /usr/local/src || exit $?
 }
 
 # Downloads the file from the URL passed as a single argument. If the file
@@ -38,9 +38,9 @@ download() {
 
 	if [ ! -f $file ]; then
         if [ $OS = 'Darwin' ]; then
-		    curl -kO $1
+		    curl -kO $1 || exit $?
 		else
-		    wget --no-check-certificate $1
+		    wget --no-check-certificate $1 || exit $?
 	    fi
 	fi
 }
@@ -65,9 +65,9 @@ build() {
 	fi
 
 	if [ -f $1.tar.gz ]; then
-		tar zxf $1.tar.gz
+		tar zxf $1.tar.gz || exit $?
 	elif [ -f $1.tar.bz2 ]; then
-		tar jxf $1.tar.bz2
+		tar jxf $1.tar.bz2 || exit $?
 	fi
 
 	if [ $2 ]; then
@@ -76,9 +76,9 @@ build() {
 		cd $1
 	fi
 
-	./configure
-	make
-	make install
+	./configure || exit $?
+	make || exit $?
+	make install || exit $?
 	cd ..
 }
 

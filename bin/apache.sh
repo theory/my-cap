@@ -5,7 +5,7 @@ export MODSSLVERSION=2.8.30
 
 . `dirname $0`/functions.sh
 
-setup /usr/local/apache/bin/httpd
+setup /usr/local/apache/logs/apache-$VERSION
 
 # Download Apache.
 download http://apache.oregonstate.edu/httpd/apache_$VERSION.tar.bz2
@@ -45,4 +45,5 @@ else
     make install
 fi
 
+echo Apache $VERSION > /usr/local/apache/logs/apache-$VERSION
 cd ..
