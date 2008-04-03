@@ -98,6 +98,7 @@ namespace :build do
   desc 'Installs the base packages that I needs, and upgrades all existing packages.'
   namespace :ubuntu do
     task :default, :roles => :mail do
+      upload 'config/sources.list', '/etc/apt/sources.list'
       upgrade
       sudo 'apt-get -y install emacs screen sysstat make gcc libc6-dev'
     end
