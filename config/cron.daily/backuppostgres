@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd /var/backups
+/usr/local/pgsql/bin/pg_dumpall -U postgres > postgresql.sql
+/usr/bin/savelog -qc 7 postgresql.sql
