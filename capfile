@@ -7,7 +7,7 @@ role :local,  'localhost'
 role :ldap,   'ldap.kineticode.com'
 role :mail,   'smtp.kineticode.com'
 role :web,    '192.168.1.15'
-role :wolf,   '192.168.1.15'
+role :db,     '192.168.1.15'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
 # methods on Capistrano::CLI.ui, e.g., Capistrano::CLI.ui.ask().
@@ -307,6 +307,7 @@ namespace :build do
   end
 
   task :modperl2, :roles => :web do
+    perl
     apache2
     sudo_script 'bin/modperl2.sh'
   end
@@ -327,6 +328,25 @@ namespace :build do
     xml
     run_script 'bin/cpan.sh'
   end
+
+  namespace :pg do
+    task :default, :roles => :db do
+      perl
+      uuid
+      sudo 'apt-get -y install bison flex libreadline5 libreadline5-dev comerr-dev libkrb5-dev libpam0g-dev'
+      sudo_script 'bin/postgresql.sh'
+    end
+
+    task :config, :roles => :db do
+    end
+  end
+
+  task :rt, :roles => :web do
+    modperl2
+    cpan
+    pg
+  end
+
 end
 
 namespace :my do

@@ -13,9 +13,16 @@ tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
 
 # Append --enable-cassert for debugging C library development
-./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
- --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap --with-ossp-uuid \
- --with-libs=/usr/local/lib --with-includes=/usr/local/include || exit $?
+if [ $OS = 'Darwin' ]; then
+    ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
+    --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap --with-ossp-uuid \
+    --with-libs=/usr/local/lib --with-includes=/usr/local/include || exit $?
+else
+    ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
+    --with-libxml --with-ldap --with-ossp-uuid --with-libs=/usr/local/lib \
+    --with-includes=/usr/local/include || exit $?    
+fi
+
 make || exit $?
 #D_LIBRARY_PATH=./src/interfaces/libpq ./src/bin/pg_dump/pg_dumpall -U postgres > db.backup
 make install || exit $?
@@ -83,8 +90,14 @@ else
         sysctl -w kern.sysv.shmseg=8
         sysctl -w kern.sysv.shmall=65536
     fi
-    cp `dirname $0`/../config/postgresql.conf /usr/local/pgsql/conf
-    chown postgres:postgrs /usr/local/pgsql/conf
+    useradd postgres -d /nonexistent
+    download https://svn.kineticode.com/cap/config/postgresql.conf
+    cp postgresql.conf /usr/local/pgsql/conf
+    chown postgres:postgres /usr/local/pgsql/conf
+    cp contrib/start-scripts/linux /etc/init.d/postgresql
+    chmod +x /etc/init.d/postgresql
+    # chkconfig --add postgresql    # redhat
+    update-rc.d postgresql defaults # debian
 fi
 
 if [ ! -d /usr/local/pgsql/data ]; then
@@ -98,8 +111,10 @@ fi
 
 if [ $OS = 'Darwin' ]; then
     SystemStarter restart PostgreSQL
-    sleep 5
+else
+    /etc/init.d/postgresql start
 fi
+sleep 5
 
 for lang in plpgsql plperl plperlu
 do
