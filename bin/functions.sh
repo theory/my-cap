@@ -11,7 +11,7 @@ OS=`uname`
 # it. 
 
 setup() {
-    if [ "$1" && ! $FORCE ]; then
+    if [ "$1" ] && [ ! $FORCE ]; then
 		if [ -f $1 ]; then
 		    if [ -n "$2" ]; then
         	    if [ -n "`grep -l "$2" "$1"`" ]; then
