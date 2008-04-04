@@ -18,25 +18,27 @@ setup
 
 # Download the Subversion dependencies.
 download http://subversion.tigris.org/tarballs/subversion-deps-$VERSION.tar.bz2
-tar jxf subversion-deps-$VERSION.tar.bz2
+tar jxf subversion-deps-$VERSION.tar.bz2 || exit $?
 
 # Install Subversion
 download http://subversion.tigris.org/tarballs/subversion-$VERSION.tar.bz2
-tar jxf subversion-$VERSION.tar.bz2
+tar jxf subversion-$VERSION.tar.bz2 || exit $?
 cd subversion-$VERSION
 ./configure \
+  --enable-shared \ # required for the swig libs to compile
   --with-ssl \
-  --with-apxs=/usr/local/apache2/bin/apxs
-make
-make install
-make swig-py
-make install-swig-py
-make swig-pl
-make check-swig-pl
-make install-swig-pl
-make swig-rb
-make install-swig-rb
-make check-swig-rb
+  --with-apxs=/usr/local/apache2/bin/apxs || exit $?
+make || exit $?
+make install || exit $?
+make swig-pl || exit $?
+make check-swig-pl || exit $?
+make install-swig-pl || exit $?
+make swig-py || exit $?
+make check-swig-py || exit $?
+make install-swig-py || exit $?
+make swig-rb || exit $?
+make check-swig-rb || exit $?
+make install-swig-rb || exit $?
 if [ ! -e /usr/lib/python2.5/site-packages/libsvn ]; then
     ln -s /usr/local/lib/svn-python/libsvn /usr/lib/python2.5/site-packages
 fi

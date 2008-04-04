@@ -284,7 +284,7 @@ namespace :build do
   namespace :svn do
     task :default, :roles => :svn do
       apache2
-      sudo 'apt-get -y install ruby python'
+      sudo 'apt-get -y install ruby ruby1.8-dev python python2.5-dev swig libtool'
       sudo_script 'bin/subversion.sh'
     end
   end
