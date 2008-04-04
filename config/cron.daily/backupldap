@@ -2,4 +2,4 @@
 
 cd /var/backups
 /usr/sbin/slapcat -b dc=kineticode,dc=com -l kineticode.ldif
-/usr/bin/savelog -qc 7 kineticode.ldif
+/usr/bin/savelog -qjc 7 kineticode.ldif

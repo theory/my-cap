@@ -5,12 +5,13 @@ OS=`uname`
 # Pass the name of a file to check. If the file is found and there is no
 # second argument, the script exits. If there is a second argument, its value
 # is grepped for in the file named in the first argument. If it is found, the
-# script exits. Otherwise, the script continues. If $FORCE is set to true, the
-# script always continues. Continuation means that /usr/local/src is created
-# and the pwd is changed to it.
+# script exits. Otherwise, the script continues. If $FORCE is set to true or
+# no argument is passed to the function, the script always continues.
+# Continuation means that /usr/local/src is created and the pwd is changed to
+# it. 
 
 setup() {
-	if [ ! $FORCE ]; then
+    if [ "$1" && ! $FORCE ]; then
 		if [ -f $1 ]; then
 		    if [ -n "$2" ]; then
         	    if [ -n "`grep -l "$2" "$1"`" ]; then

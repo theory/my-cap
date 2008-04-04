@@ -6,7 +6,6 @@ export PERL=/usr/local/bin/perl
 . `dirname $0`/functions.sh
 
 setup /usr/local/pgsql/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
-setup /usr/local/pgsql/bin/pg_config
 download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
 rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?

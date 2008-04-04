@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cd /var/backups
+/usr/bin/hot-backup.py /usr/local/svnroot .

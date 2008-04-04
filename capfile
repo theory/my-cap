@@ -283,6 +283,8 @@ namespace :build do
 
   namespace :svn do
     task :default, :roles => :svn do
+      apache2
+      sudo 'apt-get -y install ruby python'
       sudo_script 'bin/subversion.sh'
     end
   end
@@ -344,11 +346,23 @@ namespace :build do
     end
   end
 
-  task :rt, :roles => :web do
-    modperl2
-    cpan
-    pg
-    sudo_script 'bin/rt.sh'
+  namespace :rt do
+    task :default, :roles => :web do
+      modperl2
+      cpan
+      pg
+      sudo 'apt-get -y install libgd2-xpm libgd2-xpm-dev'
+      sudo_script 'bin/rt.sh'
+      sudo 'wget -O /usr/local/rt3/lib/RT/User_Local.pm http://www.justatheory.com/computers/programming/perl/rt/User_Local.pm.ldap'
+      sudo 'chgrp bin /usr/local/rt3/lib/RT/User_Local.pm'
+      config
+    end
+
+    task :config, :roles => :web do
+      upload '../Corporate/config/RT_SiteConfig.pm', '/usr/local/rt3/etc/RT_SiteConfig.pm',
+             :group => 'rt3',
+             :mode  => 0550
+    end
   end
 
 end
