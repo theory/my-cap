@@ -315,6 +315,9 @@ namespace :build do
       upload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
       upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
       upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
+      pass = Capistrano::CLI.password_prompt('Password for uid=nobody,ou=daemons,dc=kineticode,dc=com: ')
+      sudo %{perl -i -pe 's/-PASSWORD-/#{pass}/' /etc/httpd/httpd-vhosts.conf}
+      sudo '/usr/bin/apachectl restart'
     end
   end
 
