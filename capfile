@@ -282,7 +282,7 @@ namespace :build do
   end
 
   namespace :svn do
-    task :default, :roles => :svn do
+    task :default, :roles => :web do
       apache2
       sudo 'apt-get -y install ruby ruby1.8-dev python python2.5-dev swig libtool'
       sudo_script 'bin/subversion.sh'
@@ -300,13 +300,21 @@ namespace :build do
 
   namespace :apache2 do
     task :default, :roles => :web do
-      sudo 'apt-get -y install zlib1g zlib1g-dev libssl-dev'
+      sudo 'apt-get -y install zlib1g zlib1g-dev libssl-dev cronolog'
       build::cert
       sudo_script 'bin/apache2.sh'
       config
     end
 
     task :config, :roles => :web do
+      sudo 'mkdir -p /etc/httpd'
+      sudo 'mkdir -p /var/www'
+      sudo 'mkdir -p /var/log/httpd'
+      sudo 'mkdir -p /var/lock/httpd'
+      upload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
+      upload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
+      upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
+      upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
     end
   end
 

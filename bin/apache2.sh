@@ -28,8 +28,8 @@ perl -i -pe 's{(/arandom\s+)/dev/random\s+}{$1}' srclib/apr/configure
  --enable-authz-user \
  --with-ldap \
  --enable-ldap \
- --enable-auth-ldap \
- --enable-mods-shared="rewrite info worker proxy deflate mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl auth_ldap ldap"
+ --enable-authnz-ldap \
+ --enable-mods-shared="rewrite info worker proxy deflate mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl authnz_ldap ldap"
 make
 make install
 echo Apache $VERSION > /usr/local/apache2/logs/apache-$VERSION
