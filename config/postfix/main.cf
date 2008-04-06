@@ -82,7 +82,6 @@ local_transport          = local
 virtual_transport        = maildrop
 maildrop_destination_recipient_limit = 1
 
-# virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com, rt.kineticode.com
 virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com
 virtual_mailbox_maps     = hash:/etc/postfix/mailbox_maps.cf
 virtual_alias_maps       = pcre:/etc/postfix/alias_maps.cf
