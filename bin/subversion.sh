@@ -17,6 +17,7 @@ fi
 setup
 
 # Download the Subversion dependencies.
+rm -rf subversion-$VERSION
 download http://subversion.tigris.org/tarballs/subversion-deps-$VERSION.tar.bz2
 tar jxf subversion-deps-$VERSION.tar.bz2 || exit $?
 
@@ -27,12 +28,15 @@ cd subversion-$VERSION
 ./configure \
   --enable-shared \
   --with-ssl \
+  --with-apr=/usr/local/apache2 \
+  --with-apr-util=/usr/local/apache2 \
   --with-apxs=/usr/local/apache2/bin/apxs || exit $?
 make || exit $?
 make install || exit $?
-make swig-pl || exit $?
-make check-swig-pl || exit $?
-make install-swig-pl || exit $?
+# Perl bindings fail. http://subversion.tigris.org/issues/show_bug.cgi?id=3165
+# make swig-pl || exit $?
+# make check-swig-pl || exit $?
+# make install-swig-pl || exit $?
 make swig-py || exit $?
 make check-swig-py || exit $?
 make install-swig-py || exit $?
