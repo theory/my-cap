@@ -14,7 +14,7 @@ role :db,     '192.168.1.15'
 
 namespace :apt do
   task :update do
-    sudo 'apt-get update'
+    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get update'
   end
 end
 
@@ -100,29 +100,29 @@ namespace :build do
     task :default, :roles => :mail do
       upload 'config/sources.list', '/etc/apt/sources.list'
       upgrade
-      sudo 'apt-get -y install emacs screen sysstat make gcc libc6-dev'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install emacs screen sysstat make gcc libc6-dev'
     end
 
     desc 'Upgrade all installed packages.'
     task :upgrade, :roles => :mail do
-      sudo 'apt-get -y update'
-      sudo 'apt-get -y upgrade'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y upgrade'
     end
   end
 
   desc 'Builds a wildcard SSL certificate for kineticode.com using bin/sslcert.sh and config/openssl.cnf.'
   namespace :cert do
     task :default, :roles => :mail do
-      sudo 'apt-get -y update'
-      sudo 'apt-get -y install openssl'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install openssl'
       sudo_script 'bin/sslcert.sh'
     end
   end
 
   namespace :bind do
     task :default, :roles => :dns do
-      sudo 'apt-get -y update'
-      sudo 'apt-get -y install bind9'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install bind9'
       config
     end
 
@@ -143,7 +143,7 @@ namespace :build do
     # ldapadd -U david -ZZ -f add.ldif
 
     task :default, :roles => :ldap do
-      sudo 'apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install slapd ldap-utils libsasl2-modules-ldap'
       sudo '/etc/init.d/slapd stop'
       sudo 'rm -rf /var/lib/ldap'
@@ -176,8 +176,8 @@ namespace :build do
 
   namespace :sasl do
     task :default, :roles => :mail do
-      sudo 'apt-get -y update'
-      sudo 'apt-get -y install libsasl2-2 libsasl2-modules sasl2-bin libsasl2-modules-ldap'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libsasl2-2 libsasl2-modules sasl2-bin libsasl2-modules-ldap'
 
       # Create sasldb by creating a test user, but not really creating it.
       sudo 'echo "foo" | sudo /usr/sbin/saslpasswd2 -c -n -p  test'
@@ -194,8 +194,8 @@ namespace :build do
 
   namespace :authdaemon do
     task :default, :roles => :mail do
-      sudo 'apt-get -y update'
-      sudo 'apt-get -y install courier-authlib courier-authdaemon'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install courier-authlib courier-authdaemon'
       config
     end
 
@@ -248,7 +248,7 @@ namespace :build do
   namespace :imap do
     task :default, :roles => :mail do
       build::authdaemon::default
-      sudo 'apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install fam courier-imap ourier-imap-ssl courier-authlib-ldap'
       sudo 'rm -rf /etc/courier/imapd.pem /etc/courier/imapd.cnf'
       sudo 'maildirmake /etc/skel/Maildir'
@@ -268,7 +268,7 @@ namespace :build do
 
   namespace :offlineimap do
     task :default, :roles => :backup do
-      sudo 'apt-get -y install offlineimap'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install offlineimap'
       # sudo_script 'bin/offlineimap.sh'
       config
     end
@@ -284,7 +284,7 @@ namespace :build do
   namespace :svn do
     task :default, :roles => :web do
       apache2
-      sudo 'apt-get -y install ruby ruby1.8-dev python python2.5-dev swig libtool'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install ruby ruby1.8-dev python python2.5-dev swig libtool'
       sudo_script 'bin/subversion.sh'
     end
   end
@@ -300,7 +300,7 @@ namespace :build do
 
   namespace :apache2 do
     task :default, :roles => :web do
-      sudo 'apt-get -y install zlib1g zlib1g-dev libssl-dev cronolog'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev cronolog'
       build::cert
       sudo_script 'bin/apache2.sh'
       config
@@ -328,13 +328,13 @@ namespace :build do
   end
 
   task :graphics, :roles => :web do
-    sudo 'apt-get update'
-    sudo 'apt-get -y install libjpeg62 libjpeg62-dev libpng3 libpng12-dev libtiff4 libtiff4-dev libgif4 libgif-dev'
+    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get update'
+    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libjpeg62 libjpeg62-dev libpng3 libpng12-dev libtiff4 libtiff4-dev libgif4 libgif-dev'
   end
 
   task :xml, :roles => :web do
-    sudo 'apt-get update'
-    sudo 'apt-get -y install libxml2 libxml2-dev libxslt1-dev'
+    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get update'
+    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libxml2 libxml2-dev libxslt1-dev'
   end
 
   task :cpan, :roles => :web do
@@ -348,7 +348,7 @@ namespace :build do
     task :default, :roles => :db do
       perl
       uuid
-      sudo 'apt-get -y install bison flex libreadline5 libreadline5-dev comerr-dev libkrb5-dev libpam0g-dev'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install bison flex libreadline5 libreadline5-dev comerr-dev libkrb5-dev libpam0g-dev'
       sudo_script 'bin/postgresql.sh'
     end
 
@@ -362,7 +362,7 @@ namespace :build do
       modperl2
       cpan
       pg
-      sudo 'apt-get -y install libgd2-xpm libgd2-xpm-dev'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libgd2-xpm libgd2-xpm-dev'
       sudo_script 'bin/rt.sh'
       sudo 'wget -O /usr/local/rt3/lib/RT/User_Local.pm http://www.justatheory.com/computers/programming/perl/rt/User_Local.pm.ldap'
       sudo 'chgrp bin /usr/local/rt3/lib/RT/User_Local.pm'
