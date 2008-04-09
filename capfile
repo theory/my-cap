@@ -6,7 +6,7 @@ role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
 role :ldap,   'ldap.kineticode.com'
 role :mail,   'smtp.kineticode.com'
-role :web,    '192.168.1.15'
+role :web,    'crocker.kineticode.com'
 role :db,     '192.168.1.15'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
@@ -144,7 +144,7 @@ namespace :build do
 
     task :default, :roles => :ldap do
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install slapd ldap-utils libsasl2-modules-ldap'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install slapd ldap-utils libsasl2-modules-ldap libldap2-dev'
       sudo '/etc/init.d/slapd stop'
       sudo 'rm -rf /var/lib/ldap'
       sudo 'mkdir /var/lib/ldap'
@@ -286,7 +286,14 @@ namespace :build do
       apache2
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install ruby ruby1.8-dev python python2.5-dev swig libtool'
       sudo_script 'bin/subversion.sh'
+      sudo '/usr/local/bin/svadmin create /var/svn'
     end
+
+    task :config, :roles => :web do
+      sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
+      sudo '/usr/bin/apachectl restart'
+    end
+
   end
 
   task :perl, :roles => :web do
@@ -300,7 +307,7 @@ namespace :build do
 
   namespace :apache2 do
     task :default, :roles => :web do
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev cronolog'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev cronolog libldap2-dev'
       build::cert
       sudo_script 'bin/apache2.sh'
       config
@@ -308,13 +315,18 @@ namespace :build do
 
     task :config, :roles => :web do
       sudo 'mkdir -p /etc/httpd'
-      sudo 'mkdir -p /var/www'
+      sudo 'mkdir -p /var/www/kineticode.com'
+      sudo 'mkdir -p /var/www/strongrrl.com'
       sudo 'mkdir -p /var/log/httpd'
       sudo 'mkdir -p /var/lock/httpd'
       upload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
       upload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
       upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
       upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
+
+      sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
+      sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_dav_svn.so]; then perl -i -pe 's/^#\\s+(LoadModule\\s+(?:dev|authz)_svn)/\\$1/gm' /etc/httpd/httpd.conf; fi"}
+
       pass = Capistrano::CLI.password_prompt('Password for uid=nobody,ou=daemons,dc=kineticode,dc=com: ')
       sudo %{perl -i -pe 's/-PASSWORD-/#{pass}/' /etc/httpd/httpd-vhosts.conf}
       sudo '/usr/bin/apachectl restart'
@@ -325,6 +337,8 @@ namespace :build do
     perl
     apache2
     sudo_script 'bin/modperl2.sh'
+    sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
+    sudo '/usr/bin/apachectl restart'
   end
 
   task :graphics, :roles => :web do
@@ -427,6 +441,10 @@ namespace :my do
 
     task :apache, :roles => :local do
       sudol_scripts( 'mm', 'apache' )
+    end
+
+    task :apache2, :roles => :local do
+      sudol_scripts 'apache2.sh'
     end
 
     task :modperl, :roles => :local do

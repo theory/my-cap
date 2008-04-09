@@ -6,7 +6,7 @@ export VERSION=2.2.8
 
 setup /usr/local/apache2/logs/apache-$VERSION
 download http://www.apache.org/dist/httpd/httpd-$VERSION.tar.gz
-tar zxf httpd-$VERSION.tar.gz
+tar zxf httpd-$VERSION.tar.gz || exit $?
 cd httpd-$VERSION
 export CPPFLAGS="-I/usr/local/include"
 export LDFLAGS="-L/usr/local/lib"
@@ -29,7 +29,7 @@ perl -i -pe 's{(/arandom\s+)/dev/random\s+}{$1}' srclib/apr/configure
  --with-ldap \
  --enable-ldap \
  --enable-authnz-ldap \
- --enable-mods-shared="rewrite info worker proxy deflate mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl authnz_ldap ldap"
-make
-make install
+ --enable-mods-shared="rewrite info worker proxy deflate mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl authnz_ldap ldap" || exit $?
+make || exit $?
+make install || exit $?
 echo Apache $VERSION > /usr/local/apache2/logs/apache-$VERSION

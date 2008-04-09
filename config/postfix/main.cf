@@ -4,7 +4,6 @@ inet_interfaces  = all
 myhostname       = smtp.kineticode.com
 myorigin         = $mydomain
 mynetworks_style = host
-mydestination   = rt.$mydomain
 
 ##############################################################################
 # TLS parameters                                                                                              
@@ -82,7 +81,7 @@ local_transport          = local
 virtual_transport        = maildrop
 maildrop_destination_recipient_limit = 1
 
-virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com
+virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com bricolage.cc
 virtual_mailbox_maps     = hash:/etc/postfix/mailbox_maps.cf
 virtual_alias_maps       = pcre:/etc/postfix/alias_maps.cf
 virtual_minimum_uid      = 100
