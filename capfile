@@ -286,11 +286,15 @@ namespace :build do
       apache2
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install ruby ruby1.8-dev python python2.5-dev swig libtool'
       sudo_script 'bin/subversion.sh'
-      sudo '/usr/local/bin/svadmin create /var/svn'
+      sudo '/usr/local/bin/svnadmin create /var/svn'
+      sudo 'chmod -R go-rwx /var/svn'
+      sudo 'chmod go+rx /var/svn'
+      sudo 'chown -R nobody:nogroup /var/svn/format /var/svn/db /var/svn/dav'
     end
 
-    task :config, :roles => :web do
-      sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
+    task :config, :roles => :db do
+      upload 'config/cron.daily/backupsvn', '/etc/cron.daily/backupsvn', :mode => 0755
+      sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_dav_svn.so]; then perl -i -pe 's/^#\\s+(LoadModule\\s+(?:dev|authz)_svn)/\\$1/gm' /etc/httpd/httpd.conf; fi"}
       sudo '/usr/bin/apachectl restart'
     end
 

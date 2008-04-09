@@ -44,6 +44,7 @@ make swig-rb || exit $?
 # As of now, the ruby tests fail because there is no bdb, but it's not important.
 make check-swig-rb
 make install-swig-rb || exit $?
+cp tools/backup/hot-backup.py /usr/local/bin
 if [ ! -e /usr/lib/python2.5/site-packages/libsvn ]; then
     ln -s /usr/local/lib/svn-python/libsvn /usr/lib/python2.5/site-packages
 fi
