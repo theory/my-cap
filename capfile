@@ -291,13 +291,13 @@ namespace :build do
       sudo '/usr/local/bin/svnadmin create /var/svn'
       sudo 'chmod -R go-rwx /var/svn'
       sudo 'chmod go+rx /var/svn'
-      sudo 'chown -R nobody:nogroup /var/svn/format /var/svn/db /var/svn/dav'
+      sudo 'chown -R nobody:nogroup /var/svn/format /var/svn/db /var/svn/dav /var/svn/hooks'
       config
     end
 
     task :config, :roles => :web do
       upload 'config/cron.daily/backupsvn', '/etc/cron.daily/backupsvn', :mode => 0755
-      upload 'config/post-commit', '/var/svn/hooks/post-commit', :mode => 0600
+      upload 'config/post-commit', '/var/svn/hooks/post-commit', :mode => 0755
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_dav_svn.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+(?:dav|authz)_svn)/\\$1/gm' /etc/httpd/httpd.conf; fi"}
       sudo '/usr/bin/apachectl restart'
     end
