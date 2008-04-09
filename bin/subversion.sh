@@ -51,4 +51,5 @@ fi
 if [ ! -e /usr/lib/python2.5/site-packages/svn ]; then
     ln -s /usr/local/lib/svn-python/svn /usr/lib/python2.5/site-packages
 fi
+/sbin/ldconfig
 cd ..
