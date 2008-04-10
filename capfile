@@ -467,8 +467,8 @@ namespace :my do
       sudol_scripts( 'modgzip' )
     end
 
-    task :ptop, :roles => :local do
-      sudol_scripts( 'ptop' )
+    task :pg_top, :roles => :local do
+      sudol_scripts( 'pg_top' )
     end
 
   end
