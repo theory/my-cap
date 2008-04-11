@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cd /var/backups
 /usr/sbin/slapcat -b dc=kineticode,dc=com -l kineticode.ldif

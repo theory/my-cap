@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cd /var/backups
 /usr/local/pgsql/bin/pg_dumpall -U postgres > postgresql.sql
