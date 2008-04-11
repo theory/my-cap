@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Delete apache error log files over 7 days old.
+# http://www.howtogeek.com/howto/ubuntu/delete-files-older-than-x-days-on-linux/
+
+/usr/bin/find /var/log/httpd/error_log.* -mtime +7 -exec rm {} \;

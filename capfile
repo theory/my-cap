@@ -332,6 +332,7 @@ namespace :build do
       upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
       upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
       upload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
+      upload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
       sudo 'update-rc.d httpd defaults'
 
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
