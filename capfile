@@ -331,13 +331,15 @@ namespace :build do
       upload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
       upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
       upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
+      upload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
+      sudo 'update-rc.d httpd defaults'
 
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_dav_svn.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+(?:dav|authz)_svn)/\\$1/gm' /etc/httpd/httpd.conf; fi"}
 
       pass = Capistrano::CLI.password_prompt('Password for uid=nobody,ou=daemons,dc=kineticode,dc=com: ')
       sudo %{perl -i -pe 's/-PASSWORD-/#{pass}/' /etc/httpd/httpd-vhosts.conf}
-      sudo '/usr/bin/apachectl restart'
+      sudo '/etc/init.d/httpd restart'
     end
   end
 
