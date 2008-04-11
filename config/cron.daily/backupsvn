@@ -1,7 +1,7 @@
 #!/bin/sh
 
 cd /var/backups
-/usr/local/bin/hot-backup.py /var/svn .
+/usr/local/bin/hot-backup.py /var/svn . > /dev/null
 DUMP=`ls -d svn-*`
 mv $DUMP svn
 tar jcf svn.tar.bz2 svn
