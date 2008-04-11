@@ -106,6 +106,13 @@ if [ ! -d /usr/local/pgsql/data ]; then
     sudo -u postgres /usr/local/pgsql/bin/initdb --no-locale --encoding utf-8 -D /usr/local/pgsql/data
     mkdir /usr/local/pgsql/data/logs
     chown -R postgres:postgres /usr/local/pgsql/data/logs
+    if [ $OS = 'Linux' ]; then
+        # Keep the data in /var on Linux.
+        mkdir -p /var/db
+        mv /usr/local/pgsql/data /var/db/pgdata
+        ln -s /var/db/pgdata /usr/local/pgsql/data
+        perl -i -pe 's{/usr/local/pgsql/data}{/var/db/pgdata}g' /etc/init.d/postgresql
+    fi
 fi
 
 if [ $OS = 'Darwin' ]; then

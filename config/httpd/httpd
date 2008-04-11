@@ -15,7 +15,7 @@ APACHECTL=/usr/bin/apachectl
 
 # See how we were called.
 case "$1" in
-  start)
+    start)
 	    log_daemon_msg "Starting web server" "apache2.2"
 		if $APACHECTL start; then
             log_end_msg 0
@@ -23,7 +23,7 @@ case "$1" in
             log_end_msg 1
         fi
         ;;
-  stop)
+    stop)
 	    log_daemon_msg "Stopping web server" "apache2.2"
 		if $APACHECTL graceful-stop; then
             log_end_msg 0
@@ -31,7 +31,7 @@ case "$1" in
             log_end_msg 1
         fi
         ;;
-  restart)
+    restart)
 	    log_daemon_msg "Restarting web server" "apache2.2"
   		if $APACHECTL graceful; then
               log_end_msg 0

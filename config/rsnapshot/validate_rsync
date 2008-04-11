@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# # Determine the allowed IP address based on a DynDNS address.
+# VIP=`dig justatheory.kicks-ass.net +short`
+# 
+# # Determine the incoming IP address.
+# IP=$(echo $SSH_CONNECTION | awk '{print $1}')
+# 
+# case "$IP" in
+#     "$VIP")
+#         # Accepted.
+#         ;;
+#     *)
+#         echo "Rejected $IP"
+#         exit;
+#         ;;
+# esac
+
+case "$SSH_ORIGINAL_COMMAND" in
+    *\&*)
+        echo "Rejected"
+        ;;
+    *\;*)
+        echo "Rejected"
+        ;;
+    rsync\ --server*)
+        $SSH_ORIGINAL_COMMAND
+        ;;
+    *)
+        echo "Rejected $SSH_ORIGINAL_COMMAND"
+        ;;
+esac

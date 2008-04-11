@@ -403,6 +403,33 @@ namespace :build do
     end
   end
 
+  namespace :rsync do
+    task :default, :roles => :mail do
+      sudo 'useradd -m rsync -s /bin/bash'
+      sudo 'mkdir -p /home/rsync/.ssh'
+      sudo 'chown rsync:rsync /home/rsync/.ssh'
+      config
+      puts %{Be sure to run\n\n    EDITOR=emacs visudo\n\n to add\n\n    rsync ALL=NOPASSWD: /usr/bin/rsync"\n\n}
+    end
+
+    task :config, :roles => :mail do
+      upload 'config/rsnapshot/authorized_keys', '/home/rsync/.ssh/authorized_keys', :mode => 0600, :owner => 'rsync', :group => 'rsync'
+      sudo 'mkdir -p /usr/local/bin'
+      upload 'config/rsnapshot/validate_rsync', '/usr/local/bin/validate_rsync', :mode => 0755
+    end
+  end
+
+  namespace :stats do
+    task :default, :roles => :web do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install awstats'
+      config
+    end
+
+    task :config, :roles => :web do
+    end
+  end
+
 end
 
 namespace :my do
