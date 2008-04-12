@@ -416,6 +416,7 @@ namespace :build do
       upload 'config/rsnapshot/authorized_keys', '/home/rsync/.ssh/authorized_keys', :mode => 0600, :owner => 'rsync', :group => 'rsync'
       sudo 'mkdir -p /usr/local/bin'
       upload 'config/rsnapshot/validate_rsync', '/usr/local/bin/validate_rsync', :mode => 0755
+      upload 'config/rsnapshot/sudo_rsync', '/usr/local/bin/sudo_rsync', :mode => 0755
     end
   end
 

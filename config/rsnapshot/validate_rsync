@@ -23,10 +23,10 @@ case "$SSH_ORIGINAL_COMMAND" in
     *\;*)
         echo "Rejected"
         ;;
-    rsync\ --server*)
+    /usr/local/bin/sudo_rsync\ --server*)
         $SSH_ORIGINAL_COMMAND
         ;;
     *)
-        echo "Rejected $SSH_ORIGINAL_COMMAND"
+        echo "Rejected"
         ;;
 esac
