@@ -428,6 +428,7 @@ namespace :build do
     end
 
     task :config, :roles => :web do
+      upload 'config/awstats/awstats.kineticode.conf', '/etc/awstats/awstats.kineticode.conf', :mode => 0644
     end
   end
 
