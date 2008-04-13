@@ -428,6 +428,8 @@ namespace :build do
     end
 
     task :config, :roles => :web do
+      sudo 'mkdir -p /var/www/stats.kineticode.com'
+      sudo 'mkdir -p /var/www/stats.strongrrl.com'
       upload 'config/awstats/awstats.kineticode.conf', '/etc/awstats/awstats.kineticode.conf', :mode => 0644
     end
   end

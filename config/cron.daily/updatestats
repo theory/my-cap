@@ -1,0 +1,10 @@
+#!/bin/bash
+
+FILE=`perl -MPOSIX -le 'print strftime( "/var/log/httpd/%Y/%m/access_log-kineticode.com.%Y%m%d", localtime( time - 86400 ))'`
+
+/usr/lib/cgi-bin/awstats.pl -config=kineticode -update -LogFile=$FILE
+/usr/share/doc/awstats/examples/awstats_buildstaticpages.pl \
+    -config=kineticode \
+    -lang=en \
+    -awstatsprog=/usr/lib/cgi-bin/awstats.pl \
+    -dir=/var/www/stats.kineticode.com
