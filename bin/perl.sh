@@ -7,9 +7,9 @@ export VERSION=5.10.0
 setup /usr/local/bin/perl$VERSION
 download http://www.cpan.org/src/perl-$VERSION.tar.gz
 rm -rf perl-$VERSION
-tar zxf perl-$VERSION.tar.gz
+tar zxf perl-$VERSION.tar.gz || exit $?
 cd perl-$VERSION
-sh Configure -des -Duseshrplib -Dperladmin=david@kineticode.com -Dcf_email=david@kineticode.com
-make
-make test
-make install
+sh Configure -des -Duseshrplib -Dperladmin=david@kineticode.com -Dcf_email=david@kineticode.com || exit $?
+make || exit $?
+make test || exit $?
+make install || exit $?
