@@ -15,6 +15,13 @@ cd mod_perl-$VERSION
 ( make && make test && make install UNINST=1) || exit $?
 
 # LoadModule perl_module modules/mod_perl.so
-if [ -f /usr/local/apache2/modules/mod_perl.so ]; then
-    perl -i -pe 's/^#\s+(LoadModule\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf;
+if [ $OS = 'Darwin' ]; then
+    if [ -z "`grep -l "mod_perl\.so" "/usr/local/apache2/conf/httpd.conf"`" ]; then
+        perl -i -pe 's/(LoadModule\s+rewrite_module.*)/$1\nLoadModule perl_module modules\/mod_perl.so/' /usr/local/apache2/conf/httpd.conf
+    fi
+else    
+    if [ -f /usr/local/apache2/modules/mod_perl.so ]; then
+        perl -i -pe 's/^#\s+(LoadModule\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf;
+    fi
 fi
+

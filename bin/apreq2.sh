@@ -17,4 +17,16 @@ sudo make install || exit $?
 make || exit $?
 make test || exit $?
 make install UNINST=1 || exit $?
+
+# LoadModule apreq_module modules/mod_apreq2.so
+if [ $OS = 'Darwin' ]; then
+    if [ -z "`grep -l "apreq_module" "/usr/local/apache2/conf/httpd.conf"`" ]; then
+        perl -i -pe 's/(LoadModule\s+rewrite_module.*)/$1\nLoadModule apreq_module modules\/mod_apreq2.so/' /usr/local/apache2/conf/httpd.conf
+    fi
+else    
+    if [ -f /usr/local/apache2/modules/mod_apreq2.so ]; then
+        perl -i -pe 's/^#\s+(LoadModule\s+apreq_module)/\\$1/m' /etc/httpd/httpd.conf;
+    fi
+fi
+
 cd ..
