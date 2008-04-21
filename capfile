@@ -350,7 +350,6 @@ namespace :build do
     perl
     apache2
     sudo_script 'bin/modperl2.sh'
-    sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
     sudo '/usr/bin/apachectl restart'
   end
 
@@ -487,10 +486,6 @@ namespace :my do
       sudol_scripts( 'mm', 'apache' )
     end
 
-    task :apache2, :roles => :local do
-      sudol_scripts 'apache2'
-    end
-
     task :modperl, :roles => :local do
       perl
       apache
@@ -501,6 +496,16 @@ namespace :my do
     task :modgzip, :roles => :local do
       apache
       sudol_scripts( 'modgzip' )
+    end
+
+    task :apache2, :roles => :local do
+      sudol_scripts 'apache2'
+    end
+
+    task :modperl2, :roles => :web do
+      perl
+      apache2
+      sudol_scripts 'modperl2'
     end
 
     task :pg_top, :roles => :local do
