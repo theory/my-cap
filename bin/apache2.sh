@@ -15,6 +15,13 @@ export CFLAGS="-DAP_UNSAFE_ERROR_LOG_UNESCAPED"
 # Force APR to use /dev/urandom instead of /dev/random. Details on the issue
 # I found are here: http://www.andrewsavory.com/blog/archives/001408.html
 perl -i -pe 's{(/arandom\s+)/dev/random\s+}{$1}' srclib/apr/configure
+if [ $OS = 'Darwin' ]; then
+    LDAP=''
+    SLDAP=''
+else
+    LDAP=' --with-ldap --enable-ldap --enable-authnz-ldap'
+    SLDAP=' authnz_ldap ldap'
+fi
 
 ./configure \
  --prefix=/usr/local/apache2 \
@@ -26,10 +33,8 @@ perl -i -pe 's{(/arandom\s+)/dev/random\s+}{$1}' srclib/apr/configure
  --enable-authz-host \
  --enable-authz-group \
  --enable-authz-user \
- --with-ldap \
- --enable-ldap \
- --enable-authnz-ldap \
- --enable-mods-shared="rewrite info worker proxy deflate mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl authnz_ldap ldap" || exit $?
+ $LDAP \
+ --enable-mods-shared="rewrite info worker proxy deflate mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl$SLDAP" || exit $?
 make || exit $?
 make install || exit $?
 echo Apache $VERSION > /usr/local/apache2/logs/apache-$VERSION
