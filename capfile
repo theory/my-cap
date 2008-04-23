@@ -502,11 +502,15 @@ namespace :my do
       sudol_scripts 'apache2'
     end
 
-    task :modperl2, :roles => :web do
+    task :modperl2, :roles => :local do
       perl
       apache2
       runl( %w[cpan ExtUtils::XSBuilder] )
       sudol_scripts 'modperl2', 'apreq2'
+    end
+
+    task :cert, :roles => :local do
+      sudol_scripts  'sslcert'
     end
 
     task :pg_top, :roles => :local do

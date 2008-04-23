@@ -6,7 +6,7 @@ setup /etc/ssl/certs/cacert.pem
 
 mkdir -p /tmp/ssl
 cd /tmp/ssl
-wget --no-check-certificate https://svn.kineticode.com/cap/config/openssl.cnf
+download https://svn.kineticode.com/cap/config/openssl.cnf
 echo 01 > serial
 touch index.txt
 
@@ -38,7 +38,6 @@ openssl x509 -in servercert.pem.tmp -out servercert.pem
 mkdir -p /etc/ssl/private
 mkdir -p /etc/ssl/certs
 chmod 710 /etc/ssl/private
-chgrp ssl-cert /etc/ssl/private
 
 # Copy the files to their new home.
 cat serverkey.pem servercert.pem > /etc/ssl/private/serverkeycert.pem # Combined pem.
@@ -55,8 +54,11 @@ chmod 440 /etc/ssl/private/serverkey.pem
 chmod 440 /etc/ssl/private/serverkeycert.pem
 # chmod 444 /etc/ssl/certs/clientcert.pem
 # chmod 440 /etc/ssl/private/clientkey.pem
-chgrp ssl-cert /etc/ssl/private/serverkey.pem
-chgrp ssl-cert /etc/ssl/private/serverkeycert.pem
+if [ $OS != 'Darwin' ]; then
+    chgrp -R ssl-cert /etc/ssl/private
+fi
+# chgrp ssl-cert /etc/ssl/private/serverkey.pem
+# chgrp ssl-cert /etc/ssl/private/serverkeycert.pem
 # chgrp ssl-cert /etc/ssl/private/clientkey.pem
 
 # Delete the directory used to create them.
