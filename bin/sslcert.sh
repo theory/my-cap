@@ -8,7 +8,7 @@ mkdir -p /tmp/ssl
 cd /tmp/ssl
 download https://svn.kineticode.com/cap/config/openssl.cnf
 if [ $OS = 'Darwin' ]; then
-    perl -i -pe 's/kineticode[.]com/localhost/g' openssl.cnf
+    perl -i -pe 's/(?:[*][.])?kineticode[.]com/localhost/g' openssl.cnf
 fi
 
 echo 01 > serial
