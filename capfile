@@ -499,14 +499,14 @@ namespace :my do
     end
 
     task :apache2, :roles => :local do
-      sudol_scripts 'apache2', 'apreq2'
+      sudol_scripts 'apache2'
     end
 
     task :modperl2, :roles => :web do
       perl
       apache2
       runl( %w[cpan ExtUtils::XSBuilder] )
-      sudol_scripts 'modperl2'
+      sudol_scripts 'modperl2', 'apreq2'
     end
 
     task :pg_top, :roles => :local do
