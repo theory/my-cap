@@ -338,6 +338,7 @@ namespace :build do
       sudo 'update-rc.d httpd defaults'
 
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
+      sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_apreq2.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+apreq_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_dav_svn.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+(?:dav|authz)_svn)/\\$1/gm' /etc/httpd/httpd.conf; fi"}
 
       pass = Capistrano::CLI.password_prompt('Password for uid=nobody,ou=daemons,dc=kineticode,dc=com: ')
@@ -351,7 +352,7 @@ namespace :build do
     apache2
     sudo_script 'bin/modperl2.sh'
     sudo_script 'bin/apreq2.sh'
-    sudo '/usr/bin/apachectl restart'
+    build::apache2::config
   end
 
   task :graphics, :roles => :web do
