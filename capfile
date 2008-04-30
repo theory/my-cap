@@ -7,7 +7,7 @@ role :local,  'localhost'
 role :ldap,   'ldap.kineticode.com'
 role :mail,   'smtp.kineticode.com'
 role :web,    'crocker.kineticode.com'
-role :db,     '192.168.1.15'
+role :db,     'smtp.kineticode.com'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
 # methods on Capistrano::CLI.ui, e.g., Capistrano::CLI.ui.ask().
