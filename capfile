@@ -305,6 +305,8 @@ namespace :build do
   end
 
   task :perl, :roles => :web do
+    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libdb4.6 libdb4.6-dev'
     sudo_script 'bin/perl.sh'
   end
 

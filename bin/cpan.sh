@@ -13,6 +13,7 @@ if [ $OS = 'Darwin' ]; then
 else
     wget --no-check-certificate -O ~/.cpan/CPAN/MyConfig.pm https://svn.kineticode.com/cap/config/CPANConfig.pm
     perl -i -pe 's{/Users}{/home}g' ~/.cpan/CPAN/MyConfig.pm
+    perl -i -pe 's{/bin/zsh}{/bin/bash}g' ~/.cpan/CPAN/MyConfig.pm
     wget --no-check-certificate -O ~/.cpanreporter/config.ini https://svn.kineticode.com/cap/config/cpanreporter.ini
 fi
 
