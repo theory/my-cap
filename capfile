@@ -329,6 +329,8 @@ namespace :build do
       sudo 'mkdir -p /var/log/httpd'
       sudo 'mkdir -p /var/lock/httpd'
       upload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
+      sudo 'rm /usr/local/apache2/conf/httpd.conf'
+      sudo 'ln -s /etc/httpd/httpd.conf /usr/local/apache2/conf/httpd.conf'
       upload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
       upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
       upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
