@@ -100,7 +100,7 @@ namespace :build do
     task :default, :roles => :mail do
       upload 'config/sources.list', '/etc/apt/sources.list'
       upgrade
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install emacs screen sysstat make gcc libc6-dev'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install emacs screen sysstat make gcc libc6-dev path'
     end
 
     desc 'Upgrade all installed packages.'
