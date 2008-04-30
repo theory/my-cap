@@ -350,6 +350,7 @@ namespace :build do
     perl
     apache2
     sudo_script 'bin/modperl2.sh'
+    sudo_script 'bin/apreq2.sh'
     sudo '/usr/bin/apachectl restart'
   end
 
