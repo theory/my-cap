@@ -346,7 +346,7 @@ namespace :build do
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_dav_svn.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+(?:dav|authz)_svn)/\\$1/gm' /etc/httpd/httpd.conf; fi"}
 
       pass = Capistrano::CLI.password_prompt('Password for uid=nobody,ou=daemons,dc=kineticode,dc=com: ')
-      sudo %{perl -i -pe 's/-PASSWORD-/#{pass}/' /etc/httpd/httpd-vhosts.conf}
+      sudo %{perl -i -pe 's/-PASSWORD-/#{pass}/g' /etc/httpd/httpd-vhosts.conf}
       sudo '/etc/init.d/httpd restart'
     end
   end
