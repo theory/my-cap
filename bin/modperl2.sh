@@ -12,6 +12,11 @@ cd mod_perl-$VERSION
 /usr/local/bin/perl Makefile.PL \
   MP_AP_PREFIX=/usr/local/apache2 \
   MP_PROMPT_DEFAULT=1 || exit $?
+# Debugging mod_perl with debugging Perl:
+#/usr/local/perl-5.10.0.d/bin/perl Makefile.PL \
+#  MP_AP_PREFIX=/usr/local/apache2.d \
+#  MP_MAINTAINER=1 \
+#  MP_PROMPT_DEFAULT=1
 ( make && make test && make install UNINST=1) || exit $?
 
 # LoadModule perl_module modules/mod_perl.so
