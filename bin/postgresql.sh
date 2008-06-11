@@ -2,10 +2,11 @@
 
 export VERSION=8.3.1
 export PERL=/usr/local/bin/perl
+export BASE=/usr/local/pgsql
 
 . `dirname $0`/functions.sh
 
-setup /usr/local/pgsql/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
+setup $BASE/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
 download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
 rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
@@ -15,7 +16,7 @@ cd postgresql-$VERSION
 if [ $OS = 'Darwin' ]; then
     ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
     --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap --with-ossp-uuid \
-    --with-libs=/usr/local/lib --with-includes=/usr/local/include || exit $?
+    --with-libs=/usr/local/lib --with-includes=/usr/local/include --prefix=$BASE || exit $?
 else
     ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
     --with-libxml --with-ldap --with-ossp-uuid --with-libs=/usr/local/lib \
@@ -78,8 +79,8 @@ if [ $OS = 'Darwin' ]; then
         echo kern.sysv.shmseg=8         >> /etc/sysctl.conf
         echo kern.sysv.shmall=65536     >> /etc/sysctl.conf
     else
-        cp `dirname $0`/../config/postgresql.conf /usr/local/pgsql/conf
-        chown postgres:postgrs /usr/local/pgsql/conf
+        cp `dirname $0`/../config/postgresql.conf $BASE/conf
+        chown postgres:postgres $BASE/conf
     fi
 else
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
@@ -91,27 +92,28 @@ else
     fi
     useradd postgres -d /nonexistent
     download https://svn.kineticode.com/cap/config/postgresql.conf
-    cp postgresql.conf /usr/local/pgsql/conf
-    chown postgres:postgres /usr/local/pgsql/conf
+    cp postgresql.conf $BASE/conf
+    chown postgres:postgres $BASE/conf
     cp contrib/start-scripts/linux /etc/init.d/postgresql
     chmod +x /etc/init.d/postgresql
     # chkconfig --add postgresql    # redhat
     update-rc.d postgresql defaults # debian
 fi
 
-if [ ! -d /usr/local/pgsql/data ]; then
+if [ ! -d $BASE/data ]; then
     # Create and initialize the data directory.
-    mkdir /usr/local/pgsql/data
-    chown -R postgres:postgres /usr/local/pgsql/data
-    sudo -u postgres /usr/local/pgsql/bin/initdb --no-locale --encoding utf-8 -D /usr/local/pgsql/data
-    mkdir /usr/local/pgsql/data/logs
-    chown -R postgres:postgres /usr/local/pgsql/data/logs
+    mkdir $BASE/data
+    chown -R postgres:postgres $BASE/data
+    sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding utf-8 -D $BASE/data
+#    sudo -u postgres $BASE/bin/initdb --no-locale --encoding utf-8 -D $BASE/data
+    mkdir $BASE/data/logs
+    chown -R postgres:postgres $BASE/data/logs
     if [ $OS = 'Linux' ]; then
         # Keep the data in /var on Linux.
         mkdir -p /var/db
-        mv /usr/local/pgsql/data /var/db/pgdata
-        ln -s /var/db/pgdata /usr/local/pgsql/data
-        perl -i -pe 's{/usr/local/pgsql/data}{/var/db/pgdata}g' /etc/init.d/postgresql
+        mv $BASE/data /var/db/pgdata
+        ln -s /var/db/pgdata $BASE/data
+        perl -i -pe 's{$BASE/data}{/var/db/pgdata}g' /etc/init.d/postgresql
     fi
 fi
 
@@ -124,22 +126,22 @@ sleep 5
 
 for lang in plpgsql plperl plperlu
 do
-    /usr/local/pgsql/bin/createlang -U postgres $lang template1
-    /usr/local/pgsql/bin/createlang -U postgres $lang postgres
+    $BASE/bin/createlang -U postgres $lang template1
+    $BASE/bin/createlang -U postgres $lang postgres
 done
 
 for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp
 do
-    /usr/local/pgsql/bin/psql -U postgres -f /usr/local/pgsql/share/contrib/$file.sql template1
-    /usr/local/pgsql/bin/psql -U postgres -f /usr/local/pgsql/share/contrib/$file.sql postgres
+    $BASE/bin/psql -U postgres -f $BASE/share/contrib/$file.sql template1
+    $BASE/bin/psql -U postgres -f $BASE/share/contrib/$file.sql postgres
 done
 
 cd ..
 
 if [ $OS = 'Darwin' ]; then
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
-        cp `dirname $0`/../config/postgresql.conf /usr/local/pgsql/data
-        chown postgres:postgrs /usr/local/pgsql/conf
+        cp `dirname $0`/../config/postgresql.conf $BASE/data
+        chown postgres:postgrs $BASE/conf
         echo '###############################################################################'
         echo "Shared memory has been updated; changes will take effect after the next reboot."
         echo '###############################################################################'
