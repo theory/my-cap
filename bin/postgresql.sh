@@ -2,7 +2,7 @@
 
 export VERSION=8.3.1
 export PERL=/usr/local/bin/perl
-export BASE=/usr/local/pgsql
+export BASE=/usr/local/pgsql-$VERSION.d
 
 . `dirname $0`/functions.sh
 
@@ -12,10 +12,10 @@ rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
 
-# Append --enable-cassert for debugging C library development
 if [ $OS = 'Darwin' ]; then
     ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
     --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap --with-ossp-uuid \
+#    --enable-cassert --enable-debug \
     --with-libs=/usr/local/lib --with-includes=/usr/local/include --prefix=$BASE || exit $?
 else
     ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
