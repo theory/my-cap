@@ -1,4 +1,4 @@
-##VERSION: $Id: imapd.dist.in,v 1.38 2006/02/24 02:15:07 mrsam Exp $
+##VERSION: $Id: imapd.dist.in,v 1.39 2008/01/27 16:13:15 mrsam Exp $
 #
 # imapd created from imapd.dist by sysconftool
 #
@@ -159,6 +159,13 @@ IMAP_PROXY_FOREIGN=0
 # the server polls for changes to the folder, in IDLE mode (in seconds).
 
 IMAP_IDLE_TIMEOUT=60
+
+##NAME: IMAP_MAILBOX_SANITY_CHECK:0
+#
+# Sanity check -- make sure home directory and maildir's ownership matches
+# the IMAP server's effective uid and gid
+
+IMAP_MAILBOX_SANITY_CHECK=1
 
 ##NAME: IMAP_CAPABILITY_TLS:0
 #

@@ -1,11 +1,11 @@
-##VERSION: $Id: imapd-ssl.dist.in,v 1.12 2005/07/02 01:13:57 mrsam Exp $
+##VERSION: $Id: imapd-ssl.dist.in,v 1.16 2007/11/22 14:22:44 mrsam Exp $
 #
 # imapd-ssl created from imapd-ssl.dist by sysconftool
 #
 # Do not alter lines that begin with ##, they are used when upgrading
 # this configuration.
 #
-#  Copyright 2000 - 2004 Double Precision, Inc.  See COPYING for
+#  Copyright 2000 - 2007 Double Precision, Inc.  See COPYING for
 #  distribution information.
 #
 #  This configuration file sets various options for the Courier-IMAP server
@@ -88,13 +88,12 @@ IMAPDSTARTTLS=YES
 
 IMAP_TLS_REQUIRED=1
 
+
 #########################################################################
 #
-# The following variables configure IMAP over SSL.  If OpenSSL is available
-# during configuration, the couriertls helper gets compiled, and upon
-# installation a dummy TLS_CERTFILE gets generated.  courieresmtpd will
-# automatically advertise the ESMTP STARTTLS extension if both TLS_CERTFILE
-# and COURIERTLS exist.
+# The following variables configure IMAP over SSL.  If OpenSSL or GnuTLS
+# is available during configuration, the couriertls helper gets compiled, and
+# upon installation a dummy TLS_CERTFILE gets generated.
 #
 # WARNING: Peer certificate verification has NOT yet been tested.  Proceed
 # at your own risk.  Only the basic SSL/TLS functionality is known to be
@@ -109,17 +108,31 @@ COURIERTLS=/usr/bin/couriertls
 # 
 # TLS_PROTOCOL sets the protocol version.  The possible versions are:
 #
+# OpenSSL:
+#
 # SSL2 - SSLv2
 # SSL3 - SSLv3
+# SSL23 - either SSLv2 or SSLv3
 # TLS1 - TLS1
+#
+# GnuTLS:
+#
+# SSL3 - SSLv3
+# TLS1 - TLS 1.0
+# TLS1_1 TLS 1.1
+#
+# When compiled against GnuTLS, multiple protocols can be selected as follows:
+#
+# TLS_PROTOCOL="TLS1_1:TLS1:SSL3"
 
-TLS_PROTOCOL=SSL3
+TLS_PROTOCOL=SSL23
 
 ##NAME: TLS_STARTTLS_PROTOCOL:0
 # 
 # TLS_STARTTLS_PROTOCOL is used instead of TLS_PROTOCOL for the IMAP STARTTLS
 # extension, as opposed to IMAP over SSL on port 993.
 #
+# It takes the same values for OpenSSL/GnuTLS as TLS_PROTOCOL
 
 TLS_STARTTLS_PROTOCOL=TLS1
 
@@ -129,7 +142,70 @@ TLS_STARTTLS_PROTOCOL=TLS1
 # OpenSSL library.  In most situations you can leave TLS_CIPHER_LIST
 # undefined
 #
+# OpenSSL:
+#
 # TLS_CIPHER_LIST="ALL:!ADH:RC4+RSA:+SSLv2:@STRENGTH"
+#
+# GnuTLS:
+#
+# TLS_CIPHER_LIST="HIGH:MEDIUM"
+#
+# The actual list of available ciphers depend on the options GnuTLS was
+# compiled against. The possible ciphers are:
+#
+# AES256, 3DES, AES128, ARC128, ARC40, RC2, DES, NULL
+#
+# Also, the following aliases:
+#
+# HIGH -- all ciphers that use more than a 128 bit key size
+# MEDIUM -- all ciphers that use a 128 bit key size
+# LOW -- all ciphers that use fewer than a 128 bit key size, the NULL cipher
+#        is not included
+# ALL -- all ciphers except the NULL cipher
+
+##NAME: TLS_MIN_DH_BITS:0
+#
+# TLS_MIN_DH_BITS=n
+#
+# GnuTLS only:
+#
+# Set the minimum number of acceptable bits for a DH key exchange.
+#
+# GnuTLS's compiled-in default is 727 bits (as of GnuTLS 1.6.3). Some server
+# have been encountered that offer 512 bit keys. You may have to set
+# TLS_MIN_DH_BITS=512 here, if necessary.
+
+##NAME: TLS_KX_LIST:0
+#
+# GnuTLS only:
+#
+# Allowed key exchange protocols. The default of "ALL" should be sufficient.
+# The list of supported key exchange protocols depends on the options GnuTLS
+# was compiled against, but may include the following:
+#
+# DHERSA, DHEDSS, RSA, SRP, SRPRSA, SRPDSS, PSK, DHEPSK, ANONDH, RSAEXPORT
+
+TLS_KX_LIST=ALL
+
+##NAME: TLS_COMPRESSION:0
+#
+# GnuTLS only:
+#
+# Optional compression. "ALL" selects all available compression methods.
+#
+# Available compression methods: DEFLATE, LZO, NULL
+
+TLS_COMPRESSION=ALL
+
+##NAME: TLS_CERTS:0
+#
+# GnuTLS only:
+#
+# Supported certificate types are X509 and OPENPGP.
+#
+# OPENPGP has not been tested
+
+TLS_CERTS=X509
 
 ##NAME: TLS_TIMEOUT:0
 # TLS_TIMEOUT is currently not implemented, and reserved for future use.
@@ -138,7 +214,7 @@ TLS_STARTTLS_PROTOCOL=TLS1
 
 ##NAME: TLS_DHCERTFILE:0
 #
-# TLS_DHCERTFILE - PEM file that stores our Diffie-Hellman cipher pair.
+# TLS_DHCERTFILE - PEM file that stores a Diffie-Hellman -based certificate.
 # When OpenSSL is compiled to use Diffie-Hellman ciphers instead of RSA
 # you must generate a DH pair that will be used.  In most situations the
 # DH pair is to be treated as confidential, and the file specified by
@@ -150,9 +226,35 @@ TLS_STARTTLS_PROTOCOL=TLS1
 #
 # TLS_CERTFILE - certificate to use.  TLS_CERTFILE is required for SSL/TLS
 # servers, and is optional for SSL/TLS clients.  TLS_CERTFILE is usually
-# treated as confidential, and must not be world-readable.
+# treated as confidential, and must not be world-readable. Set TLS_CERTFILE
+# instead of TLS_DHCERTFILE if this is a garden-variety certificate
 #
+# VIRTUAL HOSTS (servers only):
+#
+# Due to technical limitations in the original SSL/TLS protocol, a dedicated
+# IP address is required for each virtual host certificate. If you have
+# multiple certificates, install each certificate file as
+# $TLS_CERTFILE.aaa.bbb.ccc.ddd, where "aaa.bbb.ccc.ddd" is the IP address
+# for the certificate's domain name. So, if TLS_CERTFILE is set to
+# /etc/certificate.pem, then you'll need to install the actual certificate
+# files as /etc/certificate.pem.192.168.0.0.2, /etc/certificate.pem.192.68.0.0.3
+# and so on, for each IP address.
+#
+# GnuTLS only (servers only):
+#
+# GnuTLS implements a new TLS extension that eliminates the need to have a
+# dedicated IP address for each SSL/TLS domain name. Install each certificate
+# as $TLS_CERTFILE.domain, so if TLS_CERTFILE is set to /etc/certificate.pem,
+# then you'll need to install the actual certificate files as
+# /etc/certificate.pem.host1.example.com, /etc/certificate.pem.host2.example.com
+# and so on.
+#
+# Note that this TLS extension also requires a corresponding support in the
+# client. Older SSL/TLS clients may not support this feature.
+#
+# This is an experimental feature.
 # TLS_CERTFILE=/etc/courier/imapd.pem
+
 TLS_CERTFILE=/etc/ssl/private/serverkeycert.pem
 
 ##NAME: TLS_TRUSTCERTS:0

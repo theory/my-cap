@@ -5,6 +5,7 @@ role :dns,    'crocker.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
 role :ldap,   'ldap.kineticode.com'
+#role :ldap,   '192.168.1.15'
 role :mail,   'smtp.kineticode.com'
 role :web,    'crocker.kineticode.com'
 role :db,     'smtp.kineticode.com'
@@ -166,7 +167,7 @@ namespace :build do
 
     task :config_files, :roles => :ldap do
       upload 'config/openldap/slapd', '/etc/default/slapd', :mode => 0644
-      upload 'config/openldap/slapd.conf', '/etc/ldap/slapd.conf', :mode => 0600
+      upload 'config/openldap/slapd.conf', '/etc/ldap/slapd.conf', :mode => 0640, :group => 'openldap'
       upload 'config/openldap/ldap.conf', '/etc/ldap/ldap.conf', :mode => 0644
       upload 'config/openldap/DB_CONFIG', '/var/lib/ldap/DB_CONFIG', :mode => 0644
       upload 'config/cron.daily/backupldap', '/etc/cron.daily/backupldap', :mode => 0755
