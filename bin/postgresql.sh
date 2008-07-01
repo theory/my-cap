@@ -1,8 +1,8 @@
 #!/bin/sh
 
-export VERSION=8.3.1
+export VERSION=8.3.3
 export PERL=/usr/local/bin/perl
-export BASE=/usr/local/pgsql-$VERSION.d
+export BASE=/usr/local/pgsql
 
 . `dirname $0`/functions.sh
 
@@ -13,9 +13,9 @@ tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
 
 if [ $OS = 'Darwin' ]; then
+     # For debugging: --enable-cassert --enable-debug
     ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
     --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap --with-ossp-uuid \
-#    --enable-cassert --enable-debug \
     --with-libs=/usr/local/lib --with-includes=/usr/local/include --prefix=$BASE || exit $?
 else
     ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
@@ -29,7 +29,8 @@ make install || exit $?
 
 # Install contrib modules
 cd contrib
-for dir in adminpack isn fuzzystrmatch hstore pgcrypto dblink intagg lo ltree pg_standby uuid-ossp
+svn export https://svn.kineticode.com/citext/trunk citext
+for dir in adminpack isn fuzzystrmatch hstore pgcrypto dblink intagg lo ltree pg_standby uuid-ossp citext
 do
     cd $dir
     make || exit $?
@@ -130,7 +131,7 @@ do
     $BASE/bin/createlang -U postgres $lang postgres
 done
 
-for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp
+for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext
 do
     $BASE/bin/psql -U postgres -f $BASE/share/contrib/$file.sql template1
     $BASE/bin/psql -U postgres -f $BASE/share/contrib/$file.sql postgres
