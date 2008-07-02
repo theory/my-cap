@@ -124,8 +124,8 @@ COURIERTLS=/usr/bin/couriertls
 # When compiled against GnuTLS, multiple protocols can be selected as follows:
 #
 # TLS_PROTOCOL="TLS1_1:TLS1:SSL3"
-
-TLS_PROTOCOL=SSL23
+#
+# TLS_PROTOCOL=SSL23
 
 ##NAME: TLS_STARTTLS_PROTOCOL:0
 # 
@@ -133,8 +133,8 @@ TLS_PROTOCOL=SSL23
 # extension, as opposed to IMAP over SSL on port 993.
 #
 # It takes the same values for OpenSSL/GnuTLS as TLS_PROTOCOL
-
-TLS_STARTTLS_PROTOCOL=TLS1
+#
+# TLS_STARTTLS_PROTOCOL=TLS1
 
 ##NAME: TLS_CIPHER_LIST:0
 #
