@@ -99,7 +99,7 @@ namespace :build do
   desc 'Installs the base packages that I needs, and upgrades all existing packages.'
   namespace :ubuntu do
     task :default, :roles => :mail do
-      upload 'config/sources.list', '/etc/apt/sources.list'
+      config
       upgrade
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install emacs screen sysstat make gcc libc6-dev path'
     end
@@ -109,6 +109,13 @@ namespace :build do
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y upgrade'
     end
+
+    desc 'Configure apt.'
+    task :config, :roles => :mail do
+      upload 'config/ubuntu/sources.list', '/etc/apt/sources.list'
+      upload 'config/ubuntu/preferences', '/etc/apt/preferences'
+    end
+    
   end
 
   desc 'Builds a wildcard SSL certificate for kineticode.com using bin/sslcert.sh and config/openssl.cnf.'
