@@ -133,8 +133,8 @@ done
 
 for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext
 do
-    $BASE/bin/psql -U postgres -f $BASE/share/contrib/$file.sql template1
-    $BASE/bin/psql -U postgres -f $BASE/share/contrib/$file.sql postgres
+    $BASE/bin/psql -XU postgres -f $BASE/share/contrib/$file.sql template1
+    $BASE/bin/psql -XU postgres -f $BASE/share/contrib/$file.sql postgres
 done
 
 cd ..
