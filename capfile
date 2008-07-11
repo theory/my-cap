@@ -257,7 +257,7 @@ namespace :build do
     task :default, :roles => :mail do
       build::authdaemon::default
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install fam courier-imap courier-imap-ssl courier-authlib-ldap'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install gamin libgamin0 libgamin-dev courier-imap courier-imap-ssl courier-authlib-ldap'
       sudo 'rm -rf /etc/courier/imapd.pem /etc/courier/imapd.cnf'
       sudo 'maildirmake /etc/skel/Maildir'
       config
