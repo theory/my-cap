@@ -454,6 +454,7 @@ namespace :my do
     task :default, :roles => :local do
       xml
       graphics
+      zlib
     end
 
     task :gems, :roles => :local do
@@ -463,6 +464,10 @@ namespace :my do
 
     task :xml, :roles => :local do
       sudol_scripts( 'expat', 'libxml2', 'libxslt' )
+    end
+
+    task :zlib, :roles => :local do
+      sudol_scripts( 'zlib' )
     end
 
     task :graphics, :roles => :local do
