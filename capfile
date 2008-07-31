@@ -502,6 +502,7 @@ namespace :my do
     end
 
     task :pgdev, :roles => :local do
+      xml
       runl "#{ BASE }/bin/postgresql-devel.sh"
     end
 
