@@ -501,6 +501,10 @@ namespace :my do
       sudol_scripts( 'postgresql' )
     end
 
+    task :pgdev, :roles => :local do
+      runl "#{ BASE }/bin/postgresql-devel.sh"
+    end
+
     task :apache, :roles => :local do
       sudol_scripts( 'mm', 'apache' )
     end
