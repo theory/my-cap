@@ -545,5 +545,9 @@ namespace :my do
       sudol_scripts( 'pg_top' )
     end
 
+    task :markdown, :roles => :local do
+      sudol_scripts( 'markdown' )
+    end
+
   end
 end
