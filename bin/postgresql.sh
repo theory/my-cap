@@ -13,7 +13,6 @@ tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
 
 if [ $OS = 'Darwin' ]; then
-# ./configure --with-libs=/usr/local/lib  --with-includes=/usr/local/include --prefix=/usr/local/pgsql-8.4devel
      # For debugging: --enable-cassert --enable-debug
     ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
     --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap --with-ossp-uuid \
