@@ -8,7 +8,7 @@ cd ~/dev/pgsql
 make distclean
 cvs up
 # For debugging: --enable-cassert --enable-debug
-./configure --with-libs=/usr/local/lib  --with-includes=/usr/local/include --prefix=/usr/local/pgsql-8.4devel --with-libxml
+./configure --with-libs=/usr/local/lib  --with-includes=/usr/local/include --prefix=$BASE --with-libxml
 make
 sudo make install
 sudo mkdir $BASE/data
