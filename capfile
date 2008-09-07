@@ -545,6 +545,10 @@ namespace :my do
       sudol_scripts( 'pg_top' )
     end
 
+    task :wxwidgets, :roles => :local do
+      sudol_scripts( 'wxwidgets' )
+    end
+
     task :markdown, :roles => :local do
       sudol_scripts( 'markdown' )
     end
