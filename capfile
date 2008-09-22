@@ -507,7 +507,7 @@ namespace :my do
     end
 
     task :pgregress, :roles => :local do
-      runl "#{ BASE }/bin/postgresql-regress.sh"
+      sudol_scripts( 'postgresql-regress' )
     end
 
     task :sqlite, :roles => :local do

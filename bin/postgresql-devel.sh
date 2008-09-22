@@ -8,11 +8,11 @@ cd ~/dev/pgsql
 make distclean
 cvs up
 # For debugging: --enable-cassert --enable-debug
-./configure --with-libs=/usr/local/lib  --with-includes=/usr/local/include --prefix=$BASE --with-libxml
-make
-sudo make install
-sudo mkdir $BASE/data
-sudo chown -R postgres:postgres $BASE/data
-sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding utf-8 -D $BASE/data
-sudo mkdir $BASE/data/logs
-sudo chown -R postgres:postgres $BASE/data/logs
+./configure --with-libs=/usr/local/lib  --with-includes=/usr/local/include --prefix=$BASE --with-libxml || exit $?
+make || exit $?
+sudo make install || exit $?
+sudo mkdir $BASE/data || exit $?
+sudo chown -R postgres:postgres $BASE/data || exit $?
+sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding utf-8 -D $BASE/data || exit $?
+sudo mkdir $BASE/data/logs || exit $?
+sudo chown -R postgres:postgres $BASE/data/logs || exit $?

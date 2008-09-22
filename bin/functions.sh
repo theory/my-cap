@@ -37,6 +37,7 @@ download() {
 		rm -f $file
 	fi
 
+    echo Downloading $1...
 	if [ ! -f $file ]; then
         if [ $OS = 'Darwin' ]; then
 		    curl -kO $1 || exit $?
