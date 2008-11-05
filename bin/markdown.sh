@@ -11,4 +11,3 @@ cd discount-$VERSION || exit $?
 ./configure.sh || exit $?
 make || exit $?
 make install || exit $?
-
