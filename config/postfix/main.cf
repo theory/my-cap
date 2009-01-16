@@ -19,6 +19,7 @@ mail_owner = postfix
 append_dot_mydomain = no
 recipient_delimiter = +
 alias_maps = hash:/etc/aliases
+message_size_limit = 52428800
 
 ##############################################################################
 # Junk Mail Controls.
