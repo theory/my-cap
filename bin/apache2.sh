@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=2.2.8
+export VERSION=2.2.11
 
 . `dirname $0`/functions.sh
 
@@ -17,7 +17,7 @@ export CFLAGS="-DAP_UNSAFE_ERROR_LOG_UNESCAPED"
 # Force APR to use /dev/urandom instead of /dev/random. Details on the issue
 # I found are here: http://www.andrewsavory.com/blog/archives/001408.html
 perl -i -pe 's{(/arandom\s+)/dev/random\s+}{$1}' srclib/apr/configure
-if [ $OS = 'Darwin' ]; then
+if [ "`ps ax | grep slapd | grep -v grep`" = '' ]; then
     LDAP=''
     SLDAP=''
 else

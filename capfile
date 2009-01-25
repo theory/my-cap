@@ -9,6 +9,7 @@ role :ldap,   'ldap.kineticode.com'
 role :mail,   'smtp.kineticode.com'
 role :web,    'crocker.kineticode.com'
 role :db,     'smtp.kineticode.com'
+role :blog,   '192.168.1.15'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
 # methods on Capistrano::CLI.ui, e.g., Capistrano::CLI.ui.ask().
@@ -558,4 +559,26 @@ namespace :my do
     end
 
   end
+end
+
+namespace :blog do
+  task :update, :roles => :blog do
+    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get update'
+  end
+
+  namespace :build do
+    task :mail, :roles => :blog do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install postfix'
+    end
+
+    task :sqlite, :roles => :blog do
+      sudo_script 'bin/sqlite.sh'
+    end
+
+    task :httpd, :roles => :blog do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev'
+      sudo_script 'bin/apache2.sh'
+    end
+  end
+
 end
