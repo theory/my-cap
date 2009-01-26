@@ -575,6 +575,18 @@ namespace :blog do
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install postfix'
     end
 
+    namespace :rsnapshot do
+      task :default, :roles => :blog do
+        sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install rsnapshot'
+        config
+      end
+
+      task :config, :roles => :blog do
+        upload 'config/rsnapshot/rsnapshot.conf', '/etc/rsnapshot.conf', :mode => 0644
+        upload 'config/cron.d/rsnapshot', '/etc/cron.d/rsnapshot', :mode => 0644
+      end
+    end
+
     task :sqlite, :roles => :blog do
       sudo_script 'bin/sqlite.sh'
     end
