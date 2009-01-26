@@ -558,6 +558,10 @@ namespace :my do
       sudol_scripts( 'markdown' )
     end
 
+    task :nmap, :roles => :local do
+      sudol_scripts( 'nmap' )
+    end
+
   end
 end
 
@@ -575,9 +579,34 @@ namespace :blog do
       sudo_script 'bin/sqlite.sh'
     end
 
-    task :httpd, :roles => :blog do
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev'
-      sudo_script 'bin/apache2.sh'
+    namespace :httpd do
+      task :default, :roles => :blog do
+        sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev'
+        sudo_script 'bin/apache2.sh'
+      end
+
+      task :config, :roles => :web do
+        sudo 'mkdir -p /etc/httpd'
+        sudo 'mkdir -p /var/www/justatheory.com'
+        sudo 'mkdir -p /var/log/httpd'
+        sudo 'mkdir -p /var/lock/httpd'
+        # XXX Start here by modifying this httpd.conf for justatheory.com
+        upload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
+        sudo 'rm /usr/local/apache2/conf/httpd.conf'
+        sudo 'ln -s /etc/httpd/httpd.conf /usr/local/apache2/conf/httpd.conf'
+        upload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
+        upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
+        upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
+        upload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
+        upload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
+        sudo 'update-rc.d httpd defaults'
+
+        sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
+        sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_apreq2.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+apreq_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
+
+        sudo '/etc/init.d/httpd restart'
+      end
+
     end
   end
 
