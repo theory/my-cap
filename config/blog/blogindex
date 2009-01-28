@@ -1,0 +1,105 @@
+#!/usr/local/bin/perl -w
+
+use strict;
+use warnings;
+
+use File::Spec;
+use KinoSearch::InvIndexer;
+use KinoSearch::Analysis::PolyAnalyzer;
+use File::Find;
+use Carp;
+BEGIN { $SIG{__DIE__} =  \&confess; }
+BEGIN { $SIG{__WARN__} = \&cluck; }
+
+### In order for invindexer.pl to work correctly, you must modify
+### $source_dir, $path_to_invindex, and possibly $base_url.
+###
+### $source_dir must lead to the directory containing the US
+### Constitution html files.
+###
+### $path_to_invindex is the future location of the invindex.
+###
+### $base_url should reflect the location of the us_constitution directory
+### when accessed via a web browser.
+my $source_dir       = '/var/www/justatheory.blog';
+my $path_to_invindex = '/var/www/justatheory.plugins/invindex';
+my $base_url         = '';
+
+### STEP 1: Choose an Analyzer.
+my $analyzer = KinoSearch::Analysis::PolyAnalyzer->new(
+    language => 'en',
+);
+
+### STEP 2: Create a InvIndexer object.
+my $invindexer = KinoSearch::InvIndexer->new(
+    analyzer => $analyzer,
+    invindex => $path_to_invindex,
+    create   => 1,
+);
+
+### STEP 3: Define fields.
+$invindexer->spec_field(
+    name  => 'title',
+    boost => 3,
+);
+$invindexer->spec_field(
+    name       => 'bodytext',
+    vectorized => 1,
+);
+$invindexer->spec_field(
+    name    => 'url',
+    indexed => 0,
+);
+$invindexer->spec_field(
+    name  => 'keywords',
+    boost => 3,
+);
+$invindexer->spec_field(
+    name     => 'modtime',
+    analyzed => 0,
+);
+
+find \&wanted, $source_dir;
+
+$invindexer->finish;
+
+sub wanted {
+    return unless /\.txt$/;
+    my $filepath = $_;
+    open my $fh, '<', $filepath
+        or die "couldn't open file '$filepath': $!";
+
+    (my $uri = $File::Find::name) =~ s/\.txt$/.html/;
+    $uri =~ s/^$source_dir\/?//;
+
+    # The title is on the first line.
+    my $title = <$fh>;
+    my $keywords;
+
+    # Get keywords from meta-keywords: line.
+    while (<$fh>) {
+        last unless /\S/;
+        $keywords = $_ if s/^meta-keywords:\s+//;
+    }
+
+    # Get the rest of the document.
+    my $bodytext = do { local $/; <$fh> };
+    close $fh;
+
+    ### STEP 4: Start a new document.
+    my $doc = $invindexer->new_doc;
+
+    $bodytext =~ s/<[^>]+>//gsm;    # quick and dirty tag stripping
+
+    ### STEP 5: Set the value for each field.
+    $doc->set_value( url      => "$base_url/$uri" );
+    $doc->set_value( keywords => $keywords)  if $keywords;
+    $doc->set_value( title    => $title )    if $title;
+    $doc->set_value( bodytext => $bodytext ) if $bodytext;
+    $doc->set_value( modtime => (stat $filepath)[9] );
+
+    ### STEP 6 Add the document to the invindex.
+    $invindexer->add_doc($doc);
+
+    ### STEP 7 Repeat steps 3-5 for each document in the collection.
+}

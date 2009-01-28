@@ -113,8 +113,8 @@ namespace :build do
 
     desc 'Configure apt.'
     task :config, :roles => :mail do
-      upload 'config/ubuntu/sources.list', '/etc/apt/sources.list'
-      upload 'config/ubuntu/preferences', '/etc/apt/preferences'
+      supload 'config/ubuntu/sources.list', '/etc/apt/sources.list'
+      supload 'config/ubuntu/preferences', '/etc/apt/preferences'
     end
     
   end
@@ -136,8 +136,8 @@ namespace :build do
     end
 
     task :config, :roles => :dns do
-      upload 'config/named.conf.options', '/etc/bind/named.conf.options', :owner => 'root', :group => 'bind', :mode => 0644
-      upload 'config/resolv.conf', '/etc/resolv.conf', :mode => 0644
+      supload 'config/named.conf.options', '/etc/bind/named.conf.options', :owner => 'root', :group => 'bind', :mode => 0644
+      supload 'config/resolv.conf', '/etc/resolv.conf', :mode => 0644
       sudo '/etc/init.d/bind9 restart'
     end
   end
@@ -161,7 +161,7 @@ namespace :build do
       # Add the openldap user to the ssl-cert group.
       sudo 'gpasswd -a openldap ssl-cert'
       config_files
-      upload '../Corporate/config/kineticode.ldif', '/tmp/kineticode.ldif'
+      supload '../Corporate/config/kineticode.ldif', '/tmp/kineticode.ldif'
       sudo 'slapadd -v -l /tmp/kineticode.ldif'
       sudo 'chown -R openldap:openldap /var/lib/ldap'
       sudo 'rm /tmp/kineticode.ldif'
@@ -174,11 +174,11 @@ namespace :build do
     end
 
     task :config_files, :roles => :ldap do
-      upload 'config/openldap/slapd', '/etc/default/slapd', :mode => 0644
-      upload 'config/openldap/slapd.conf', '/etc/ldap/slapd.conf', :mode => 0640, :group => 'openldap'
-      upload 'config/openldap/ldap.conf', '/etc/ldap/ldap.conf', :mode => 0644
-      upload 'config/openldap/DB_CONFIG', '/var/lib/ldap/DB_CONFIG', :mode => 0644
-      upload 'config/cron.daily/backupldap', '/etc/cron.daily/backupldap', :mode => 0755
+      supload 'config/openldap/slapd', '/etc/default/slapd', :mode => 0644
+      supload 'config/openldap/slapd.conf', '/etc/ldap/slapd.conf', :mode => 0640, :group => 'openldap'
+      supload 'config/openldap/ldap.conf', '/etc/ldap/ldap.conf', :mode => 0644
+      supload 'config/openldap/DB_CONFIG', '/var/lib/ldap/DB_CONFIG', :mode => 0644
+      supload 'config/cron.daily/backupldap', '/etc/cron.daily/backupldap', :mode => 0755
     end
 
   end
@@ -195,8 +195,8 @@ namespace :build do
     end
 
     task :config, :roles => :mail do
-      upload 'config/sasl/saslauthd', '/etc/default/saslauthd', :mode => 0644
-      upload 'config/sasl/saslauthd.conf', '/etc/saslauthd.conf', :mode => 0644
+      supload 'config/sasl/saslauthd', '/etc/default/saslauthd', :mode => 0644
+      supload 'config/sasl/saslauthd.conf', '/etc/saslauthd.conf', :mode => 0644
       sudo '/etc/init.d/saslauthd restart'
     end
   end
@@ -209,8 +209,8 @@ namespace :build do
     end
 
     task :config, :roles => :mail do
-      upload 'config/courier/authdaemonrc', '/etc/courier/authdaemonrc', :owner => 'daemon', :group => 'daemon', :mode => 0660
-      upload 'config/courier/authldaprc', '/etc/courier/authldaprc', :owner => 'daemon', :group => 'daemon', :mode => 0660
+      supload 'config/courier/authdaemonrc', '/etc/courier/authdaemonrc', :owner => 'daemon', :group => 'daemon', :mode => 0660
+      supload 'config/courier/authldaprc', '/etc/courier/authldaprc', :owner => 'daemon', :group => 'daemon', :mode => 0660
       pass = Capistrano::CLI.password_prompt('Password for uid=mail,ou=daemons,dc=kineticode,dc=com: ')
       sudo %{perl -i -pe 's/-PASSWORD-/#{pass}/' /etc/courier/authldaprc}
       sudo '/etc/init.d/courier-authdaemon restart'
@@ -235,14 +235,14 @@ namespace :build do
     
     task :config, :roles => :mail do
       %w[ master main mailbox_maps header_checks body_checks recipient_checks helo_checks sender_checks client_checks ].each do |f|
-        upload "config/postfix/#{f}.cf", "/etc/postfix/#{f}.cf", :mode => 0644
+        supload "config/postfix/#{f}.cf", "/etc/postfix/#{f}.cf", :mode => 0644
       end
 
-      upload '../Corporate/config/alias_maps.cf', '/etc/postfix/alias_maps.cf', :mode => 0644
-      upload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
-      upload 'config/postgrey.conf', '/etc/default/postgrey', :mode => 0644
-      upload 'config/maildroprc', '/etc/maildroprc', :mode => 0644
-      upload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
+      supload '../Corporate/config/alias_maps.cf', '/etc/postfix/alias_maps.cf', :mode => 0644
+      supload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
+      supload 'config/postgrey.conf', '/etc/default/postgrey', :mode => 0644
+      supload 'config/maildroprc', '/etc/maildroprc', :mode => 0644
+      supload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
 
       %w[ mailbox_maps helo_checks sender_checks client_checks ]. each do |f|
         sudo "postmap /etc/postfix/#{f}.cf"
@@ -265,9 +265,9 @@ namespace :build do
     end
 
     task :config, :roles => :mail do
-      upload 'config/courier/imapd', '/etc/courier/imapd', :mod => 0644
-      upload 'config/courier/imapd-ssl', '/etc/courier/imapd-ssl', :mod => 0644
-      upload 'config/courier/portmap', '/etc/default/portmap', :mod => 0644
+      supload 'config/courier/imapd', '/etc/courier/imapd', :mod => 0644
+      supload 'config/courier/imapd-ssl', '/etc/courier/imapd-ssl', :mod => 0644
+      supload 'config/courier/portmap', '/etc/default/portmap', :mod => 0644
       sudo '/etc/init.d/portmap restart'
       sudo '/etc/init.d/fam restart'
       sudo '/etc/init.d/courier-imap restart'
@@ -283,7 +283,7 @@ namespace :build do
     end
 
     task :config, :roles => :backup do
-      upload 'config/offlineimap.conf', '/root/.offlineimaprc'
+      supload 'config/offlineimap.conf', '/root/.offlineimaprc'
       %w[david julie anna].each { |who|
         sudo "mkdir -p /data/backup/imap/#{ who }"
       }
@@ -305,8 +305,8 @@ namespace :build do
     end
 
     task :config, :roles => :web do
-      upload 'config/cron.daily/backupsvn', '/etc/cron.daily/backupsvn', :mode => 0755
-      upload 'config/post-commit', '/var/svn/hooks/post-commit', :mode => 0755
+      supload 'config/cron.daily/backupsvn', '/etc/cron.daily/backupsvn', :mode => 0755
+      supload 'config/post-commit', '/var/svn/hooks/post-commit', :mode => 0755
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_dav_svn.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+(?:dav|authz)_svn)/\\$1/gm' /etc/httpd/httpd.conf; fi"}
       sudo '/usr/bin/apachectl restart'
     end
@@ -339,15 +339,15 @@ namespace :build do
       sudo 'mkdir -p /var/www/back.openjsan.org'
       sudo 'mkdir -p /var/log/httpd'
       sudo 'mkdir -p /var/lock/httpd'
-      upload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
+      supload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
       sudo 'rm /usr/local/apache2/conf/httpd.conf'
       sudo 'ln -s /etc/httpd/httpd.conf /usr/local/apache2/conf/httpd.conf'
-      upload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
-      upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
-      upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
-      upload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
-      upload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
-      upload 'config/cron.daily/syncjsan', '/etc/cron.daily/syncjsan', :mode => 0755
+      supload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
+      supload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
+      supload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
+      supload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
+      supload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
+      supload 'config/cron.daily/syncjsan', '/etc/cron.daily/syncjsan', :mode => 0755
       sudo 'update-rc.d httpd defaults'
 
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
@@ -383,6 +383,7 @@ namespace :build do
     perl
     xml
     run_script 'bin/cpan.sh'
+    run 'env PERL_MM_USE_DEFAULT=1 /usr/local/bin/cpan Bundle::Theory'
   end
 
   namespace :pg do
@@ -394,7 +395,7 @@ namespace :build do
     end
 
     task :config, :roles => :db do
-      upload 'config/cron.daily/backuppostgres', '/etc/cron.daily/backuppostgres', :mode => 0755
+      supload 'config/cron.daily/backuppostgres', '/etc/cron.daily/backuppostgres', :mode => 0755
     end
   end
 
@@ -411,7 +412,7 @@ namespace :build do
     end
 
     task :config, :roles => :web do
-      upload '../Corporate/config/RT_SiteConfig.pm', '/usr/local/rt3/etc/RT_SiteConfig.pm',
+      supload '../Corporate/config/RT_SiteConfig.pm', '/usr/local/rt3/etc/RT_SiteConfig.pm',
              :group => 'rt3',
              :mode  => 0550
     end
@@ -427,10 +428,10 @@ namespace :build do
     end
 
     task :config, :roles => :mail do
-      upload 'config/rsnapshot/authorized_keys', '/home/rsync/.ssh/authorized_keys', :mode => 0600, :owner => 'rsync', :group => 'rsync'
+      supload 'config/rsnapshot/authorized_keys', '/home/rsync/.ssh/authorized_keys', :mode => 0600, :owner => 'rsync', :group => 'rsync'
       sudo 'mkdir -p /usr/local/bin'
-      upload 'config/rsnapshot/validate_rsync', '/usr/local/bin/validate_rsync', :mode => 0755
-      upload 'config/rsnapshot/sudo_rsync', '/usr/local/bin/sudo_rsync', :mode => 0755
+      supload 'config/rsnapshot/validate_rsync', '/usr/local/bin/validate_rsync', :mode => 0755
+      supload 'config/rsnapshot/sudo_rsync', '/usr/local/bin/sudo_rsync', :mode => 0755
     end
   end
 
@@ -444,7 +445,7 @@ namespace :build do
     task :config, :roles => :web do
       sudo 'mkdir -p /var/www/stats.kineticode.com'
       sudo 'mkdir -p /var/www/stats.strongrrl.com'
-      upload 'config/awstats/awstats.kineticode.conf', '/etc/awstats/awstats.kineticode.conf', :mode => 0644
+      supload 'config/awstats/awstats.kineticode.conf', '/etc/awstats/awstats.kineticode.conf', :mode => 0644
     end
   end
 
@@ -494,6 +495,7 @@ namespace :my do
       perl
       xml
       runl "#{ BASE }/bin/cpan.sh"
+      run 'env PERL_MM_USE_DEFAULT=1 /usr/local/bin/cpan Bundle::Theory'
     end
 
     task :pg, :roles => :local do
@@ -582,8 +584,8 @@ namespace :blog do
       end
 
       task :config, :roles => :blog do
-        upload 'config/rsnapshot/rsnapshot.conf', '/etc/rsnapshot.conf', :mode => 0644
-        upload 'config/cron.d/rsnapshot', '/etc/cron.d/rsnapshot', :mode => 0644
+        supload 'config/rsnapshot/rsnapshot.conf', '/etc/rsnapshot.conf', :mode => 0644
+        supload 'config/cron.d/rsnapshot', '/etc/cron.d/rsnapshot', :mode => 0644
       end
     end
 
@@ -591,26 +593,54 @@ namespace :blog do
       sudo_script 'bin/sqlite.sh'
     end
 
+    task :perl, :roles => :blog do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libdb4.6 libdb4.6-dev'
+      sudo_script 'bin/perl.sh'
+    end
+
+    task :cpan, :roles => :blog do
+      run_script 'bin/cpan.sh'
+      run 'env PERL_MM_USE_DEFAULT=1 /usr/local/bin/cpan KinoSearch'
+    end
+
     namespace :httpd do
       task :default, :roles => :blog do
-        sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev'
+        perl
+        cpan
+        sudo 'env PERL_MM_USE_DEFAULT=1 cpan KinoSearch'
+        sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev cronolog'
         sudo_script 'bin/apache2.sh'
       end
 
-      task :config, :roles => :web do
+      task :config, :roles => :blog do
         sudo 'mkdir -p /etc/httpd'
         sudo 'mkdir -p /var/www/justatheory.com'
+        sudo 'chown -R david:david /var/www/justatheory.com'
+        sudo 'mkdir -p /var/www/justatheory.blog'
+        sudo 'chown -R david:david /var/www/justatheory.blog'
         sudo 'mkdir -p /var/log/httpd'
         sudo 'mkdir -p /var/lock/httpd'
-        # XXX Start here by modifying this httpd.conf for justatheory.com
-        upload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
+
+        supload 'config/blog/blosxom.cgi', '/var/www/justatheory.com/blosxom.cgi', :mode => 0755;
+        supload 'config/blog/search.cgi', '/var/www/justatheory.com/search.cgi', :mode => 0755;
+        supload 'config/blog/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
         sudo 'rm /usr/local/apache2/conf/httpd.conf'
         sudo 'ln -s /etc/httpd/httpd.conf /usr/local/apache2/conf/httpd.conf'
-        upload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
-        upload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
-        upload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
-        upload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
-        upload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
+
+        sudo %q{bash -c "if [ -d /var/www/justatheory.plugins ]; then mv /var/www/justatheory.plugins /var/www/justatheory.plugins.old; fi"}
+        supload 'config/blog/plugins', '/var/www/justatheory.plugins', :owner => 'david', :group => 'david'
+        sudo %q{bash -c "if [ -d /var/www/justatheory.plugins.old ]; then mv /var/www/justatheory.plugins.old/state /var/www/justatheory.plugins/; rm -rf /var/www/justatheory.plugins.old; else mkdir -p /var/www/justatheory.plugins/state; chown -R nobody:nogroup /var/www/justatheory.plugins/state; fi"}
+        sudo 'mkdir -p /var/www/justatheory.plugins/invindex'
+        sudo 'chown david:david /var/www/justatheory.plugins/invindex'
+
+        supload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
+        supload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
+        supload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
+        supload 'config/blog/blogindex', '/usr/bin/blogindex', :mode => 0755
+        supload 'config/blog/blogedit', '/usr/bin/blogedit', :mode => 0755
+        run 'blogindex'
+
         sudo 'update-rc.d httpd defaults'
 
         sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}

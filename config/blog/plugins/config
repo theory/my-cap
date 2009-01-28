@@ -1,0 +1,84 @@
+# Blosxom Plugin: config
+# Author(s): Rael Dornfest <rael@oreilly.com> 
+# Version: 2003-07-16
+# Documentation: See the bottom of this file or type: perldoc config
+
+package config;
+
+# --- Configurable variables -----
+
+# --------------------------------
+
+sub start {
+  1;
+}
+
+sub head {
+
+  my $path = $blosxom::path_info;
+  $path &&= "/$path";
+
+  for (;;) {
+    do {
+      $blosxom::others{"$blosxom::datadir$path/config.$blosxom::flavour"} and eval { require "$blosxom::datadir$path/config.$blosxom::flavour" } and ( $@ ? warn $@ : last );
+      $blosxom::others{"$blosxom::datadir$path/config"} and eval { require "$blosxom::datadir$path/config" } and ( $@ ? warn $@ : last );
+    } while ($path =~ s/(\/*[^\/]*)$// and $1);
+    last;
+  }
+
+
+}
+  
+1;
+
+__END__
+
+=head1 NAME
+
+Blosxom Plug-in: config
+
+=head1 SYNOPSIS
+
+Override Blosxom's inline configuration settings on a per-directory, per-flavour, and per-directory-per-flavour basis.
+
+=head1 VERSION
+
+2003-07-16
+
+=head1 AUTHOR
+
+Rael Dornfest  <rael@oreilly.com>, http://www.raelity.org/
+
+=head1 SEE ALSO
+
+Blosxom Home/Docs/Licensing: http://www.raelity.org/apps/blosxom/
+
+Blosxom Plugin Docs: http://www.raelity.org/apps/blosxom/plugin.shtml
+
+=head1 BUGS
+
+Address bug reports and comments to the Blosxom mailing list 
+[http://www.yahoogroups.com/group/blosxom].
+
+=head1 LICENSE
+
+Blosxom and this Blosxom Plug-in
+Copyright 2003, Rael Dornfest 
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.

@@ -1,0 +1,32 @@
+# Blosxom Plugin: file
+# Author: Nelson Minar <nelson@monkey.org>
+# Version: 20030223
+# http://www.nelson.monkey.org/~nelson/weblog/
+# License: Public Domain
+
+# The file plugin loads files from a directory and defines them as
+# variables for use in your stories. Ie: if you have a file named 
+# "foo", then the variable $file::foo will be set to the contents
+# of the file "foo" and will be substituted in your stories and such.
+# Files are loaded from $plugin_dir/filedata
+
+package file;
+
+my $datadir;
+
+# Startup - scan filedata dir, read files into variables
+sub start {
+  $datadir = $blosxom::plugin_dir . "/filedata";
+
+  if ( $datadir and opendir D, $datadir ) {
+    foreach my $f (readdir D) {
+      next unless -f "$datadir/$f";
+      open F, "$datadir/$f";
+      $$f = join('', <F>);
+      close F;
+    }
+  }
+  1;
+}
+
+1;

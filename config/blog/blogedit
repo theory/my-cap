@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# edit files with Emacs without changing the modification date
+# usage: blogedit file_to_edit
+
+cp -p "$1" "$1.bak"
+emacs --no-init-file --quick "$@"
+touch -r "$1.bak" "$1"
+rm --force "$1.bak" "$1~"

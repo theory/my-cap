@@ -1,0 +1,29 @@
+package tags;
+
+our $tags;
+my %format_for = (
+    html => '<li><a href="http://technorati.com/tag/%s" rel="tag">%s</a></li>',
+    atom => '<dc:subject>%s</dc:subject>',
+    rss  => '<dc:subject>%s</dc:subject>',
+);
+
+sub start { 1 }
+sub story {
+    my($pkg, $path, $filename, $story_ref, $title_ref, $body_ref) = @_;
+
+    $tags = undef;
+    my @lines = split /\n/, $$body_ref;
+    $$body_ref = '';
+    while (@lines) {
+        local $_ = shift @lines;
+        if (my ($tag) = m/^tags:\s+(.*)$/) {
+            $tags = join $/, map {
+                sprintf $format_for{$blosxom::flavour}, ($_) x 2
+            } split /\s+/, $tag;
+            last;
+        }
+        $$body_ref .= "$_\n";
+    }
+    $$body_ref .= join "\n", @lines;
+    return 1;
+}

@@ -1,0 +1,229 @@
+# Blosxom Plugin: atomfeed
+# Author(s): Rael Dornfest <rael@oreilly.com>
+# Version: 2003-12-11
+# Blosxom Home/Docs/Licensing: http://www.raelity.org/apps/blosxom/
+# Blosxom Plugin Docs: http://www.raelity.org/apps/blosxom/plugin.shtml
+
+package atomfeed;
+
+# --- Configurable variables -----
+
+# Who would you like your feed to credit as the default author of each entry?
+# Leave blank and the atomfeed plugin will attempt to use the whoami and
+# fauxami plugins
+$default_author = 'David Wheeler';
+
+# What domain should Blosxom use in ID tags?
+# Leave blank if you don't understand or for Blosxom to use the domain in $url.
+$id_domain = '';
+
+# --- Plug-in package variables -----
+
+$author = '';
+$T = 'T';
+$colon = ':';
+$zerozero = '00';
+
+# URL where an atom.css might reside
+$css_url = "$blosxom::url/atom.css";
+
+# Try to glean the domain from $url
+$id_domain or ($id_domain) = $blosxom::url =~ m#http://(?:www\.)?([^\/]+)#;
+
+# Glean year for feed id
+$feed_yr = (gmtime(time))[5] + 1900;
+
+$utc_date = '';
+
+# --------------------------------
+
+sub start {
+
+  # Check for the existence of already-loaded flavour templates or theme
+  $blosxom::template{'atom'}{'head'} and return 1;
+
+  # Otherwise, load on-board templates
+  _load_templates();
+
+  eval {use XML::Parser; $parser = new XML::Parser;};
+  %escape = ('<'=>'&lt;', '>'=>'&gt;', '&'=>'&amp;', '"'=>'&quot;');
+  $escape_re  = join '|' => keys %escape;
+
+  1;
+}
+
+sub story {
+  my($pkg, $path, $filename, $story_ref, $title_ref, $body_ref) = @_;
+
+  my $tz = $ENV{TZ};
+  $ENV{TZ} = "GMT";
+  my @utc = blosxom::nice_date($blosxom::files{"$blosxom::datadir$path/$filename.$blosxom::file_extension"});
+  $ENV{TZ} = $tz;
+  $utc_date = "$utc[5]-$utc[2]-$utc[3]T$utc[4]:00Z";
+  $utc_yr = $utc[5];
+
+  # Set authorship if available, falling back to $atomfeed::author
+  $author = $whoami::fullname || $fauxami::name || $default_author || '';
+
+  ($body = $$body_ref) =~ s/.+?\n{2,}//sxm;
+
+  if (eval {$parser->parse("<div>$body</div>")}) {
+    $type = 'application/xhtml+xml';
+    $mode = 'xml';
+    $body = qq{<div xmlns="http://www.w3.org/1999/xhtml">$body</div>};
+  } else {
+    $type = 'text/html';
+    $mode = 'escaped';
+    if (index($body, ']]>' ) < 0) {
+      $body = "<![CDATA[$body]]>";
+    } else {
+      $body =~ s/($escape_re)/$escape{$1}/g;
+    }
+  }
+
+  1;
+}
+
+sub _load_templates {
+  $blosxom::template{'atom'}{'content_type'} = 'application/atom+xml';
+
+  $blosxom::template{'atom'}{'date'} = "\n";
+
+  $blosxom::template{'atom'}{'head'} =<<'HEAD';
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+
+<?xml-stylesheet href="$atomfeed::css_url" type="text/css"?>
+
+<feed version="0.3" xmlns="http://purl.org/atom/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/">
+
+<title type="text/plain">$blosxom::blog_title</title>
+<tagline type="text/plain">$blosxom::blog_description</tagline>
+<link rel="alternate" type="text/html" href="$blosxom::url" />
+<id>tag$atomfeed::colon$atomfeed::id_domain,$atomfeed::feed_yr$atomfeed::colon/$blosxom::path_info</id>
+<generator url="http://www.blosxom.com/" version="$blosxom::version">Blosxom</generator>
+HEAD
+
+  $blosxom::template{'atom'}{'story'} =<<'STORY';
+<entry>
+<id>tag$atomfeed::colon$atomfeed::id_domain,$atomfeed::utc_yr$atomfeed::colon$path/$fn</id>
+<link rel="alternate" type="text/html" href="$blosxom::url$blosxom::path/$blosxom::fn.$blosxom::default_flavour" />
+<title type="text/plain">$blosxom::title</title>
+$tags::tags
+<issued>$atomfeed::utc_date</issued>
+<modified>$atomfeed::utc_date</modified>
+<author>
+  <name>$atomfeed::author</name>
+</author>
+<content type="$atomfeed::type" xml:base="$blosxom::url" xml:lang="$blosxom::blog_language" xml:space="preserve" mode="$atomfeed::mode">
+$atomfeed::body
+</content>
+</entry>
+
+STORY
+
+  $blosxom::template{'atom'}{'foot'} = "\n</feed>\n";
+
+  1;
+}
+
+1;
+
+__END__
+
+=head1 NAME
+
+Blosxom Plug-in: atomfeed
+
+=head1 SYNOPSIS
+
+Provides an Atom feed of your weblog.
+
+The plugin has all you need right on-board, including the appropriate flavour
+template components and a couple-three configuration directives.
+
+Point your browser/Atom feed reader at http://yoururl/index.atom.
+
+=head1 VERSION
+
+2003-12-11
+
+=head1 AUTHOR
+
+Rael Dornfest <rael@oreilly.com>, http://www.raelity.org/
+Sam Ruby <sam@intertwingly.net>, http://www.intertwingly.net/
+  - contributed the XML::Parser magic
+
+=head1 INSTALLATION
+
+Drop atomfeed into your plugins directory.
+
+=head1 CONFIGURATION
+
+Drop atomfeed into your plugins directory.
+
+All other configuration is optional.
+
+$default_author is where you specify who you'd like to credit as the default
+author of each entry.  I say "default" since if you leave it blank it'll
+attempt to use the value provided by the whoami or fauxami plugins if you
+happen to have them installed.
+
+  e.g. $default_author = 'Rael Dornfest';
+
+Atom associates unique ID tags with the feed itself and individual entries.
+By default it'll attempt to glean your domain from the specified or calculated
+value of $blosxom::url.  But you can override this by setting $id_domain in
+the configuration section above.
+
+  e.g. $id_domain = "raelity.org";
+
+Just be sure it's a domain name sans any http://, slashes, extra path bits,
+or what-have-you.
+
+=head1 OTHER PLUGINS
+
+The atomfeed plugin assumes you're not running any fancy interpolation plugin
+(e.g. interpolate_fancy) which changes the way variables are specified in a
+template (e.g. <$foo /> rather than $foo).
+
+If you are running interpolate_fancy or the like--I am--use the config plugin
+and a config.atom file in your blosxom $datadir consisting of:
+
+  $blosxom::plugins{"interpolate_fancy"} = 0;
+
+Where "interpolate_fancy" is the name of the interpolation plugin you're
+turning off _just for the atom feed_.
+
+=head1 SEE ALSO
+
+Blosxom Home/Docs/Licensing: http://www.raelity.org/apps/blosxom/
+
+Blosxom Plugin Docs: http://www.raelity.org/apps/blosxom/plugin.shtml
+
+=head1 BUGS
+
+Address bug reports and comments to the Blosxom mailing list
+[http://www.yahoogroups.com/group/blosxom].
+
+=head1 LICENSE
+
+Blosxom and this Blosxom Plug-in
+Copyright 2003, Rael Dornfest
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.

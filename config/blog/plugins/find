@@ -1,0 +1,353 @@
+# Blosxom Plugin: Find
+# Author: Fletcher T. Penney
+#		advanced search concept and keywords code by Eric Sherman
+#		Recent Searches feature based on code by Marc Nozell
+# Version: 0.9
+package find;
+
+# --- Configurable variables -----
+# None yet - may add ability to change search behaviors, such as
+# always starting at the root level of your datadir while staying in a subdirectory
+
+$keywords_tag = "meta-keywords:" unless defined $keywords_tag;
+
+$do_local_search = 0;	# Perform search relative to the current page, 
+						# not the whole site.  If set to 1, this will
+						# override the advanced search option
+
+$show_advanced = 0;		# Set to 1 to always show the advanced form
+
+$show_debug = 0;		# display more info about search terms for debugging
+
+$default_to_and = 0;		# Set to 1 to always do "and" searches by default
+
+$match_whole_words = 0;		# Set to 1 to only match whole words by default
+
+$log_searches = 1;		# Log search queries to a file?
+$log_filename = "$blosxom::plugin_state_dir/queries";	# Where should I log?
+
+
+$max_previous_searches = 10;	# Maximum old queries to display
+
+$search_writebacks = 1;		# Should I also search writebacks?
+$writeback_dir = "$blosxom::plugin_state_dir/writeback";
+$writeback_ext = "wb";
+
+
+$search_filenames = 1;		# Should I also search filenames?
+
+# --------------------------------
+
+
+$results = "";
+$recentsearches = "";
+
+use CGI qw/:standard/;
+
+
+sub start {
+
+
+	# Figure out the current path and flavour for the form
+	$path_withflavour = $blosxom::path_info;
+	if ($path_withflavour !~ s/\.[^\.]*$//) {
+		$path_withflavour =~ s/\/$//;
+		$path_withflavour .= "\/index";
+		$path_withflavour =~ s/^([^\/])/$1/;
+	}
+	$path_withflavour =~ s/^\/*//;
+	$path_withflavour.="\.$blosxom::flavour";
+
+	# Insert this html code only if advanced form is indicated
+	$advancedform = qq!<br />Search:<br />
+<input checked type="radio" name="domain" value="all" />Entire Site
+<input type="radio" name="domain" value="topic" />This Topic Only
+<br />Match:<br />
+<input checked="checked" type="radio" name="type" value="any" />Any
+<input type="radio" name="type" value="all" />All
+<br />
+<input checked="checked" type="radio" name="match" value="any" />Partial
+<input type="radio" name="match" value="whole" />Whole Words only
+! 
+		if ((param('advanced_search')) || $show_advanced);
+
+	# This is the basic form
+
+$searchform = qq!<form method="get" action="$blosxom::url/index.$blosxom::flavour">
+	<div>
+		<input type="text" name="find" size="15" value=""/>
+		<input type="submit" value="Search" />
+		<input type="hidden" name="plugin" value="find"/>
+		<input type="hidden" name="path" value="$blosxom::path_info"/>
+		<br/>
+		<a href="$blosxom::url/$path_withflavour?advanced_search=1">Advanced Search</a>
+$advancedform
+</div></form>!;
+
+	1;
+}
+
+sub filter {
+	# Check that writebacks are working
+	#$search_writebacks = 0 if ( $writeback::writeback_dir eq "");
+
+	my ($pkg, $files_ref) = @_;
+	my @files_list = keys %$files_ref;
+	if (param('find')) {
+		my $terms = param('find');
+		$searchpath = "$blosxom::datadir/" . param('path');
+		$do_local_search = 1 if (param('domain') eq "topic");
+
+		$match_whole_words =1 if (param('match') eq 'whole');
+		$match_whole_words =0 if (param('match') eq 'any');
+
+		my $searchtype = param('type');
+		$default_to_and = 0 if ($searchtype eq 'any');
+
+		my @requiredterms, @forbiddenterms;
+		
+
+		$results = "These pages matched: $terms";
+
+		if ($log_searches eq 1) {
+			if ( !-e $log_filename ) {
+				open (LOG, ">>$log_filename");
+				chmod (0666, "$log_filename");
+			} else {
+				open (LOG, ">>$log_filename") or warn "Error in find logging file."
+			}
+			print LOG "$terms\n";
+			close (LOG);
+		}
+
+		$terms = " " . $terms;	# Add a space for pattern matching reasons
+
+
+		# Handle double quotations (exact phrases)
+		$terms =~ s/\"([^\"]+)\"/\[\{$1\}\]/g;
+		while ($terms =~ s/\[\{([^\}]*)\s+([^\}]*)/\[\{$1\\s\+$2/g) {
+		}
+		$terms =~ s/\[\{/(/g;
+		$terms =~ s/\}\]/)/g;
+		# Any left over quotes were "odd-numbered"
+		$terms =~ s/\"//g;
+		
+		# Handle parentheses
+		while ($terms =~ s/\(([^\)]*)\s+([^\)]*)\)/\($1\|$2\)/g) {
+		}
+
+		# Strip trailing spaces to prevent empty terms
+		# Don't strip leading spaces yet!
+		$terms =~ s/\s+$//;
+		
+		# Convert English to symbols
+		# The "OR"'s will wait til the end
+		# Handle "NOT"'s
+		$terms =~ s/\s+not\s+/ \-/ig;
+		# Handle "AND"'s and convert to "+", unless preceded by "-"
+		$terms =~ s/\s+(\([^\)]+\))\s+and\s+/ \+$1 \+/ig;
+		$terms =~ s/\-(\([^\)]+\))\s+and\s+/\-$1 \+/ig;
+		$terms =~ s/\s+([^\)]+)\s+and\s+/ \+$1 \+/ig;
+		$terms =~ s/\-([^\)]+)\s+and\s+/\-$1 \+/ig;
+		$terms =~ s/\+\-/\-/g;	# Fix if the second term already had "-"
+		
+		$results = "These pages matched: $terms" if ($show_debug eq 1);	
+	
+		# If doing "all" search, then every term is required
+		# Will not override terms already set to "NOT"
+		$terms =~ s/\s+\+?([\(\)\|\w]+)/ \+$1/g if (($searchtype eq "all") || ($default_to_and eq 1));
+
+		# Extract all required terms ("AND"  terms)
+		while ($terms =~ s/\s+\+([\(\)\|\\\+\w]+)//){
+			$theterm = $1;
+			$theterm = "\\b$theterm\\b" if ($match_whole_words eq 1);
+			push(@requiredterms,$theterm);
+			$results.="<br>Required Term: $theterm" if ($show_debug eq 1);
+		}
+
+		# Extract all "forbidden" terms ("NOT" terms)
+		while ($terms =~ s/\s+\-([\(\)\|\\\+\w]+)//){
+			$theterm = $1;
+			$theterm = "\\b$theterm\\b" if ($match_whole_words eq 1);
+			push(@forbiddenterms,$theterm);
+			$results.="<br>Forbidden Term: $theterm" if ($show_debug eq 1);
+		}
+
+		# Strip "OR"'s with only one term
+		while ($terms =~ s/^\s*or\s+//i) {}
+		while ($terms =~ s/\s+or\s*$//i) {}
+		
+
+		# Now cleanup for regexp's
+		$terms =~ s/^\s+//;	#Strip leading and trailing spaces
+		$terms =~ s/\s+$//;
+		# Finally, convert all the "OR" terms to a single regexp
+		$terms =~ s/\s+(or\s+)?/\|/ig;
+		$terms =~ s/(\s)\+/$1/g;	# Loose '+' will crash regexp
+
+		# Handle whole word matching on remainder
+		$terms = "\\b$terms\\b" if ($match_whole_words eq 1);
+
+		# Debugging Aids
+		$results.="<br>Remainder regexp: $terms<br>" if ($show_debug eq 1);
+		$results.="Search path: $searchpath <br>" if ($show_debug eq 1);
+
+		# Quit now if nothing to search for
+		if (($terms eq "") & (scalar(@requiredterms) eq 0) & (scalar(@forbiddenterms) eq 0)) {
+			$results = "";
+			return 0;
+		}
+
+		foreach $file (@files_list) {
+		#	next;		# Enable this line to debug terms parsing only
+			if ($do_local_search eq 1) {
+				# Limit search to the current path only
+				if ($file !~ /^$searchpath/) {
+					delete $files_ref->{$file};
+					next;
+				}
+			}
+			my $keep = 0;
+			my $delete = 0;
+			open (FILE, "<$file") or next;
+			my $contents = "";
+			my $pastHeader = 0;
+			while ($line = <FILE>) {
+				if (!$pastHeader) {
+					# include keywords
+					if ($line =~ /^$keywords_tag/i) {
+						$line =~ s/^$keywords_tag(.*)$/\1/;
+					}
+					# don't read other meta- tags
+					elsif ($line =~ /^meta-/i) {
+						next;
+					}
+					# if reached the header, say so
+					elsif ($line =~ /^\s.*$/) {
+						$pastHeader = 1;
+					}
+				}
+				$contents .= $line;
+			}
+
+			close (FILE);
+			
+			# Now scan writebacks for this story
+			if ( $search_writebacks == 1) {
+				my $writeback_file = $file;
+				$writeback_file =~ s/$blosxom::datadir/$writeback_dir/;
+				$writeback_file =~ s/$blosxom::file_extension$/$writeback_ext/;
+
+				if (open (FILE, "<$writeback_file")) {
+					while ($line = <FILE>) {
+						# We'll just appened writebacks to the story
+						$contents .= $line;
+					}	
+					close (FILE);		
+				}
+			}
+			
+			# If searching filenames, append that to the story for 
+			# searching as well
+			
+			if ($search_filenames == 1) {
+				$contents.=$file;
+			}
+			
+			# If we match any "OR" terms flag file for keeping
+			$keep = 1 if ($contents =~ /$terms/si);
+						
+			# If we match required terms, keep, else delete for sure
+			foreach (@requiredterms) {
+				if ($contents =~ /$_/si) {
+					$keep =1;
+				} else {
+					$delete = 1;
+				}
+			}
+
+			# If we match forbidden terms, then delete
+			foreach (@forbiddenterms) {
+				if ($contents =~ /$_/si) {
+					$delete =1;
+				} 
+			}
+
+			# Remove file if marked for delete or not marked to keep
+			delete $files_ref->{$file} if (($delete eq 1) or ($keep eq 0));
+		}
+	}
+
+	1;
+}
+
+sub getrecentsearches {
+	if ( open(LOG, "< $log_filename")) { 
+		my @searches = <LOG>; 
+		close(LOG); 
+		@searches = reverse(@searches); 
+		$recentsearches = "<ul>";
+		for ($count = 0; $count < $max_previous_searches; $count++) { 
+			$recentsearches .= '<li>' . $searches[$count] . '</li>';
+		}
+		$recentsearches .= "</ul>";
+	} else {
+		warn "Couldn't open $log_filename: $!\n" if ($log_searches == 1);
+	}
+	1;
+}
+
+sub head {
+	getrecentsearches();
+	1;
+}
+
+
+1;
+
+__END__
+
+=head1 NAME
+
+Blosxom Plug-in: find
+
+=head1 DESCRIPTION
+
+Find searches through the available articles and filters out those that do not match the submitted search terms.  To use it, simply place $find::searchform in your template, and it will create a search box that automatically calls the search routine.  It performs a boolean "OR" search by default, or you can use regular expressions for more complicated search terms.
+
+This plugin is capable of handling the following search terms
+
+term1 term2; term1 or term2
+	These match any page with term1 OR term2
+	
+term1 and term2; +term1 +term2
+	These match any page with both term1 AND term2
+	
+term1 not term2; term1 -term2
+	This matches pages with term1 that DO NOT contain term2
+	
+term1 not (term2 term3)
+	This matches pages with term1 that DO NOT contain term2 OR term3
+
+"term1 term2 term3"
+	This matches the exact phrase, term1 term2 term3
+
+" pen "
+	This will match the word "pen", but not the word "pencil".
+	
+You can also use regular expressions within your search terms to further refine your searches, creating a very powerful search engine.
+
+Additionally, you can include the most recent search requests in your blog.  Add $find::recentsearches in your template.  By default, the last 10 searches will be shown in an unordered list.  You can change $max_previous_searches to alter the number displayed.
+
+=head1 AUTHORS
+
+Fletcher T. Penney - http://fletcher.freeshell.org
+
+Eric Sherman		<enkidu@enkidu.bloggedup.com>
+Marc Nozell		<marc@nozell.com> http://www.nozell.com/blog
+
+=head1 LICENSE
+
+This source is submitted to the public domain.  Feel free to use and modify it.  If you like, a comment in your modified source attributing credit for my original work would be appreciated.
+
+THIS SOFTWARE IS PROVIDED AS IS AND WITHOUT ANY WARRANTY OF ANY KIND.  USE AT YOUR OWN RISK!

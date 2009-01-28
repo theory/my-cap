@@ -1,0 +1,29 @@
+# Blosxom Plugin: atomsummary
+# Author(s): David Wheeler <david@justatheory.com>
+# Version: 2008-01-30
+# Blosxom Home/Docs/Licensing: http://www.raelity.org/apps/blosxom/
+# Blosxom Plugin Docs: http://www.raelity.org/apps/blosxom/plugin.shtml
+
+package atomsummary;
+
+sub start {
+    return 1 if $blosxom::template{atomsum}{head};
+    for my $tmpl qw(content_type date head foot story) {
+        $blosxom::template{atomsum}{$tmpl} = $blosxom::template{atom}{$tmpl};
+    }
+    return 1;
+}
+
+sub story {
+    my $body_ref = @_[-1];
+    my $label = $meta::readmore || 'Read More';
+    my $more = qq{<p><a href="$blosxom::url$blosxom::path/$blosxom::fn.$blosxom::default_flavour">Read More »</a></p>};
+    if ( $blosxom::flavour eq 'atomsum' && $$body_ref =~ m{(<p>.+?</p>)}ms ) {
+        $$body_ref = "$1$more";
+    }
+    atomfeed::story(@_);
+}
+
+1;
+
+__END__

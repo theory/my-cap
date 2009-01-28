@@ -17,8 +17,10 @@ def put_script( file )
   put script, '/tmp/functions.sh', :mode => 0755
 end
 
-def upload( file, dest, params = {} )
-  sput File.read( "#{ BASE }/#{ file }" ), dest, params
+def supload( file, dest, params = {} )
+  upload file, '/tmp/cap_supload', :mode => params[:mode], :via => params[:via] || :sftp
+  sudo "chown #{ params[:owner] || 'root' }:#{ params[:group] || 'root' } -R /tmp/cap_supload"
+  sudo "mv /tmp/cap_supload #{dest}"
 end
 
 def sput ( data, dest, params = {} )
