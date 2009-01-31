@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<rdf:RDF 
+  xmlns="http://purl.org/rss/1.0/"
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" 
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:cc="http://web.resource.org/cc/"
+  xmlns:admin="http://webns.net/mvcb/"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:trackback="http://madskills.com/public/xml/rss/module/trackback/"
+> 
+
+  <channel rdf:about="$url">
+    <title>$blog_title</title>
+    <link>$url</link>
+    <description>$blog_description</description>
+    <language>$blog_language</language>
+    <dc:creator>$rss10::creator ($rss10::email)</dc:creator>
+    <dc:rights>Copyright $rss10::creator</dc:rights>
+    <cc:license rdf:resource="http://creativecommons.org/licenses/by-nc/2.0" />
+    <admin:generatorAgent rdf:resource="$rss10::generatorAgent" />
+    <admin:errorReportsTo rdf:resource="mailto:$rss10::email"/>
+
+{{{items}}}
+
+    <image rdf:resource="http://meerkat.oreillynet.com/icons/meerkat-powered.jpg" />
+
+  </channel>
+
+  <image rdf:about="$url/logo.gif">
+    <title>$blog_title</title>
+    <url>$url/logo.gif</url>
+    <link>$url</link>
+  </image>
+

@@ -564,6 +564,10 @@ namespace :my do
       sudol_scripts( 'nmap' )
     end
 
+    task :git, :roles => :local do
+      sudol_scripts( 'git' )
+    end
+
   end
 end
 
@@ -619,33 +623,44 @@ namespace :blog do
         sudo 'chown -R david:david /var/www/justatheory.com'
         sudo 'mkdir -p /var/www/justatheory.blog'
         sudo 'chown -R david:david /var/www/justatheory.blog'
+        sudo 'mkdir -p /var/www/justatheory.plugins/invindex'
+        sudo 'chown -R david:david /var/www/justatheory.plugins'
+        sudo 'mkdir -p /var/www/justatheory.plugins/state'
+        sudo 'chown -R nobody:nogroup /var/www/justatheory.plugins/state'
         sudo 'mkdir -p /var/log/httpd'
         sudo 'mkdir -p /var/lock/httpd'
 
+        # Configure the blog.
         supload 'config/blog/blosxom.cgi', '/var/www/justatheory.com/blosxom.cgi', :mode => 0755;
         supload 'config/blog/search.cgi', '/var/www/justatheory.com/search.cgi', :mode => 0755;
         supload 'config/blog/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
         sudo 'rm /usr/local/apache2/conf/httpd.conf'
         sudo 'ln -s /etc/httpd/httpd.conf /usr/local/apache2/conf/httpd.conf'
 
-        sudo %q{bash -c "if [ -d /var/www/justatheory.plugins ]; then mv /var/www/justatheory.plugins /var/www/justatheory.plugins.old; fi"}
-        supload 'config/blog/plugins', '/var/www/justatheory.plugins', :owner => 'david', :group => 'david'
-        sudo %q{bash -c "if [ -d /var/www/justatheory.plugins.old ]; then mv /var/www/justatheory.plugins.old/state /var/www/justatheory.plugins/; rm -rf /var/www/justatheory.plugins.old; else mkdir -p /var/www/justatheory.plugins/state; chown -R nobody:nogroup /var/www/justatheory.plugins/state; fi"}
-        sudo 'mkdir -p /var/www/justatheory.plugins/invindex'
-        sudo 'chown david:david /var/www/justatheory.plugins/invindex'
+        # Upload the blosxom configuration and templats.
+        upload 'config/blog/docroot', '/tmp/blog-docroot'
+        run 'mv /tmp/blog-docroot/*.* /var/www/justatheory.blog/; rm -rf /tmp/blog-docroot'
 
+        # Upload the blosxom plugins directory.
+        upload 'config/blog/plugins', '/tmp/blog-plugins'
+        run 'mv /tmp/blog-plugins/*.* /var/www/justatheory.plugins/; rm -rf /tmp/blog-plugins'
+
+        # Upload the scripts to run the blog.
         supload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
         supload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
         supload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
         supload 'config/blog/blogindex', '/usr/bin/blogindex', :mode => 0755
         supload 'config/blog/blogedit', '/usr/bin/blogedit', :mode => 0755
-        run 'blogindex'
 
+        # Reindex the blog and update the start script.
+        run 'blogindex'
         sudo 'update-rc.d httpd defaults'
 
+        # Enable mod_perl and mod_apreq, if appropriate.
         sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
         sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_apreq2.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+apreq_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
 
+        # Make it so!
         sudo '/etc/init.d/httpd restart'
       end
 

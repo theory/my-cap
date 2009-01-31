@@ -1,0 +1,59 @@
+      <div class="story">
+        <h2 id="f$fn">$title</h2>
+        <div class="body">
+        $body
+        </div>
+	<?$tags::tags><div class="tags">Tags:<ul>$tags::tags</ul></div></?>
+        <ul class="meta">
+          <li class="date">$dw $da $mo $yr</li><?$meta::via><li>Via $meta::via</li></?><li class="category"><a href="$path/">$path</a></li><li><a href="$path/$fn.$flavour#tb">discuss: $writeback::count</a></li><li><a href="$path/$fn.$flavour">§</a></li>
+        </ul>
+      </div>
+      <?$path_info unlike="(^[^\.]+/?$)|(^$)|(index\.\w+$)">
+      <div id="tb">
+      <@writeback.show_trackback path="$path" fn="$fn" output="yes">
+        <!-- TrackBack auto-discovery bits
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+	         xmlns:trackback="http://madskills.com/public/xml/rss/module/trackback/">
+          <rdf:Description
+           rdf:about="$url$path/$fn.$flavour"
+           dc:identifier="$url$path/$fn.$flavour"
+           dc:title="$title"
+           trackback:ping="$url$path/$fn.trackback" />
+        </rdf:RDF> -->
+      </@writeback.show_trackback>
+        <div id="comments">
+          <h2>Comments &amp; Trackbacks</h2>
+          <div class="body">
+            $writeback::writebacks
+
+            <@writeback.show_trackback path="$path" fn="$fn" output="yes">
+            <form method="post" action="$url/$path_info" id="form">
+              <h3>Give me a holler</h3>
+	      <div class="body">
+                <p>TrackBack ping me at:</p>
+                <p>$url<br />$writeback::trackback_path_and_filename.trackback</p>
+                <table style="border: 0">
+		  <tr><td colspan="2"><span style="font-size:80%">Allowed HTML:</span> <code>&lt;p&gt;&lt;/p&gt; &lt;pre&gt;&lt;/pre&gt; &lt;em&gt;&lt;/em&gt; &lt;strong&gt;&lt;/strong&gt; &lt;q&gt;&lt;/q&gt; &lt;a&gt;&lt;/a&gt; &lt;cite&gt;&lt;/cite&gt; &lt;code&gt;&lt;/code&gt; &lt;br /&gt; &lt;ol&gt;&lt;/ol&gt; &lt;ul&gt;&lt;/ul&gt; &lt;li&gt;&lt;/li&gt; &lt;dl&gt;&lt;/dl&gt; &lt;dt&gt;&lt;/dt&gt; &lt;dd&gt;&lt;/dd&gt; &lt;dfn&gt;&lt;/dfn&gt; &lt;hr /&gt; &lt;blockquote&gt;&lt;/blockquote&gt; &lt;samp&gt;&lt;/samp&gt;</code></td></tr>
+                  <tr><td>&nbsp;</td></tr>
+                  <tr><td align="right">Name:</td><td><input name="name" size="35" value="$writeback::pref_name" /></td></tr>
+                  <tr><td align="right">URL:</td><td><input name="url" size="35" value="$writeback::pref_url" /> (optional)</td></tr>
+                  <tr><td align="right">Title:</td><td><input name="title" size="35" /> (optional)</td></tr>
+                  <tr valign="top"><td>Comments:</td><td><textarea name="comment" rows="10" cols="60"></textarea></td></tr>
+                  <tr><td align="right">$writeback::writeback_math_x $writeback::writeback_math_op $writeback::writeback_math_y = </td><td><input name="z" size="35" /> (to prove you're not a bot)</td></tr>
+                  <tr><td colspan="2">
+                    <input type="checkbox" name="save_preferences" value="1" checked="checked" /> Save my Name and URL/Email for next time
+                  </td></tr>
+                  <tr><td colspan="2">
+                    <input type="hidden" name="plugin" value="writeback" />
+		    <input type="hidden" name="x" value="$writeback::writeback_math_x" />
+		    <input type="hidden" name="y" value="$writeback::writeback_math_y"/>
+                    <input type="submit" value="Post" />
+                  </td></tr>
+                </table>
+              </div>
+            </form>
+            </@writeback.show_trackback>
+	  </div>
+        </div>
+      </div></?>
