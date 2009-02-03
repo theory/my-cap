@@ -7,7 +7,6 @@ export MDWNVERSION=0.6
 . `dirname $0`/functions.sh
 
 # Install mmm-mode.
-#setup /usr/local/share/emacs/site-lisp/mmm-mode.el
 setup
 download http://superb-west.dl.sourceforge.net/sourceforge/mmm-mode/mmm-mode-$MMMVERSION.tgz
 build mmm-mode-$MMMVERSION
@@ -32,14 +31,23 @@ else
 fi
 emacs -batch -f batch-byte-compile *.el
 cp *.el* /usr/local/share/emacs/site-lisp
-cd ..
+cd ..a
+
+if [ !-d elisp ]; then
+    mdkir elisp
+fi
+cd elisp
 
 # markdown-mode
-if [ !-d markdown-mode ]; then
-    mdkir markdown-mode
-fi
-cd markdown-mode
 download http://code.jblevins.org/markdown-mode/markdown-mode.el
 emacs -batch -f batch-byte-compile *.el
 cp markdown-mode.el* /usr/local/share/emacs/site-lisp
+
+# sql-indent
+download http://www.geocities.com/kensanata/elisp/sql-indent.el.txt
+mv sql-indent.el.txt sql-indent.el
+emacs -batch -f batch-byte-compile *.el
+cp sql-indent.el* /usr/local/share/emacs/site-lisp
+
+# Return to src directory.
 cd ..
