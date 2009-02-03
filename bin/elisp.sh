@@ -31,11 +31,9 @@ else
 fi
 emacs -batch -f batch-byte-compile *.el
 cp *.el* /usr/local/share/emacs/site-lisp
-cd ..a
+cd ..
 
-if [ !-d elisp ]; then
-    mdkir elisp
-fi
+mkdir -p elisp
 cd elisp
 
 # markdown-mode
