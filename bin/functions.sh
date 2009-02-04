@@ -68,7 +68,7 @@ build() {
 
 	if [ -f $1.tar.gz ]; then
 		tar zxf $1.tar.gz || exit $?
-	if [ -f $1.tgz ]; then
+	elif [ -f $1.tgz ]; then
 		tar zxf $1.tar.gz || exit $?
 	elif [ -f $1.tar.bz2 ]; then
 		tar jxf $1.tar.bz2 || exit $?
