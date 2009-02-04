@@ -483,7 +483,7 @@ namespace :my do
 
     task :emacs, :roles => :local do
       graphics
-      sudol_scripts( 'aspell', 'emacs' 'elisp' )
+      sudol_scripts( 'aspell', 'emacs', 'elisp' )
     end
 
     task :perl, :roles => :local do
