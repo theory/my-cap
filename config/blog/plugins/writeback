@@ -189,20 +189,21 @@ sub start {
             # any unsightly XHTML elements and attributes.
             my $parser = HTML::Parser->new(
                 api_version     => 3,
-                start_h         => [\&_tag, "tokenpos, text"],
-                process_h       => ["", ""],
-                comment_h       => ["", ""],
-                declaration_h   => [\&_decl, "tagname, text"],
-                default_h       => [\&_text, "text"],
+                start_h         => [\&_tag, 'tokenpos, text'],
+                process_h       => ['', ''],
+                comment_h       => ['', ''],
+                declaration_h   => [\&_decl, 'tagname, text'],
+                default_h       => [\&_text, 'text'],
                 ignore_tags     => \@ignore_tags,
                 ignore_elements => \@ignore_elements,
             );
+            require Text::Markdown;
+            my $md = Text::Markdown->new;
             # Select the writeback file handle so that the HTML::Parser methods
             # will just print to it. Don't you just love Perl magic?
             select $fh;
             foreach ( @fields ) {
-                my $p = param($_);
-                $p =~ s/\r?\n\r?/\r/mg;
+                ( my $p = $_ eq 'comment' ? $md->markdown(param($_)) : param($_) ) =~ s/\r?\n\r?/\r/mg;
                 print $fh "$_: ";
                 # The $wrap_tag tags will be stipped out.
                 $parser->parse("<$wrap_tag>$p</$wrap_tag>");
