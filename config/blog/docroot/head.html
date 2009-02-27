@@ -4,7 +4,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" >
   <head>
     <link rel="stylesheet" type="text/css" href="/ui/css/blog.css" />
-    <title>$blog_title<?$path_info unlike="(^[^\.]+/?$)|(^$)|(index\.\w+$)">: @title@</?></title>
+    <title>$blog_title<?$path_info unlike="(^[^\.]+/?$)|(^$)|(index\.\w+$)">: @title@</?><?$path_info like="(^[^\.]+/?$)|(^$)|(index\.\w+$)"><?$breadcrumbs::title>: $breadcrumbs::title</?></?></title>
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     <meta name="keywords" content="$meta::keywords" />

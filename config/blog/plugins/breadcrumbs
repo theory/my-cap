@@ -1,5 +1,5 @@
 # Blosxom Plugin: breadcrumbs
-# Author(s): Rael Dornfest <rael@oreilly.com> 
+# Author(s): Rael Dornfest <rael@oreilly.com>
 # Version: 2003-12-29
 # Documentation: See the bottom of this file or type: perldoc readme
 
@@ -14,42 +14,47 @@ package breadcrumbs;
 my $home = 'home';
 
 # What divider should I use between path components (e.g. a > path > to...)
-my $divider = " :: ";
+my $divider = ' | ';
 
 # --------------------------------
 
 $breadcrumbs; # use as $breadcrumbs::breadcrumbs in flavour templates
+$title;
 
 use FileHandle;
 
-my $fh = new FileHandle;
+my $fh = FileHandle->new;
 
-sub start {
-  1;
-}
+sub start { 1 }
 
 sub head {
-  my($pkg, $path, $head_ref) = @_;
+    my($pkg, $path, $head_ref) = @_;
 
-  $path or return 0;
-  $path =~ s/\.$blosxom::flavour$//;
+    return 0 unless $path;
+    $path =~ s/\.$blosxom::flavour$//;
 
-  my(@p, $p);
-  $home and push @p, qq{<a href="$blosxom::url/index.$blosxom::flavour">$home</a>};
+    my @p = $home
+        ? (qq{<a href="$blosxom::url/index.$blosxom::flavour">$home</a>})
+        : ();
 
-  foreach ( split /\//, $path ) {
-    $p .= "/$_";
-    (my $name = $_) =~ s/_+/ /g;
+    my @q;
 
-    push @p, 
-      $p ne "/$path"
-      ? qq{<a href="$blosxom::url$p/index.$blosxom::flavour">$name</a>}
-      : qq{$name};
-  }
+    my $p = '';
+    for my $dir ( split m{/}, $path ) {
+        $p .= "/$dir";
+        (my $name = $dir) =~ s/_+/ /g;
+        push @p, $p ne "/$path"
+            ? qq{<a href="$blosxom::url$p/index.$blosxom::flavour">$name</a>}
+            : qq{$name};
 
-  $breadcrumbs = join $divider, @p;
+        $name =~ s/\b(\w)/\U$1/g;
+        push @q, $name;
+    }
 
-  return 1;
+    $breadcrumbs = join $divider, @p;
+    $title       = join $divider, @q;
+
+    return 1;
 }
 
 1;
@@ -65,7 +70,7 @@ Blosxom Plug-in: breadcrumbs
 Populates $breadcrumbs::breadcrumbs with a clickable trail to
 your current path in the weblog hierarchy (a la Yahoo!).
 
-e.g. a/path/to/somewhere becomes 
+e.g. a/path/to/somewhere becomes
 <a href="/a">a</a> :: <a href="/a/path">path</a> :: ...
 
 Optionally prepends the path with a link back to home.  Alter $home
@@ -75,7 +80,7 @@ as you please, leaving it blank to turn off the link to home.
 
 2003-12-29
 
-Version number coincides with the version of Blosxom with which the 
+Version number coincides with the version of Blosxom with which the
 current version was first bundled.
 
 =head1 AUTHOR
@@ -90,13 +95,13 @@ Blosxom Plugin Docs: http://www.raelity.org/apps/blosxom/plugin.shtml
 
 =head1 BUGS
 
-Address bug reports and comments to the Blosxom mailing list 
+Address bug reports and comments to the Blosxom mailing list
 [http://www.yahoogroups.com/group/blosxom].
 
 =head1 LICENSE
 
 Blosxom and this Blosxom Plug-in
-Copyright 2003, Rael Dornfest 
+Copyright 2003, Rael Dornfest
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
