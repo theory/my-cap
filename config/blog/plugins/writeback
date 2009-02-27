@@ -271,6 +271,7 @@ sub story {
         my $writeback = &$blosxom::template($path,'writeback',$blosxom::flavour) || '<p><b>Name/Blog:</b> $writeback::name$writeback::blog_name<br /><b>URL:</b> $writeback::url<br /><b>Title:</b> $writeback::title<br /><b>Comment/Excerpt:</b> $writeback::comment$writeback::excerpt</p>';
 
         $writeback =~ s/\$writeback::(\w+)/$param{$1}/ge;
+        $writeback =~ s{<a href="">([^<]+)</a>}{$1}g;
         $writebacks .= $writeback;
         $count++;
       }
