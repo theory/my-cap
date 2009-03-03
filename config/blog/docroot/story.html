@@ -4,8 +4,9 @@
         $body
         </div>
 	<?$tags::tags><div class="tags">Tags:<ul>$tags::tags</ul></div></?>
+    $sociable::links
         <ul class="meta">
-          <li class="date">$dw $da $mo $yr</li><?$meta::via><li>Via $meta::via</li></?><li class="category"><a href="$path/">$path</a></li><li><a href="$path/$fn.$flavour#tb">discuss: $writeback::count</a></li><li><a href="$path/$fn.$flavour">§</a></li>
+          <li class="date">$dw $da $mo $yr</li><?$meta::via><li>Via $meta::via</li></?><li><a href="$path/$fn.$flavour#tb">discuss: $writeback::count</a></li><li><a href="$path/$fn.$flavour">§</a></li>
         </ul>
       </div>
       <?$path_info unlike="(^[^\.]+/?$)|(^$)|(index\.\w+$)">
@@ -26,6 +27,9 @@
           <h2>Comments &amp; Trackbacks</h2>
           <div class="body">
             $writeback::writebacks
+            <@writeback.timed_out path="$path" fn="$fn" output="yes">
+              <p>Discussion is now closed.</p>
+            </@writeback.timed_out>
 
             <@writeback.show_trackback path="$path" fn="$fn" output="yes">
             <form method="post" action="$url/$path_info" id="form">

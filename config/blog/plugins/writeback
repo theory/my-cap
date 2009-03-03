@@ -313,6 +313,13 @@ sub tb_timed_out {
     return (time - (stat "$blosxom::datadir$path/$fn.txt")[9]) / 3600 > $trackback_timeout;
 }
 
+sub timed_out {
+    shift;
+    my $args = shift;
+    return shift if tb_timed_out($args->{path}, $args->{fn});
+    return '';
+}
+
 # make it easier to look up attributes
 my %ignore_attr = map { $_ => 1} @ignore_attr;
 
