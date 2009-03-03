@@ -9,7 +9,7 @@ use HTML::Entities;
 # --- Configurable variables -----
 
 # What flavours need the links?
-my @flavours = qw(html atom rss10);
+my @flavours = qw(html);
 
 # Which social bookmarking sites should we link to? See %sociable_known_sites
 # below for a complete list to sites to choose from.
@@ -36,7 +36,7 @@ my @sites = qw(
 my $icon_base = '/ui/img/sociable';
 
 # What's the tagline? Set it to '' or undef or 0 for no tagline.
-my $tagline = 'Share and enjoy';
+my $tagline = '';
 
 # Should links open a new window?
 my $use_new_window = 0;
