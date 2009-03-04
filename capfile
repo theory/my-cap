@@ -577,10 +577,6 @@ namespace :blog do
   end
 
   namespace :build do
-    task :mail, :roles => :blog do
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install postfix'
-    end
-
     namespace :rsnapshot do
       task :default, :roles => :blog do
         sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install rsnapshot'
@@ -608,6 +604,20 @@ namespace :blog do
       run 'env PERL_MM_USE_DEFAULT=1 /usr/local/bin/cpan KinoSearch'
     end
 
+    namespace :postfix do
+      task :default, :roles => :blog do
+        sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install postfix postfix-pcre mailx'
+        config
+      end
+
+      task :config, :roles => :blog do
+        supload 'config/blog/main.cf', '/etc/postfix/main.cf', :mode => 0644
+        supload '../Corporate/config/blog_sasl_passwd', '/etc/postfix/sasl/passwd', :mode => 0600
+        sudo 'postmap /etc/postfix/sasl/passwd'
+        sudo 'postfix reload'
+      end
+    end
+    
     namespace :httpd do
       task :default, :roles => :blog do
         perl
