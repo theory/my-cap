@@ -6,7 +6,11 @@
 	<?$tags::tags><div class="tags">Tags:<ul>$tags::tags</ul></div></?>
     $sociable::links
         <ul class="meta">
-          <li class="date">$dw $da $mo $yr</li><?$meta::via><li>Via $meta::via</li></?><li><a href="$path/$fn.$flavour#tb">discuss: $writeback::count</a></li><li><a href="$path/$fn.$flavour">§</a></li>
+          <li class="date">$dw $da $mo $yr</li>
+          <?$meta::via><li>Via $meta::via</li></?>
+          <li class="category"><a href="$path/">$path</a></li>
+          <li><a href="$path/$fn.$flavour#tb">discuss: $writeback::count</a></li>
+          <li><a href="$path/$fn.$flavour">§</a></li>
         </ul>
       </div>
       <?$path_info unlike="(^[^\.]+/?$)|(^$)|(index\.\w+$)">
