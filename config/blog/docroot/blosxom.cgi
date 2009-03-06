@@ -171,8 +171,7 @@ sub load_template {
 }
 
 # Define default find subroutine
-$entries =
-  sub {
+$entries = sub {
     my(%files, %indexes, %others);
     find(
       sub {
@@ -214,7 +213,6 @@ $entries =
             }
       }, $datadir
     );
-
     return (\%files, \%indexes, \%others);
   };
 
@@ -314,6 +312,9 @@ sub generate {
     # Stories
     my $curdate = '';
     my $ne = $num_entries;
+    my $ppage = param('p') || 1;
+    my $sa = ($ne * ($ppage - 1)) + 1;
+    our $page;
 
     if ( $currentdir =~ /(.*?)([^\/]+)\.(.+)$/ and $2 ne 'index' ) {
       $currentdir = "$1$2.$file_extension";
@@ -335,7 +336,14 @@ sub generate {
     my $tmp; foreach my $plugin ( @plugins ) { $plugins{$plugin} > 0 and $plugin->can('sort') and defined($tmp = $plugin->sort()) and $sort = $tmp and last; }
 
     foreach my $path_file ( &$sort(\%f, \%others) ) {
-      last if $ne <= 0 && $date !~ /\d/;
+      if ($sa) {
+          $sa--;
+        next if $sa;
+      }
+      if ($ne <= 0 && $date !~ /\d/) {
+          $page = $ppage + 1;
+          last;
+      }
       use vars qw/ $path $fn /;
       ($path,$fn) = $path_file =~ m!^$datadir/(?:(.*)/)?(.*)\.$file_extension!;
 
