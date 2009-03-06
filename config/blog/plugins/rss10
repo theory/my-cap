@@ -9,7 +9,7 @@ use strict;
 # --- Configurable variables -----
 
 # What is your full name?
-our $creator = 'David Wheeler';
+our $creator = 'David E. Wheeler';
 
 # What is your email address?
 our $email = 'david@justatheory.com';
@@ -29,8 +29,8 @@ our ($items, $body, $trackback_ping);
 
 our $generatorAgent = "http://www.raelity.org/apps/blosxom/?v=$blosxom::version";
 
-my $T = 'T';
-my $colon = ":";
+our $T = 'T';
+our $colon = ":";
 
 # --------------------------------
 
