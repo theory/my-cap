@@ -390,7 +390,7 @@ sub generate {
         my $curdate = '';
         my $ne = $num_entries;
         my $page = path_info =~ m{/index(\d+)[.]html$} ? $1 : 1;
-        my $sa = ($ne * ($page - 1)) + 1;
+        my $sa = ($ne * ($page - 1));
         our $next_page;
 
         # Define a default sort subroutine
@@ -411,10 +411,6 @@ sub generate {
         }
 
         foreach my $path_file ( $sort->(\%f, \%others) ) {
-            if ($sa) {
-                $sa--;
-                next if $sa;
-            }
             if ($ne <= 0 && $date !~ /\d/) {
                 $page += 1;
                 ($next_page = path_info) =~ s{/(index\d*[.]html)?$}{/index$page.html};
@@ -424,6 +420,9 @@ sub generate {
 
             # Only stories in the right hierarchy
             next unless $path =~ /^$currentdir/ or $path_file eq "$datadir/$currentdir";
+
+            # Skip if we're on a subsequent page.
+            next if $sa && $sa--;
 
             # Prepend a slash for use in templates only if a path exists
             $path &&= "/$path";
