@@ -5,6 +5,7 @@
 # Blosxom Plugin Docs: http://www.raelity.org/apps/blosxom/plugin.shtml
 
 package atomsummary;
+use strict;
 
 sub start {
     return 1 if $blosxom::template{atomsum}{head};
@@ -15,7 +16,7 @@ sub start {
 }
 
 sub story {
-    my $body_ref = @_[-1];
+    my $body_ref = $_[-1];
     my $label = $meta::readmore || 'Read More';
     my $more = qq{<p><a href="$blosxom::url$blosxom::path/$blosxom::fn.$blosxom::default_flavour">Read More »</a></p>};
     if ( $blosxom::flavour eq 'atomsum' && $$body_ref =~ m{(<p>.+?</p>)}ms ) {

@@ -4,6 +4,7 @@
 # Documentation: See the bottom of this file or type: `perldoc beautify`
 
 package beautify;
+use strict;
 
 # --- Configurable variables -----
 

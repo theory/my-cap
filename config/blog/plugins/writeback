@@ -250,50 +250,55 @@ sub start {
 }
 
 sub story {
-  my($pkg, $path, $filename, $story_ref, $title_ref, $body_ref) = @_;
+    my($pkg, $path, $filename, $story_ref, $title_ref, $body_ref) = @_;
 
-  $path =~ s!^/*!!; $path &&= "/$path";
+    $path =~ s{^/*}{};
+    $path &&= "/$path";
 
-  ($writebacks, $count)  = ('', 0);
-  my %param = ();
+    ($writebacks, $count)  = ('', 0);
+    my %param = ();
 
-  # Prepopulate Name and URL/Email with cookie-baked preferences, if any
-  if ( $blosxom::plugins{cookies} > 0 and my $cookie = &cookies::get('writeback') ) {
-    $pref_name ||= $cookie->{'name'};
-    $pref_url ||= $cookie->{'url'};
-  }
-
-  if ( $fh->open("$writeback_dir$path/$filename.$file_extension") ) {
-    foreach my $line (<$fh>) {
-      $line =~ /^(.+?):\s*(.*)$/ and $param{$1} = $2;
-      if ( $line =~ /^-----$/ ) {
-
-        my $writeback = &$blosxom::template($path,'writeback',$blosxom::flavour) || '<p><b>Name/Blog:</b> $writeback::name$writeback::blog_name<br /><b>URL:</b> $writeback::url<br /><b>Title:</b> $writeback::title<br /><b>Comment/Excerpt:</b> $writeback::comment$writeback::excerpt</p>';
-
-        $writeback =~ s/\$writeback::(\w+)/$param{$1}/ge;
-        $writeback =~ s{<a href="">([^<]+)</a>}{$1}g;
-        $writebacks .= $writeback;
-        $count++;
-      }
+    # Prepopulate Name and URL/Email with cookie-baked preferences, if any
+    if (
+        ($blosxom::plugins{cookies} || 0) > 0
+            and my $cookie = cookies::get('writeback')
+    ) {
+        $pref_name ||= $cookie->{'name'};
+        $pref_url ||= $cookie->{'url'};
     }
 
-  }
+    if ( $fh->open("$writeback_dir$path/$filename.$file_extension") ) {
+        foreach my $line (<$fh>) {
+            $line =~ /^(.+?):\s*(.*)$/ and $param{$1} = $2 || '';
+            if ( $line =~ /^-----$/ ) {
 
-  $trackback_path_and_filename = "$path/$filename";
+                my $writeback = $blosxom::template->(
+                    $path, writeback => $blosxom::flavour
+                ) || '<p><b>Name/Blog:</b> $writeback::name$writeback::blog_name<br /><b>URL:</b> $writeback::url<br /><b>Title:</b> $writeback::title<br /><b>Comment/Excerpt:</b> $writeback::comment$writeback::excerpt</p>';
 
-  1;
+                $writeback =~ s/\$writeback::(\w+)/$param{$1} || ''/ge;
+                $writeback =~ s{<a href="">([^<]+)</a>}{$1}g;
+                $writebacks .= $writeback;
+                $count++;
+            }
+        }
+    }
+
+    $trackback_path_and_filename = "$path/$filename";
+
+    1;
 }
 
 sub foot {
-  $blosxom::plugins{cookies} > 0 and $cookie and &cookies::add(
-    cookie(
-          -name=>'writeback', 
-          -value=>{ 'name' => param('name'), 'url' => param('url') }, 
-          -path=>$cookies::path,
-          -domain=>$cookies::domain,
-          -expires=>$cookies::expires
-    )
-  );
+    cookies::add(
+        cookie(
+            -name=>'writeback', 
+            -value=>{ 'name' => param('name'), 'url' => param('url') }, 
+            -path=>$cookies::path,
+            -domain=>$cookies::domain,
+            -expires=>$cookies::expires
+        )
+    ) if ($blosxom::plugins{cookies} || 0) > 0 and $cookie;
 }
 
 sub show_trackback {

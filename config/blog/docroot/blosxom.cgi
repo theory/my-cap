@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl
+#!/usr/local/bin/perl -w
 
 # Blosxom
 # Author: Rael Dornfest <rael@oreilly.com>
@@ -149,7 +149,8 @@ $path_info =~ s!(^/*)|(/*$)!!g;
 
 # Date fiddling
 ($path_info_yr, $path_info_mo, $path_info_da) = @path_info;
-$path_info_mo_num = !$path_info_mo ? undef
+$_ ||= '' for ($path_info_yr, $path_info_mo, $path_info_da);
+$path_info_mo_num = !$path_info_mo ? ''
     : $path_info_mo =~ /\d{2}/     ? $path_info_mo
     : $month2num{ucfirst(lc $path_info_mo)} || undef;
 
@@ -175,6 +176,7 @@ while (<DATA>) {
 # Plugins: Start
 if ( $plugin_dir and opendir PLUGINS, $plugin_dir ) {
     foreach my $plugin ( grep { /^\w+$/ && -f "$plugin_dir/$_"  } sort readdir(PLUGINS) ) {
+        die 'Invalid plugin name' if $plugin =~ /[^\w]/;
         my ($plugin_name, $off) = $plugin =~ /^\d*(\w+?)(_?)$/;
         my $on_off = $off eq '_' ? -1 : 1;
         require "$plugin_dir/$plugin";
@@ -252,7 +254,7 @@ $entries = sub {
 # Plugins: Entries
 # Allow for the first encountered plugin::entries subroutine to override the
 # default built-in entries subroutine
-my $tmp;
+$tmp = undef;
 for my $plugin ( @plugins ) {
     last if $plugins{$plugin} > 0
         and $plugin->can('entries')
@@ -402,7 +404,7 @@ sub generate {
         # Plugins: Sort
         # Allow for the first encountered plugin::sort subroutine to override the
         # default built-in sort subroutine
-        my $tmp;
+        $tmp = undef;
         for my $plugin ( @plugins ) {
             last if $plugins{$plugin} > 0
                 and $plugin->can('sort')
@@ -461,11 +463,11 @@ sub generate {
                 ) if $plugins{$plugin} > 0 and $plugin->can('date');
             }
 
-      $date = $interpolate->($date);
+            $date = $interpolate->($date);
 
-      $curdate ne $date and $curdate = $date and $output .= $date;
+            $curdate ne $date and $curdate = $date and $output .= $date;
 
-      our($title, $body, $raw);
+            our ($title, $body, $raw);
             if (-f "$path_file" && $fh->open("< $path_file")) {
                 chomp($title = <$fh>);
                 chomp($body = join '', <$fh>);
@@ -473,13 +475,13 @@ sub generate {
                 $raw = "$title\n$body";
                 $output =~ s/[@]title[@]/$title/g;
             }
-            my $story = (&$template($path,'story',$flavour));
+            my $story = $template->($path, story => $flavour);
 
-      # Plugins: Story
-      foreach my $plugin ( @plugins ) {
-           $entries = $plugin->story($path, $fn, \$story, \$title, \$body)
-               if $plugins{$plugin} > 0 and $plugin->can('story');
-       }
+            # Plugins: Story
+            foreach my $plugin ( @plugins ) {
+                $entries = $plugin->story($path, $fn, \$story, \$title, \$body)
+                    if $plugins{$plugin} > 0 and $plugin->can('story');
+            }
 
             if ($content_type =~ m{\Wxml(;.*)?$}) {
                 # Escape <, >, and &, and to produce valid XML.

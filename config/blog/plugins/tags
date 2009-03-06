@@ -1,4 +1,5 @@
 package tags;
+use strict;
 
 our $tags;
 my %format_for = (
@@ -13,17 +14,17 @@ sub story {
 
     $tags = undef;
     my @lines = split /\n/, $$body_ref;
-    $$body_ref = '';
     while (@lines) {
         local $_ = shift @lines;
         if (my ($tag) = m/^tags:\s+(.*)$/) {
-            $tags = join $/, map {
-                sprintf $format_for{$blosxom::flavour}, ($_) x 2
-            } split /\s+/, $tag;
+            if ($format_for{$blosxom::flavour}) {
+                $tags = join $/, map {
+                    sprintf $format_for{$blosxom::flavour}, ($_) x 2
+                } split /\s+/, $tag;
+            }
+            $$body_ref =~ s/\E$_//;
             last;
         }
-        $$body_ref .= "$_\n";
     }
-    $$body_ref .= join "\n", @lines;
     return 1;
 }

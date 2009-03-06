@@ -5,51 +5,53 @@
 # Blosxom Plugin Docs: http://www.raelity.org/apps/blosxom/plugin.shtml
 
 package atomfeed;
+use strict;
 
 # --- Configurable variables -----
 
 # Who would you like your feed to credit as the default author of each entry?
 # Leave blank and the atomfeed plugin will attempt to use the whoami and
 # fauxami plugins
-$default_author = 'David Wheeler';
+our $default_author = 'David Wheeler';
 
 # What domain should Blosxom use in ID tags?
 # Leave blank if you don't understand or for Blosxom to use the domain in $url.
-$id_domain = '';
+our $id_domain = '';
 
 # --- Plug-in package variables -----
 
-$author = '';
-$T = 'T';
-$colon = ':';
-$zerozero = '00';
+our $author = '';
+my $T = 'T';
+my $colon = ':';
+#$zerozero = '00';
 
 # URL where an atom.css might reside
-$css_url = "$blosxom::url/atom.css";
+my $css_url = "$blosxom::url/atom.css";
 
 # Try to glean the domain from $url
 $id_domain or ($id_domain) = $blosxom::url =~ m#http://(?:www\.)?([^\/]+)#;
 
 # Glean year for feed id
-$feed_yr = (gmtime(time))[5] + 1900;
+my $feed_yr = (gmtime(time))[5] + 1900;
 
-$utc_date = '';
+my $utc_date = '';
+my ($parser, $escape_re, %escape);
+our ($utc_yr, $type, $mode);
 
 # --------------------------------
 
 sub start {
+    # Check for the existence of already-loaded flavour templates or theme
+    $blosxom::template{atom}{head} and return 1;
 
-  # Check for the existence of already-loaded flavour templates or theme
-  $blosxom::template{'atom'}{'head'} and return 1;
+    # Otherwise, load on-board templates
+    _load_templates();
 
-  # Otherwise, load on-board templates
-  _load_templates();
+    eval {use XML::Parser; $parser = new XML::Parser;};
+    %escape = ('<'=>'&lt;', '>'=>'&gt;', '&'=>'&amp;', '"'=>'&quot;');
+    $escape_re  = join '|' => keys %escape;
 
-  eval {use XML::Parser; $parser = new XML::Parser;};
-  %escape = ('<'=>'&lt;', '>'=>'&gt;', '&'=>'&amp;', '"'=>'&quot;');
-  $escape_re  = join '|' => keys %escape;
-
-  1;
+    return 1;
 }
 
 sub story {
@@ -65,7 +67,7 @@ sub story {
   # Set authorship if available, falling back to $atomfeed::author
   $author = $whoami::fullname || $fauxami::name || $default_author || '';
 
-  ($body = $$body_ref) =~ s/.+?\n{2,}//sxm;
+  (my $body = $$body_ref) =~ s/.+?\n{2,}//sxm;
 
   if (eval {$parser->parse("<div>$body</div>")}) {
     $type = 'application/xhtml+xml';

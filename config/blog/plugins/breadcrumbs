@@ -4,6 +4,7 @@
 # Documentation: See the bottom of this file or type: perldoc readme
 
 package breadcrumbs;
+use strict;
 
 # --- Configurable variables -----
 
@@ -18,8 +19,8 @@ my $divider = ' | ';
 
 # --------------------------------
 
-$breadcrumbs; # use as $breadcrumbs::breadcrumbs in flavour templates
-$title;
+our $breadcrumbs; # use as $breadcrumbs::breadcrumbs in flavour templates
+our $title;
 
 use FileHandle;
 
@@ -28,7 +29,7 @@ my $fh = FileHandle->new;
 sub start { 1 }
 
 sub head {
-    my($pkg, $path, $head_ref) = @_;
+    my ($pkg, $path, $head_ref) = @_;
 
     return 0 unless $path;
     $path =~ s/\.$blosxom::flavour$//;
