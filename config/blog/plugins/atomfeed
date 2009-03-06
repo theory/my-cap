@@ -12,7 +12,7 @@ use strict;
 # Who would you like your feed to credit as the default author of each entry?
 # Leave blank and the atomfeed plugin will attempt to use the whoami and
 # fauxami plugins
-our $default_author = 'David Wheeler';
+our $default_author = 'David E. Wheeler';
 
 # What domain should Blosxom use in ID tags?
 # Leave blank if you don't understand or for Blosxom to use the domain in $url.
@@ -22,19 +22,19 @@ our $id_domain = '';
 
 our $author = '';
 my $T = 'T';
-my $colon = ':';
+our $colon = ':';
 #$zerozero = '00';
 
 # URL where an atom.css might reside
-my $css_url = "$blosxom::url/atom.css";
+our $css_url = "$blosxom::url/atom.css";
 
 # Try to glean the domain from $url
 $id_domain or ($id_domain) = $blosxom::url =~ m#http://(?:www\.)?([^\/]+)#;
 
 # Glean year for feed id
-my $feed_yr = (gmtime(time))[5] + 1900;
+our $feed_yr = (gmtime(time))[5] + 1900;
 
-my $utc_date = '';
+our $utc_date = '';
 my ($parser, $escape_re, %escape);
 our ($utc_yr, $type, $mode);
 
@@ -67,7 +67,7 @@ sub story {
   # Set authorship if available, falling back to $atomfeed::author
   $author = $whoami::fullname || $fauxami::name || $default_author || '';
 
-  (my $body = $$body_ref) =~ s/.+?\n{2,}//sxm;
+  (our $body = $$body_ref) =~ s/.+?\n{2,}//sxm;
 
   if (eval {$parser->parse("<div>$body</div>")}) {
     $type = 'application/xhtml+xml';
