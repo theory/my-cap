@@ -10,59 +10,59 @@ package blosxom;
 # --- Configurable variables -----
 
 # What's this blog's title?
-$blog_title = "Just a Theory";
+our $blog_title = 'Just a Theory';
 
 # What's this blog's description (for outgoing RSS feed)?
-$blog_description = "Theory waxes practical. By David Wheeler.";
+our $blog_description = 'Theory waxes practical. By David Wheeler.';
 
 # What's this blog's primary language (for outgoing RSS feed)?
-$blog_language = "en-us";
+our $blog_language = 'en-us';
 
 # Where are this blog's entries kept?
-$datadir = "/var/www/justatheory.blog";
+our $datadir = '/var/www/justatheory.blog';
 
 # What's my preferred base URL for this blog (leave blank for automatic)?
-$url = "";
+our $url = '';
 
 # Should I stick only to the datadir for items or travel down the
 # directory hierarchy looking for items?  If so, to what depth?
 # 0 = infinite depth (aka grab everything), 1 = datadir only, n = n levels down
-$depth = 0;
+our $depth = 0;
 
 # How many entries should I show on the home page?
-$num_entries = 7;
+our $num_entries = 7;
 
 # What file extension signifies a blosxom entry?
-$file_extension = "txt";
+our $file_extension = 'txt';
 
 # What is the default flavour?
-$default_flavour = "html";
+our $default_flavour = 'html';
 
 # Should I show entries from the future (i.e. dated after now)?
-$show_future_entries = 0;
+our $show_future_entries = 0;
 
 # --- Plugins (Optional) -----
 
 # Where are my plugins kept?
-$plugin_dir = "/var/www/justatheory.plugins";
+our $plugin_dir = '/var/www/justatheory.plugins';
 
 # Where should my modules keep their state information?
-$plugin_state_dir = "$plugin_dir/state";
+our $plugin_state_dir = "$plugin_dir/state";
 
 # --- Static Rendering -----
 
 # Where are this blog's static files to be created?
-$static_dir = "/Library/WebServer/Documents/blog";
+our $static_dir = '/Library/WebServer/Documents/blog';
 
 # What's my administrative password (you must set this for static rendering)?
-$static_password = "";
+our $static_password = '';
 
 # What flavours should I generate statically?
-@static_flavours = qw/html rss/;
+our @static_flavours = qw/html rss/;
 
 # Should I statically generate individual entries?
 # 0 = no, 1 = yes
-$static_entries = 0;
+our $static_entries = 0;
 
 # --------------------------------
 
@@ -75,28 +75,48 @@ use File::stat;
 use Time::localtime;
 use CGI qw/:standard :netscape/;
 
-$version = "2.0";
+our $version = '2.1';
 
-my $fh = new FileHandle;
+my $fh = FileHandle->new;
 
-%month2num = (nil=>'00', Jan=>'01', Feb=>'02', Mar=>'03', Apr=>'04', May=>'05', Jun=>'06', Jul=>'07', Aug=>'08', Sep=>'09', Oct=>'10', Nov=>'11', Dec=>'12');
+%month2num = (
+    nil => '00',
+    Jan => '01',
+    Feb => '02',
+    Mar => '03',
+    Apr => '04',
+    May => '05',
+    Jun => '06',
+    Jul => '07',
+    Aug => '08',
+    Sep => '09',
+    Oct => '10',
+    Nov => '11',
+    Dec => '12',
+);
+
 @num2month = sort { $month2num{$a} <=> $month2num{$b} } keys %month2num;
 
 # Use the stated preferred URL or figure it out automatically
 $url ||= url();
 $url =~ s/^included:/http:/; # Fix for Server Side Includes (SSI)
-$url =~ s!/$!!;
 
 # Drop ending any / from dir settings
-$datadir =~ s!/$!!; $plugin_dir =~ s!/$!!; $static_dir =~ s!/$!!;
+s{/$}{} for ($url, $datadir, $plugin_dir, $static_dir);
 
 # Fix depth to take into account datadir's path
-$depth and $depth += ($datadir =~ tr[/][]) - 1;
+$depth += ($datadir =~ tr[/][]) - 1 if $depth;
 
 # Global variable to be used in head/foot.{flavour} templates
 $path_info = '';
 
-$static_or_dynamic = (!$ENV{GATEWAY_INTERFACE} and param('-password') and $static_password and param('-password') eq $static_password) ? 'static' : 'dynamic';
+$static_or_dynamic = (
+    !$ENV{GATEWAY_INTERFACE}
+    and param('-password')
+    and $static_password
+    and param('-password') eq $static_password
+) ? 'static' : 'dynamic';
+
 $static_or_dynamic eq 'dynamic' and param(-name=>'-quiet', -value=>1);
 
 # Path Info Magic
@@ -110,36 +130,40 @@ shift @path_info;
 # need to dump blosxom soon. :-(
 
 #while ($path_info[0] and $path_info[0] =~ /^[a-zA-Z].*$/ and $path_info[0] !~ /(.*)\.(.*)/) { $path_info .= '/' . shift @path_info; }
-while ($path_info[0] and $path_info[0] !~ /(.*)\.(.*)/) { $path_info .= '/' . shift @path_info; }
+while ($path_info[0] and $path_info[0] !~ /(.*)\.(.*)/) {
+    $path_info .= '/' . shift @path_info;
+}
 
 # Flavour specified by ?flav={flav} or index.{flav}
 $flavour = '';
 
 if ( $path_info[$#path_info] =~ /(.+)\.(.+)$/ ) {
-  $flavour = $2;
-  $1 ne 'index' and $path_info .= "/$1.$2";
-  pop @path_info;
+    $flavour = $2;
+    $path_info .= "/$1.$2" if $1 ne 'index';
+    pop @path_info;
 } else {
-  $flavour = param('flav') || $default_flavour;
+    $flavour = param('flav') || $default_flavour;
 }
 
 # Strip spurious slashes
 $path_info =~ s!(^/*)|(/*$)!!g;
 
 # Date fiddling
-($path_info_yr,$path_info_mo,$path_info_da) = @path_info;
-$path_info_mo_num = $path_info_mo ? ( $path_info_mo =~ /\d{2}/ ? $path_info_mo : ($month2num{ucfirst(lc $path_info_mo)} || undef) ) : undef;
+($path_info_yr, $path_info_mo, $path_info_da) = @path_info;
+$path_info_mo_num = !$path_info_mo ? undef
+    : $path_info_mo =~ /\d{2}/     ? $path_info_mo
+    : $month2num{ucfirst(lc $path_info_mo)} || undef;
 
 # Define standard template subroutine, plugin-overridable at Plugins: Template
-$template =
-  sub {
+$template = sub {
     my ($path, $chunk, $flavour) = @_;
     do {
-      return join '', <$fh> if $fh->open("< $datadir/$path/$chunk.$flavour");
+        return join '', <$fh> if $fh->open("< $datadir/$path/$chunk.$flavour");
     } while ($path =~ s/(\/*[^\/]*)$// and $1);
 
-    return join '', ($template{$flavour}{$chunk} || $template{error}{$chunk} || '');
-  };
+    return join '', $template{$flavour}{$chunk} || $template{error}{$chunk} || '';
+};
+
 # Bring in the templates
 %template = ();
 while (<DATA>) {
