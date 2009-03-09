@@ -22,7 +22,7 @@ sub story {
                     sprintf $format_for{$blosxom::flavour}, ($_) x 2
                 } split /\s+/, $tag;
             }
-            $$body_ref =~ s/\E$_//;
+            $$body_ref =~ s/\Q$_//;
             last;
         }
     }
