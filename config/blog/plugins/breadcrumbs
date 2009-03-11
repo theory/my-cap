@@ -12,7 +12,7 @@ use strict;
 # Specify a word to use for the link back to $blosxom::url or leave blank
 # to exclude it
 
-my $home = 'home';
+my $home = '';
 
 # What divider should I use between path components (e.g. a > path > to...)
 my $divider = ' | ';
@@ -44,12 +44,11 @@ sub head {
 
     my @q;
 
-    my $p = '';
-    for my $dir ( split m{/}, $dir ) {
-        $p .= "/$dir";
-        (my $name = $dir) =~ s/_+/ /g;
-        push @p, qq{<a href="$blosxom::url$p/">$name</a>};
-        $name =~ s/\b(\w)/\U$1/g;
+    my $p = '/';
+    for my $part ( split m{/}, $dir ) {
+        $p .= "$part/";
+        my $name = ucfirst join ' ', map { s/sql/SQL/g; ucfirst } split /_+/, $part;
+        push @p, qq{<a href="$p">$name</a>};
         push @q, $name;
     }
 
