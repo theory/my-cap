@@ -1,5 +1,5 @@
 # Blosxom Plugin: beautify
-# Author(s): David Wheeler <david@justatheory.com> 
+# Author(s): David Wheeler <david@justatheory.com>
 # Version: 1.0
 # Documentation: See the bottom of this file or type: `perldoc beautify`
 
@@ -69,7 +69,7 @@ David Wheeler <david@justatheory.com>, http://www.justatheory.com/
 
 =head1 BUGS
 
-Address bug reports and comments to the Blosxom mailing list 
+Address bug reports and comments to the Blosxom mailing list
 [http://www.yahoogroups.com/group/blosxom].
 
 =head1 LICENSE

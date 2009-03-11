@@ -31,29 +31,41 @@ sub start { 1 }
 sub head {
     my ($pkg, $path, $head_ref) = @_;
 
+    $title = $blosxom::blog_title;
+
     return 0 unless $path;
-    $path =~ s/\.$blosxom::flavour$//;
+
+
+    ( my $dir = $path ) =~ s{/[^/]+[.]\Q$blosxom::flavour\E$}{};
 
     my @p = $home
-        ? (qq{<a href="$blosxom::url/index.$blosxom::flavour">$home</a>})
+        ? (qq{<a href="$blosxom::url/">$home</a>})
         : ();
 
     my @q;
 
     my $p = '';
-    for my $dir ( split m{/}, $path ) {
+    for my $dir ( split m{/}, $dir ) {
         $p .= "/$dir";
         (my $name = $dir) =~ s/_+/ /g;
-        push @p, $p ne "/$path"
-            ? qq{<a href="$blosxom::url$p/index.$blosxom::flavour">$name</a>}
-            : qq{$name};
-
+        push @p, qq{<a href="$blosxom::url$p/">$name</a>};
         $name =~ s/\b(\w)/\U$1/g;
         push @q, $name;
     }
 
     $breadcrumbs = join $divider, @p;
-    $title       = join $divider, @q;
+
+    if ($path =~ m#(.*?)/?([\-\.\w]+)\.(\w+)$# and $2 ne 'index') {
+        my $file = join('/', $blosxom::datadir, $1, "$2.$blosxom::file_extension");
+        if (-f $file) {
+            open my $fh, '<', $file or die "Cannot open $file: $!\n";
+            chomp(my $t = <$fh>);
+            close $fh or die "Cannot close $file: $!\n";
+            $title .= ": $t";
+        }
+    } else {
+        $title .= ': ' . join $divider, @q;
+    }
 
     return 1;
 }
