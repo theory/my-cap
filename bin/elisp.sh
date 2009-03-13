@@ -47,5 +47,10 @@ mv sql-indent.el.txt sql-indent.el
 emacs -batch -f batch-byte-compile *.el
 cp sql-indent.el* /usr/local/share/emacs/site-lisp
 
+# php-mode.
+download http://php-mode.svn.sourceforge.net/svnroot/php-mode/tags/php-mode-1.5.0/php-mode.el
+emacs -batch -f batch-byte-compile *.el
+cp php-mode.el* /usr/local/share/emacs/site-lisp
+
 # Return to src directory.
 cd ..
