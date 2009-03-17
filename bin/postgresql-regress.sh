@@ -3,7 +3,7 @@
 . `dirname $0`/functions.sh
 
 setup
-for VERSION in 8.2.12 8.1.16 8.0.20
+for VERSION in 8.2.13 8.1.17 8.0.21
 do
     BASE=/usr/local/pgsql-`echo $VERSION | awk -F. '{ print $1 "." $2 }'`
     if [ ! -e "$BASE" ]; then
