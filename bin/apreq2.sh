@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=2.08
+export VERSION=2.12
 
 . `dirname $0`/functions.sh
 
