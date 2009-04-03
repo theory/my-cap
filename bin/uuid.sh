@@ -9,6 +9,9 @@ download ftp://ftp.ossp.org/pkg/lib/uuid/uuid-$VERSION.tar.gz
 rm -rf uuid-$VERSION
 tar zxf uuid-$VERSION.tar.gz
 cd uuid-$VERSION
+# Put the header file in /usr/local/include/ossp-uuid so that, when other apps
+# compile, they don't find its uuid_t instead of the system's. This is an
+# issue inparticular for Apache.
 ./configure --prefix=/usr/local --with-perl=/usr/local/bin/perl --includedir=/usr/local/include/ossp-uuid 
 make
 make check
