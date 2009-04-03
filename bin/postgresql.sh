@@ -12,6 +12,10 @@ rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
 
+# I've moved the OSSP UUID header file in uuid.sh. So we need to tell
+# PostgreSQL where to find it.
+export CPPFLAGS="-I/usr/local/include/ossp-uuid"
+
 if [ $OS = 'Darwin' ]; then
      # For debugging: --enable-cassert --enable-debug
     ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
