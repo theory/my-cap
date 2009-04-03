@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=1.31-rc4
+export VERSION=1.31-rc8
 
 . `dirname $0`/functions.sh
 
@@ -15,5 +15,5 @@ USER=dougm /usr/local/bin/perl Makefile.PL \
   WITH_APXS=/usr/local/apache/bin/apxs \
   USE_DSO=1 \
   EVERYTHING=1 || exit $?
-( make && make test && make install UNINST=1 ) || exit $?
+( make && make install UNINST=1 ) || exit $?
 cd ..

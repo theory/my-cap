@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export VERSION=1.3.39
-export MODSSLVERSION=2.8.30
+export VERSION=1.3.41
+export MODSSLVERSION=2.8.31
 
 . `dirname $0`/functions.sh
 
