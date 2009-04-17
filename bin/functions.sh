@@ -12,19 +12,19 @@ OS=`uname`
 
 setup() {
     if [ "$1" ] && [ ! $FORCE ]; then
-		if [ -f $1 ]; then
-		    if [ -n "$2" ]; then
-        	    if [ -n "`grep -l "$2" "$1"`" ]; then
-        		    exit 0
-        		fi
-	        else
-			    exit 0
-		    fi
-		fi
-	fi
+        if [ -f $1 ]; then
+            if [ -n "$2" ]; then
+                if [ -n "`grep -l "$2" "$1"`" ]; then
+                    exit 0
+                fi
+            else
+                exit 0
+            fi
+        fi
+    fi
 
-	mkdir -p /usr/local/src || exit $?
-	cd /usr/local/src || exit $?
+    mkdir -p /usr/local/src || exit $?
+    cd /usr/local/src || exit $?
 }
 
 # Downloads the file from the URL passed as a single argument. If the file
@@ -32,19 +32,19 @@ setup() {
 # deletes any existing copy of the file and downloads it.
 
 download() {
-	file=`basename $1`
-	if [ $FORCE ]; then
-		rm -f $file
-	fi
+    file=`basename $1`
+    if [ $FORCE ]; then
+        rm -f $file
+    fi
 
-    echo Downloading $1...
-	if [ ! -f $file ]; then
+    if [ ! -f $file ]; then
+        echo Downloading $file...
         if [ $OS = 'Darwin' ]; then
-		    curl -kO $1 || exit $?
-		else
-		    wget --no-check-certificate $1 || exit $?
-	    fi
-	fi
+            curl -kO $1 || exit $?
+        else
+            wget --no-check-certificate $1 || exit $?
+        fi
+    fi
 }
 
 # Pass in the name of a download to have it built. The name should be the name
@@ -60,29 +60,35 @@ download() {
 #  build jpegsrc.v5.6 jpeg-5.6
 
 build() {
-	if [ $2 ]; then
-		rm -rf $2
-	else
-		rm -rf $1
-	fi
+    if [ $2 ]; then
+        rm -rf $2
+    else
+        rm -rf $1
+    fi
 
-	if [ -f $1.tar.gz ]; then
-		tar zxf $1.tar.gz || exit $?
-	elif [ -f $1.tgz ]; then
-		tar zxf $1.tar.gz || exit $?
-	elif [ -f $1.tar.bz2 ]; then
-		tar jxf $1.tar.bz2 || exit $?
-	fi
-
-	if [ $2 ]; then
-		cd $2
-	else
-		cd $1
-	fi
-
-	./configure || exit $?
-	make || exit $?
-	make install || exit $?
-	cd ..
+    if [ -f $1.tar.gz ]; then
+        echo Unpacking $1.tar.gz...
+        tar zxf $1.tar.gz || exit $?
+    elif [ -f $1.tgz ]; then
+        echo Unpacking $1.tgz...
+        tar zxf $1.tgz || exit $?
+    elif [ -f $1.tar.bz2 ]; then
+        echo Unpacking $1.tar.bz2...
+        tar jxf $1.tar.bz2 || exit $?
+    elif [ -f $1.tbz2 ]; then
+        echo Unpacking $1.tbz2...
+        tar jxf $1.tbz2 || exit $?
+    fi
+    
+    if [ $2 ]; then
+        cd $2
+    else
+        cd $1
+    fi
+    
+    ./configure || exit $?
+    make || exit $?
+    make install || exit $?
+    cd ..
 }
 

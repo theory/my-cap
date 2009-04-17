@@ -1,26 +1,25 @@
 #!/bin/sh
 
-export VERSION=8.3.7
+export VERSION=8.4beta1
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 
 . `dirname $0`/functions.sh
 
 setup $BASE/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
-download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
+#download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
+download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v8.4beta/postgresql-$VERSION.tar.bz2
+echo Unpacking $file...
 rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
 
-# I've moved the OSSP UUID header file in uuid.sh. So we need to tell
-# PostgreSQL where to find it.
-export CPPFLAGS="-I/usr/local/include/ossp-uuid"
-
 if [ $OS = 'Darwin' ]; then
      # For debugging: --enable-cassert --enable-debug
     ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
-    --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap --with-ossp-uuid \
-    --with-libs=/usr/local/lib --with-includes=/usr/local/include --prefix=$BASE || exit $?
+    --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap \
+    --with-ossp-uuid --with-includes=/usr/local/include \
+    --with-libs=/usr/local/lib --prefix=$BASE || exit $?
 else
     ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
     --with-libxml --with-ldap --with-ossp-uuid --with-libs=/usr/local/lib \
@@ -33,7 +32,6 @@ make install || exit $?
 
 # Install contrib modules
 cd contrib
-svn export https://svn.kineticode.com/citext/trunk citext
 for dir in adminpack isn fuzzystrmatch hstore pgcrypto dblink intagg lo ltree pg_standby uuid-ossp citext
 do
     cd $dir
@@ -135,10 +133,16 @@ do
     $BASE/bin/createlang -U postgres $lang postgres
 done
 
+# Add the contrib modules to the contrib schema.
+OPTS='-XU postgres --set ON_ERROR_ROLLBACK=1 --set ON_ERROR_STOP=1'
+$BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib';
+export PGOPTIONS="--search_path=contrib --client_min_messages=warning"
+
 for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext
 do
-    $BASE/bin/psql -XU postgres -f $BASE/share/contrib/$file.sql template1
-    $BASE/bin/psql -XU postgres -f $BASE/share/contrib/$file.sql postgres
+    perl -i -pe 's/SET\s+search_path\s*=\s*public;/SET seach_path = contrib;/i;' $BASE/share/contrib/$file.sql
+    $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql template1
+    $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql postgres
 done
 
 cd ..
