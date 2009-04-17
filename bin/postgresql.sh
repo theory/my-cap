@@ -140,7 +140,7 @@ export PGOPTIONS="--search_path=contrib --client_min_messages=warning"
 
 for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext
 do
-    perl -i -pe 's/SET\s+search_path\s*=\s*public;/SET seach_path = contrib;/i;' $BASE/share/contrib/$file.sql
+    perl -i -pe 's/SET\s+search_path\s*=\s*public;/SET search_path = contrib;/i;' $BASE/share/contrib/$file.sql
     $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql template1
     $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql postgres
 done
