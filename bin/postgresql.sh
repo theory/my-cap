@@ -81,9 +81,6 @@ if [ $OS = 'Darwin' ]; then
         echo kern.sysv.shmmni=32        >> /etc/sysctl.conf
         echo kern.sysv.shmseg=8         >> /etc/sysctl.conf
         echo kern.sysv.shmall=65536     >> /etc/sysctl.conf
-    else
-        cp `dirname $0`/../config/postgresql.conf $BASE/conf
-        chown postgres:postgres $BASE/conf
     fi
 else
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
@@ -94,9 +91,6 @@ else
         sysctl -w kern.sysv.shmall=65536
     fi
     useradd postgres -d /nonexistent
-    download https://svn.kineticode.com/cap/config/postgresql.conf
-    cp postgresql.conf $BASE/conf
-    chown postgres:postgres $BASE/conf
     cp contrib/start-scripts/linux /etc/init.d/postgresql
     chmod +x /etc/init.d/postgresql
     # chkconfig --add postgresql    # redhat
@@ -121,8 +115,13 @@ if [ ! -d $BASE/data ]; then
 fi
 
 if [ $OS = 'Darwin' ]; then
+    cp `dirname $0`/../config/postgresql.conf $BASE/data/
+    chown postgres:postgres $BASE/data/postgresql.conf
     SystemStarter restart PostgreSQL
 else
+    download https://svn.kineticode.com/cap/config/postgresql.conf
+    cp postgresql.conf $BASE/data/
+    chown postgres:postgres $BASE/data/postgresql.conf
     /etc/init.d/postgresql start
 fi
 sleep 5
@@ -135,7 +134,8 @@ done
 
 # Add the contrib modules to the contrib schema.
 OPTS='-XU postgres --set ON_ERROR_ROLLBACK=1 --set ON_ERROR_STOP=1'
-$BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib';
+$BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib' template1
+$BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib' postgres
 export PGOPTIONS="--search_path=contrib --client_min_messages=warning"
 
 for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext
