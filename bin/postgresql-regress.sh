@@ -8,6 +8,7 @@ do
     BASE=/usr/local/pgsql-`echo $VERSION | awk -F. '{ print $1 "." $2 }'`
     if [ ! -e "$BASE" ]; then
         download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
+        echo "Unpacking postgresql-$VERSION.tar.bz2"
         rm -rf postgresql-$VERSION
         tar jxf postgresql-$VERSION.tar.bz2 || exit $?
         cd postgresql-$VERSION
