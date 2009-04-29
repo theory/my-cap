@@ -43,9 +43,10 @@ Subject: [wbnotify] $title
 Content-Type: text/plain
 X-Mailer: blosxom wbnotify plugin
 
-Your blog got a new comment at
-$blosxom::url/$blosxom::path_info:
-$name :: $url :
+Your blog got a new comment at $blosxom::url/$blosxom::path_info
+
+[$name]($url) writes:
+
 $body
 _MAIL_
         close $mail;
