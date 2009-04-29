@@ -47,7 +47,7 @@ sub head {
     my $p = '/';
     for my $part ( split m{/}, $dir ) {
         $p .= "$part/";
-        my $name = ucfirst join ' ', map { s/(?:\b(vcs|svn|dbi|tv|cvs|html|os|rt|pda)\b)|sql/\U$1/g; ucfirst } split /_+/, $part;
+        my $name = ucfirst join ' ', map { s/((?:\b(?:vcs|svn|dbi|tv|cvs|html|os|rt|pda)\b)|sql)/\U$1/g; ucfirst } split /_+/, $part;
         push @p, qq{<a href="$p">$name</a>};
         push @q, $name;
     }
