@@ -473,7 +473,7 @@ namespace :my do
     end
 
     task :graphics, :roles => :local do
-      sudol_scripts( 'libpng', 'libjpeg', 'libtiff', 'giflib' )
+      sudol_scripts( 'libpng', 'libjpeg', 'libtiff', 'giflib', 'freetype' )
     end
 
     task :uuid, :roles => :local do
@@ -566,6 +566,13 @@ namespace :my do
 
     task :git, :roles => :local do
       sudol_scripts( 'git' )
+    end
+
+    task :php, :roles => :local do
+      graphics
+      pg
+      apache2
+      sudol_scripts( 'gettext', 'php' )
     end
 
   end
