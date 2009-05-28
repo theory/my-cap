@@ -8,7 +8,7 @@ export MDWNVERSION=0.6
 
 # Install mmm-mode.
 setup
-download http://superb-west.dl.sourceforge.net/sourceforge/mmm-mode/mmm-mode-$MMMVERSION.tgz
+download http://softlayer.dl.sourceforge.net/sourceforge/mmm-mode/mmm-mode-$MMMVERSION.tar.gz
 build mmm-mode-$MMMVERSION
 
 # pod-mode
@@ -35,6 +35,11 @@ cd ..
 
 mkdir -p elisp
 cd elisp
+
+# cperl-mode
+download http://github.com/jrockway/cperl-mode/raw/moosex-declare/cperl-mode.el
+emacs -batch -f batch-byte-compile *.el
+cp cperl-mode.el* /usr/local/share/emacs/site-lisp
 
 # markdown-mode
 download http://code.jblevins.org/markdown-mode/markdown-mode.el
