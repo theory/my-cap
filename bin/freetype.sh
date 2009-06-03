@@ -4,7 +4,7 @@ export VERSION=2.3.9
 
 . `dirname $0`/functions.sh
 
-if [ "`/usr/local/bin/freetype-config --ftversion`" = $VERSION ]; then
+if [ -e /usr/local/bin/freetype-config ] && [ "`/usr/local/bin/freetype-config --ftversion`" = $VERSION ]; then
     exit 0
 fi
 setup
