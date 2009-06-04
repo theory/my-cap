@@ -6,7 +6,7 @@ export BASE=/usr/local/pgsql
 
 . `dirname $0`/functions.sh
 
-setup #$BASE/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
+setup $BASE/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
 download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-8.4beta2.tar.bz2
 echo Unpacking $file...
 rm -rf postgresql-$VERSION
