@@ -6,7 +6,7 @@ export BASE=/usr/local/pgsql
 
 . `dirname $0`/functions.sh
 
-setup $BASE/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
+setup #$BASE/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
 download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-8.4beta2.tar.bz2
 echo Unpacking $file...
 rm -rf postgresql-$VERSION
@@ -116,12 +116,17 @@ fi
 if [ $OS = 'Darwin' ]; then
     cp `dirname $0`/../config/postgresql.conf $BASE/data/
     chown postgres:postgres $BASE/data/postgresql.conf
-    SystemStarter restart PostgreSQL
+    BACKTO=`pwd`
+    cd $BASE/data
+    SystemStarter stop PostgreSQL
+    SystemStarter start PostgreSQL || exit $?
+    cd $BACKTO
 else
     download https://svn.kineticode.com/cap/config/postgresql.conf
     cp postgresql.conf $BASE/data/
     chown postgres:postgres $BASE/data/postgresql.conf
-    /etc/init.d/postgresql start
+    /etc/init.d/postgresql stop
+    /etc/init.d/postgresql start || exit $?
 fi
 sleep 5
 
