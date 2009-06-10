@@ -12,7 +12,7 @@ use KinoSearch::Highlight::Highlighter;
 # Get the query values and untaint them.
 my $cgi           = CGI->new;
 my ($q)           = ($cgi->param('q') || '' =~ /^(.*)$/g);
-my ($offset)      = ($cgi->param('offset') || '' =~ /^(\d*)$/g);
+my ($offset)      = (($cgi->param('offset') || '') =~ /^(\d*)$/g);
 my $hits_per_page = 10;
 $q      = '' unless defined $q;
 $offset = 0  unless $offset;
@@ -39,16 +39,16 @@ sub output_template {
 
     open my $tf, '<', $template or die "Cannot open '$template': $!\n";
     while (<$tf>) {
-	next if /<\?/;
+        next if /<\?/;
         s/(\$\w+(?:::)?\w*)/"defined $1 ? $1 : ''"/gee;
-	print;
+        print;
     }
     close $tf;
 }
 
 ### STEP 1: Specify the same Analyzer used to create the invindex.
-my $analyzer = KinoSearch::Analysis::PolyAnalyzer->new( 
-    language => 'en', 
+my $analyzer = KinoSearch::Analysis::PolyAnalyzer->new(
+    language => 'en',
 );
 
 ### STEP 2: Create a Searcher object.
@@ -61,8 +61,9 @@ my $searcher = KinoSearch::Searcher->new(
 my $hits = $searcher->search($q);
 
 ### STEP 4: Arrange for highlighted excerpts to be created.
-my $highlighter = KinoSearch::Highlight::Highlighter->new( 
-    excerpt_field => 'bodytext' );
+my $highlighter = KinoSearch::Highlight::Highlighter->new(
+    excerpt_field => 'bodytext'
+);
 $hits->create_excerpts( highlighter => $highlighter );
 
 ### STEP 5: Process the search.
@@ -91,59 +92,59 @@ my $total_hits = $hits->total_hits;
 my $num_hits_info = '';
 if (length $q) {
     if ( $total_hits == 0 ) {
-	# alert the user that their search failed
-	$num_hits_info = qq|<p>No matches for <q>$q</strong></q>|;
+        # alert the user that their search failed
+        $num_hits_info = qq|<p>No matches for <q>$q</strong></q>|;
     }
     else {
-	# calculate the nums for the first and last hit to display
-	my $last_result  = min( ( $offset + $hits_per_page ), $total_hits );
-	my $first_result = min( ( $offset + 1 ), $last_result );
+        # calculate the nums for the first and last hit to display
+        my $last_result  = min( ( $offset + $hits_per_page ), $total_hits );
+        my $first_result = min( ( $offset + 1 ), $last_result );
 
-	# display the result nums, start paging info
-	$num_hits_info = qq|
-        <p>Results <strong>$first_result-$last_result</strong> 
+        # display the result nums, start paging info
+        $num_hits_info = qq|
+        <p>Results <strong>$first_result-$last_result</strong>
            of <strong>$total_hits</strong> for <strong>$q</strong>.</p>
         <p> Results Page:
         |;
 
-	# calculate first and last hits pages to display / link to
-	my $current_page = int( $first_result / $hits_per_page ) + 1;
-	my $last_page    = ceil( $total_hits / $hits_per_page );
-	my $first_page   = max( 1, ( $current_page - 9 ) );
-	$last_page = min( $last_page, ( $current_page + 10 ) );
+        # calculate first and last hits pages to display / link to
+        my $current_page = int( $first_result / $hits_per_page ) + 1;
+        my $last_page    = ceil( $total_hits / $hits_per_page );
+        my $first_page   = max( 1, ( $current_page - 9 ) );
+        $last_page = min( $last_page, ( $current_page + 10 ) );
 
-	# create a url for use in paging links
-	my $href = $cgi->url( -relative => 1 ) . "?" . $cgi->query_string;
-	$href .= ";offset=0" unless $href =~ /offset=/;
+        # create a url for use in paging links
+        my $href = $cgi->url( -relative => 1 ) . "?" . $cgi->query_string;
+        $href .= ";offset=0" unless $href =~ /offset=/;
 
-	# generate the "Prev" link;
-	if ( $current_page > 1 ) {
-	    my $new_offset = ( $current_page - 2 ) * $hits_per_page;
-	    $href =~ s/(?<=offset=)\d+/$new_offset/;
-	    $num_hits_info .= qq|<a href="$href">&lt;= Prev</a>\n|;
-	}
+        # generate the "Prev" link;
+        if ( $current_page > 1 ) {
+            my $new_offset = ( $current_page - 2 ) * $hits_per_page;
+            $href =~ s/(?<=offset=)\d+/$new_offset/;
+            $num_hits_info .= qq|<a href="$href">&lt;= Prev</a>\n|;
+        }
 
-	# generate paging links
-	for my $page_num ( $first_page .. $last_page ) {
-	    if ( $page_num == $current_page ) {
-		$num_hits_info .= qq|$page_num \n|;
-	    }
-	    else {
-		my $new_offset = ( $page_num - 1 ) * $hits_per_page;
-		$href =~ s/(?<=offset=)\d+/$new_offset/;
-		$num_hits_info .= qq|<a href="$href">$page_num</a>\n|;
-	    }
-	}
+        # generate paging links
+        for my $page_num ( $first_page .. $last_page ) {
+            if ( $page_num == $current_page ) {
+                $num_hits_info .= qq|$page_num \n|;
+            }
+            else {
+                my $new_offset = ( $page_num - 1 ) * $hits_per_page;
+                $href =~ s/(?<=offset=)\d+/$new_offset/;
+                $num_hits_info .= qq|<a href="$href">$page_num</a>\n|;
+            }
+        }
 
-	# generate the "Next" link
-	if ( $current_page != $last_page ) {
-	    my $new_offset = $current_page * $hits_per_page;
-	    $href =~ s/(?<=offset=)\d+/$new_offset/;
-	    $num_hits_info .= qq|<a href="$href">Next &raquo;</a>\n|;
-	}
+        # generate the "Next" link
+        if ( $current_page != $last_page ) {
+            my $new_offset = $current_page * $hits_per_page;
+            $href =~ s/(?<=offset=)\d+/$new_offset/;
+            $num_hits_info .= qq|<a href="$href">Next &raquo;</a>\n|;
+        }
 
-	# finish paging links
-	$num_hits_info .= "</p>\n";
+        # finish paging links
+        $num_hits_info .= "</p>\n";
     }
 }
 
@@ -174,4 +175,3 @@ print <<END_HTML if $report;
     </div>
 END_HTML
 output_template("$blosxom_dir/foot.html");
-
