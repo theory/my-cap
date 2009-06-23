@@ -424,7 +424,7 @@ namespace :build do
       sudo 'mkdir -p /home/rsync/.ssh'
       sudo 'chown rsync:rsync /home/rsync/.ssh'
       config
-      puts %{Be sure to run\n\n    EDITOR=emacs visudo\n\n to add\n\n    rsync ALL=NOPASSWD: /usr/bin/rsync"\n\n}
+      puts %{Be sure to run\n\n    EDITOR=emacs visudo\n\n to add\n\n    rsync ALL=NOPASSWD: /usr/bin/rsync\n\n}
     end
 
     task :config, :roles => :mail do
@@ -454,6 +454,8 @@ end
 namespace :my do
   namespace :build do
     task :default, :roles => :local do
+      # Disable PubSub Agent.
+      runl 'defaults write com.apple.Safari DebugSyndicationEnabled 0'
       xml
       graphics
       zlib
