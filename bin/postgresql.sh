@@ -1,13 +1,13 @@
 #!/bin/sh
 
-export VERSION=8.4rc1
+export VERSION=8.4rc2
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 
 . `dirname $0`/functions.sh
 
 setup $BASE/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
-download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
+download http://ftp9.us.postgresql.org/pub/mirrors/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
 echo Unpacking $file...
 rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
