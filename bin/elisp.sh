@@ -58,7 +58,7 @@ emacs -batch -f batch-byte-compile *.el
 cp php-mode.el* /usr/local/share/emacs/site-lisp
 
 # tap-mode
-download http://cpansearch.perl.org/src/SCHWIGON/emacs-tap-mode-0.02/tap-mode.el
+download http://github.com/renormalist/emacs-tap-mode/raw/master/tap-mode.el
 emacs -batch -f batch-byte-compile tap-mode.el
 cp tap-mode.el* /usr/local/share/emacs/site-lisp
 
