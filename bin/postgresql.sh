@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=8.4rc2
+export VERSION=8.4.0
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 
