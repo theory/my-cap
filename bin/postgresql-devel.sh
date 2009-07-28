@@ -1,12 +1,13 @@
 #!/bin/sh
 
-export VERSION=8.4
+export VERSION=devel
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql-$VERSION
 
-cd ~/dev/pgsql
+cd ~/dev/postgresql
 make distclean
-cvs up
+git checkout master
+git pull
 # For debugging: --enable-cassert --enable-debug
 ./configure --with-libs=/usr/local/lib  --with-includes=/usr/local/include --prefix=$BASE --with-libxml  --with-ossp-uuid || exit $?
 make || exit $?
