@@ -8,8 +8,9 @@ role :ldap,   'ldap.kineticode.com'
 #role :ldap,   '192.168.1.15'
 role :mail,   'smtp.kineticode.com'
 role :web,    'crocker.kineticode.com'
+role :irc,    'smtp.kineticode.com'
 role :db,     'smtp.kineticode.com'
-role :blog,   '192.168.1.15'
+role :blog,   '10.0.1.202'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
 # methods on Capistrano::CLI.ui, e.g., Capistrano::CLI.ui.ask().
@@ -446,6 +447,19 @@ namespace :build do
       sudo 'mkdir -p /var/www/stats.kineticode.com'
       sudo 'mkdir -p /var/www/stats.strongrrl.com'
       supload 'config/awstats/awstats.kineticode.conf', '/etc/awstats/awstats.kineticode.conf', :mode => 0644
+    end
+  end
+
+  namespace :ircd do
+    task :default, :roles => :irc do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install ircd-hybrid'
+      config
+    end
+
+    task :config, :roles => :dns do
+      supload 'config/ircd.conf', '/etc/ircd-hybrid/ircd.conf', :owner => 'irc', :group => 'irc', :mode => 0644
+      sudo '/etc/init.d/ircd-hybrid restart'
     end
   end
 
