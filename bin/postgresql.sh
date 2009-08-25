@@ -65,7 +65,7 @@ if [ $OS = 'Darwin' ]; then
         dscl . -create /Users/postgres PrimaryGroupID $GID
     fi
 
-    if [ ! -e /Library/StartupItems/PostgreSQL ]; then
+    if [ ! -e /Library/StartupItems/PostgreSQL/PostgreSQL ]; then
         mkdir -p /Library/StartupItems/PostgreSQL
         cp contrib/start-scripts/osx/PostgreSQL /Library/StartupItems/PostgreSQL
         perl -i -pe 's/ROTATELOGS=1/ROTATELOGS=/' /Library/StartupItems/PostgreSQL/PostgreSQL
