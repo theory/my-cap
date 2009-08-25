@@ -155,7 +155,7 @@ cd ..
 if [ $OS = 'Darwin' ]; then
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
         cp `dirname $0`/../config/postgresql.conf $BASE/data
-        chown postgres:postgrs $BASE/conf
+        chown postgres:postgres $BASE/conf
         echo '###############################################################################'
         echo "Shared memory has been updated; changes will take effect after the next reboot."
         echo '###############################################################################'
