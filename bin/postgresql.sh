@@ -65,14 +65,13 @@ if [ $OS = 'Darwin' ]; then
         dscl . -create /Users/postgres PrimaryGroupID $GID
     fi
 
-    if [ ! -e /Library/StartupItems/PostgreSQL/PostgreSQL ]; then
-        mkdir -p /Library/StartupItems/PostgreSQL
-        cp contrib/start-scripts/osx/PostgreSQL /Library/StartupItems/PostgreSQL
-        perl -i -pe 's/ROTATELOGS=1/ROTATELOGS=/' /Library/StartupItems/PostgreSQL/PostgreSQL
-        cp contrib/start-scripts/osx/StartupParameters.plist /Library/StartupItems/PostgreSQL
-        if [ "`grep POSTGRESQL /etc/hostconfig`" = '' ]; then
-            echo "POSTGRESQL=-YES-" >> /etc/hostconfig
-        fi
+    # Set up the start script.
+    mkdir -p /Library/StartupItems/PostgreSQL
+    cp contrib/start-scripts/osx/PostgreSQL /Library/StartupItems/PostgreSQL
+    perl -i -pe 's/ROTATELOGS=1/ROTATELOGS=/' /Library/StartupItems/PostgreSQL/PostgreSQL
+    cp contrib/start-scripts/osx/StartupParameters.plist /Library/StartupItems/PostgreSQL
+    if [ "`grep POSTGRESQL /etc/hostconfig`" = '' ]; then
+        echo "POSTGRESQL=-YES-" >> /etc/hostconfig
     fi
 
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
