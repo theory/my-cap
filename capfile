@@ -453,7 +453,14 @@ namespace :build do
   namespace :ircd do
     task :default, :roles => :irc do
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install ircd-hybrid'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get install build-essential'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install openssl libssl-dev fakeroot dpkg-dev'
+      sudo 'cd /opt; env DEBIAN_FRONTEND=noninteractive apt-get -y source ircd-hybrid'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y build-dep ircd-hybrid'
+      sudo 'cd /opt/ircd-hybrid-*; USE_OPENSSL=1 fakeroot debian/rules binary'
+      sudo 'cd /opt; dpkg -i ircd-hybrid_*.deb'
+      # Add the irc user to the ssl-cert group.
+      sudo 'gpasswd -a irc ssl-cert'
       config
     end
 
