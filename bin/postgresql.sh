@@ -26,7 +26,8 @@ else
 fi
 
 make || exit $?
-#D_LIBRARY_PATH=./src/interfaces/libpq ./src/bin/pg_dump/pg_dumpall -U postgres > db.backup
+#LD_LIBRARY_PATH=./src/interfaces/libpq ./src/bin/pg_dump/pg_dumpall -U postgres > db.backup
+cd /usr/local/src/postgresql-$VERSION
 make install || exit $?
 
 # Install contrib modules
@@ -109,7 +110,8 @@ if [ ! -d $BASE/data ]; then
         mkdir -p /var/db
         mv $BASE/data /var/db/pgdata
         ln -s /var/db/pgdata $BASE/data
-        perl -i -pe 's{$BASE/data}{/var/db/pgdata}g' /etc/init.d/postgresql
+        perl -i -pe 's{serverlog}{logs/logfile}' /etc/init.d/postgresql
+        perl -i -pe "s{$BASE/data}{/var/db/pgdata}g" /etc/init.d/postgresql
     fi
 fi
 
@@ -122,8 +124,8 @@ if [ $OS = 'Darwin' ]; then
     SystemStarter start PostgreSQL || exit $?
     cd $BACKTO
 else
-    download https://svn.kineticode.com/cap/config/postgresql.conf
-    cp postgresql.conf $BASE/data/
+    download https://svn.kineticode.com/cap/config/postgresql-crocker.conf
+    cp postgresql-crocker.conf $BASE/data/postgresql.conf
     chown postgres:postgres $BASE/data/postgresql.conf
     /etc/init.d/postgresql stop
     /etc/init.d/postgresql start || exit $?
