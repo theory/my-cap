@@ -5,7 +5,9 @@ export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql-$VERSION
 
 cd ~/dev/postgresql
-make distclean
+if [-f GNUmakefile]; then
+    make maintainer-clean
+fi
 git checkout master
 git pull
 # For debugging: --enable-cassert --enable-debug
@@ -25,12 +27,12 @@ do
     cd ..
 done
 cd ..
-
+exit
 sudo mkdir $BASE/data || exit $?
 sudo chown -R postgres:postgres $BASE/data || exit $?
 sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding utf-8 -D $BASE/data || exit $?
-sudo mkdir $BASE/data/logs || exit $?
-sudo chown -R postgres:postgres $BASE/data/logs || exit $?
+# sudo mkdir $BASE/data/pg_log || exit $?
+# sudo chown -R postgres:postgres $BASE/data/pg_log || exit $?
 
 # for file in isn hstore uuid-ossp citext
 # do
