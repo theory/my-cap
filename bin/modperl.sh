@@ -15,5 +15,5 @@ perl Makefile.PL \
   WITH_APXS=/usr/local/apache/bin/apxs \
   USE_DSO=1 \
   EVERYTHING=1 || exit $?
-( make && make install UNINST=1 ) || exit $?
+( make -j3 && make install UNINST=1 ) || exit $?
 cd ..

@@ -13,13 +13,13 @@ cd uuid-$VERSION
 # compile, they don't find its uuid_t instead of the system's. This is an
 # issue inparticular for Apache.
 ./configure --prefix=/usr/local --with-perl=/usr/local/bin/perl --includedir=/usr/local/include/ossp 
-make
+make -j3
 make check
 make install
 
 cd perl
 perl Makefile.PL COMPAT=1
-make
+make -j3
 make test
 make install
 

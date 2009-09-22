@@ -1,14 +1,14 @@
 #!/bin/bash
 
 export MMMVERSION=0.4.8
-export PODVERSION=0.4
-export MDWNVERSION=0.6
+export PODVERSION=0.502
 
 . `dirname $0`/functions.sh
+mkdir -p /usr/local/share/emacs/site-lisp
 
 # Install mmm-mode.
 setup
-download http://softlayer.dl.sourceforge.net/sourceforge/mmm-mode/mmm-mode-$MMMVERSION.tar.gz
+download http://softlayer.dl.sourceforge.net/project/mmm-mode/mmm-mode/$MMMVERSION/mmm-mode-$MMMVERSION.tar.gz
 build mmm-mode-$MMMVERSION
 
 # pod-mode
@@ -17,7 +17,7 @@ rm -rf pod-mode-$PODVERSION
 tar zxf pod-mode-$PODVERSION.tgz
 cd pod-mode-$PODVERSION
 emacs -batch -f batch-byte-compile pod-mode.el
-cp pod-mode.el* 
+cp pod-mode.el* /usr/local/share/emacs/site-lisp
 cd ..
 
 # ruby-mode

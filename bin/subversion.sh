@@ -31,16 +31,16 @@ cd subversion-$VERSION
   --with-apr=/usr/local/apache2 \
   --with-apr-util=/usr/local/apache2 \
   --with-apxs=/usr/local/apache2/bin/apxs || exit $?
-make || exit $?
+make -j3 || exit $?
 make install || exit $?
 # Perl bindings fail. http://subversion.tigris.org/issues/show_bug.cgi?id=3165
 # make swig-pl || exit $?
 # make check-swig-pl || exit $?
 # make install-swig-pl || exit $?
-make swig-py || exit $?
+make -j3 swig-py || exit $?
 make check-swig-py || exit $?
 make install-swig-py || exit $?
-make swig-rb || exit $?
+make -j3 swig-rb || exit $?
 # As of now, the ruby tests fail because there is no bdb, but it's not important.
 make check-swig-rb
 make install-swig-rb || exit $?

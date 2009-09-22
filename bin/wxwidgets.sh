@@ -10,5 +10,5 @@ cd wxWidgets-$VERSION
 mkdir osx-build
 cd osx-build
 ../configure --disable-shared --enable-unicode --with-opengl
-make
+make -j3
 make install

@@ -88,7 +88,7 @@ build() {
     fi
     
     ./configure || exit $?
-    make || exit $?
+    make -j3 || exit $?
     make install || exit $?
     cd ..
 }

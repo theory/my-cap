@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=0.60.5
+export VERSION=0.60.6
 export DICT_VERSION=6-en-6.0-0
 
 . `dirname $0`/functions.sh

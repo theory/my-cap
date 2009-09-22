@@ -12,7 +12,7 @@ git checkout master
 git pull
 # For debugging: --enable-cassert --enable-debug
 ./configure --with-libs=/usr/local/lib  --with-includes=/usr/local/include --prefix=$BASE --with-libxml  --with-ossp-uuid || exit $?
-make || exit $?
+make -j3 || exit $?
 sudo make install || exit $?
 
 # Install contrib modules
@@ -21,7 +21,7 @@ svn export https://svn.kineticode.com/citext/trunk citext
 for dir in isn hstore uuid-ossp citext
 do
     cd $dir
-    make || exit $?
+    make -j3 || exit $?
     sudo make install || exit $?
     make clean
     cd ..

@@ -14,7 +14,7 @@ make || exit $?
 sudo make install || exit $?
 
 /usr/local/bin/perl Makefile.PL || exit $?
-make || exit $?
+make -j3 || exit $?
 make test || exit $?
 make install UNINST=1 || exit $?
 cd ..

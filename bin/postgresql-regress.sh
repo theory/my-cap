@@ -13,7 +13,7 @@ do
         tar jxf postgresql-$VERSION.tar.bz2 || exit $?
         cd postgresql-$VERSION
         ./configure --with-libs=/usr/local/lib --with-includes=/usr/local/include --prefix=$BASE || exit $?
-        make || exit $?
+        make -j3 || exit $?
         sudo make install || exit $?
         sudo mkdir $BASE/data
         sudo chown -R postgres:postgres $BASE/data

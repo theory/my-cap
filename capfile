@@ -476,7 +476,6 @@ namespace :my do
   namespace :build do
     task :default, :roles => :local do
       # Disable PubSub Agent.
-      runl 'defaults write com.apple.Safari DebugSyndicationEnabled 0'
       xml
       graphics
       zlib

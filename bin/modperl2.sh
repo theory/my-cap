@@ -17,7 +17,7 @@ cd mod_perl-$VERSION
 #  MP_AP_PREFIX=/usr/local/apache2.d \
 #  MP_MAINTAINER=1 \
 #  MP_PROMPT_DEFAULT=1
-( make && make test && make install UNINST=1) || exit $?
+( make -j3 && make test && make install UNINST=1) || exit $?
 
 # LoadModule perl_module modules/mod_perl.so
 if [ $OS = 'Darwin' ]; then

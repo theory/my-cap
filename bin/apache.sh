@@ -30,7 +30,7 @@ if [ ! $NOSSL ]; then
       --enable-module=rewrite \
       --enable-module=expires \
       --without-execstrip
-    make
+    make -j3
     make certificate TYPE=dummy
     make install
 else
@@ -41,7 +41,7 @@ else
       --enable-module=rewrite \
       --enable-module=expires \
       --without-execstrip
-    make
+    make -j3
     make install
 fi
 
