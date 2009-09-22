@@ -37,8 +37,8 @@ mkdir -p elisp
 cd elisp
 
 # cperl-mode
-download http://github.com/jrockway/cperl-mode/raw/moosex-declare/cperl-mode.el
-emacs -batch -f batch-byte-compile *.el
+download http://github.com/jrockway/cperl-mode/raw/mx-declare/cperl-mode.el
+emacs -batch -f batch-byte-compile cperl-mode.el
 cp cperl-mode.el* /usr/local/share/emacs/site-lisp
 
 # markdown-mode
