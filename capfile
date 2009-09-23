@@ -383,6 +383,7 @@ namespace :build do
     graphics
     perl
     xml
+    sudo_script 'bin/libssh2.sh'
     run_script 'bin/cpan.sh'
     run 'env PERL_MM_USE_DEFAULT=1 /usr/local/bin/cpan Bundle::Theory'
   end
