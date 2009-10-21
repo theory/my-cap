@@ -10,7 +10,7 @@ rm -rf libapreq-$VERSION
 tar zxf libapreq-$VERSION.tar.gz || exit $?
 cd libapreq-$VERSION || exit $?
 ./configure --with-apache-includes=/usr/local/apache/include || exit $?
-make || exit $?
+make -j3 || exit $?
 sudo make install || exit $?
 
 /usr/local/bin/perl Makefile.PL || exit $?

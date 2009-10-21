@@ -10,7 +10,7 @@ download http://perl.apache.org/dist/mod_perl-$VERSION.tar.gz
 rm -rf mod_perl-$VERSION
 tar zxf mod_perl-$VERSION.tar.gz || exit $?
 cd mod_perl-$VERSION
-perl Makefile.PL \
+/usr/local/bin/perl Makefile.PL \
   USE_APXS=1 \
   WITH_APXS=/usr/local/apache/bin/apxs \
   USE_DSO=1 \
