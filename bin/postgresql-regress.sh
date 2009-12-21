@@ -2,6 +2,8 @@
 
 . `dirname $0`/functions.sh
 
+export PERL=/usr/local/bin/perl
+
 setup
 for VERSION in 8.3.9 8.2.15 8.1.19 8.0.23
 do
@@ -12,7 +14,7 @@ do
         rm -rf postgresql-$VERSION
         tar jxf postgresql-$VERSION.tar.bz2 || exit $?
         cd postgresql-$VERSION
-        ./configure --with-libs=/usr/local/lib --with-includes=/usr/local/include --prefix=$BASE || exit $?
+        ./configure --with-libs=/usr/local/lib --with-includes=/usr/local/include --prefix=$BASE --with-perl PERL=$PERL || exit $?
         make -j3 || exit $?
         sudo make install || exit $?
         sudo mkdir $BASE/data
