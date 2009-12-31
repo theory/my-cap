@@ -32,7 +32,7 @@ make install || exit $?
 
 # Install contrib modules
 cd contrib
-for dir in adminpack isn fuzzystrmatch hstore pgcrypto dblink intagg lo ltree pg_standby uuid-ossp citext
+for dir in adminpack isn fuzzystrmatch hstore pgcrypto dblink intagg lo ltree pg_standby uuid-ossp citext intarray
 do
     cd $dir
     make -j3 || exit $?
@@ -144,7 +144,7 @@ $BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib' template1
 $BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib' postgres
 export PGOPTIONS="--search_path=contrib --client_min_messages=warning"
 
-for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext
+for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext intarray
 do
     perl -i -pe 's/SET\s+search_path\s*=\s*public;/SET search_path = contrib;/i;' $BASE/share/contrib/$file.sql
     $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql template1
