@@ -217,6 +217,7 @@ sub start {
                 # Expressions_ to implement a better solution.
                 $p =~ s/<[^>]*>//mg;
                 $p =~ s/\r?\n\r?/\r/mg;
+                $p = "http://$p" if $_ eq 'url' && $p !~ m{^http://};
                 print $fh "$_: $p\n";
             }
         }
@@ -271,7 +272,7 @@ sub story {
         foreach my $line (<$fh>) {
             $line =~ /^(.+?):\s*(.*)$/ and $param{$1} = $2 || '';
             if ( $line =~ /^-----$/ ) {
-
+                $param{url} = "http://$param{url}" if $param{url} !~ m{^http://};
                 my $writeback = $blosxom::template->(
                     $path, writeback => $blosxom::flavour
                 ) || '<p><b>Name/Blog:</b> $writeback::name$writeback::blog_name<br /><b>URL:</b> $writeback::url<br /><b>Title:</b> $writeback::title<br /><b>Comment/Excerpt:</b> $writeback::comment$writeback::excerpt</p>';
