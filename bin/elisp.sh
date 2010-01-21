@@ -62,5 +62,10 @@ download http://github.com/renormalist/emacs-tap-mode/raw/master/tap-mode.el
 emacs -batch -f batch-byte-compile tap-mode.el
 cp tap-mode.el* /usr/local/share/emacs/site-lisp
 
+# sql-indent
+download http://www.astro.princeton.edu/~rhl/skyserver/sql-indent.el
+emacs -batch -f batch-byte-compile sql-indent.el
+cp sql-indent.el* /usr/local/share/emacs/site-lisp
+
 # Return to src directory.
 cd ..
