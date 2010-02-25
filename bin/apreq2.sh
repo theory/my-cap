@@ -9,12 +9,16 @@ download http://apache.oregonstate.edu/httpd/libapreq/libapreq2-$VERSION.tar.gz
 rm -rf libapreq2-$VERSION
 tar zxf libapreq2-$VERSION.tar.gz || exit $?
 cd libapreq2-$VERSION
+
+# On 64 bit linux:
+# LDFLAGS=-L/usr/lib64 ./configure --with-apache2-apxs=/usr/local/apache2/bin/apxs
+
 ./configure --with-apache2-apxs=/usr/local/apache2/bin/apxs || exit $?
-make || exit $?
+make -j3 || exit $?
 sudo make install || exit $?
 
 /usr/local/bin/perl Makefile.PL --with-apache2-apxs=/usr/local/apache2/bin/apxs || exit $?
-make || exit $?
+make -j3 || exit $?
 make test || exit $?
 make install UNINST=1 || exit $?
 
