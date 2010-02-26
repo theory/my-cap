@@ -13,15 +13,20 @@ rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
 
+# Useful tutorial from depesz:
+# http://www.depesz.com/index.php/2010/02/26/installing-postgresql/
+
 if [ $OS = 'Darwin' ]; then
      # For debugging: --enable-cassert --enable-debug
     ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
     --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap \
     --with-ossp-uuid --with-includes=/usr/local/include \
+    --enable-integer-datetimes --with-zlib \
     --with-libs=/usr/local/lib --prefix=$BASE || exit $?
 else
     ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
     --with-libxml --with-ldap --with-ossp-uuid --with-libs=/usr/local/lib \
+    --enable-integer-datetimes --with-zlib -with-gnu-ld \
     --with-includes=/usr/local/include || exit $?    
 fi
 
@@ -32,13 +37,22 @@ make install || exit $?
 
 # Install contrib modules
 cd contrib
-for dir in adminpack isn fuzzystrmatch hstore pgcrypto dblink intagg lo ltree pg_standby uuid-ossp citext intarray btree_gist
-do
-    cd $dir
-    make -j3 || exit $?
-    make install || exit $?
-    cd ..
-done
+make -j3 || exit $?
+make install || exit $?
+
+# Download and build the temporal package.
+download http://pgfoundry.org/frs/download.php/2515/pgsql-temporal-20091223.tar.gz
+tar zxf pgsql-temporal-20091223.tar.gz || exit $?
+cd temporal
+perl -i -pe 's/CREATE TYPE/SET search_path = contrib;\nCREATE TYPE/i;' period.sql.in
+make -j3 || exit $?
+make install || exit $?
+cd ..
+
+# Exit contrib directory.
+cd ..
+
+# Leave the contrib directory.
 cd ..
 
 if [ $OS = 'Darwin' ]; then
@@ -139,14 +153,15 @@ do
 done
 
 # Add the contrib modules to the contrib schema.
+perl -i -pe 's/SET\s+search_path\s*=\s*public;/SET search_path = contrib;/i;' $BASE/share/contrib/*.sql
 OPTS='-XU postgres --set ON_ERROR_ROLLBACK=1 --set ON_ERROR_STOP=1'
 $BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib' template1
 $BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib' postgres
 export PGOPTIONS="--search_path=contrib --client_min_messages=warning"
 
-for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext intarray btree_gist
+# Install some contrib modules now.
+for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext intarray btree_gist period
 do
-    perl -i -pe 's/SET\s+search_path\s*=\s*public;/SET search_path = contrib;/i;' $BASE/share/contrib/$file.sql
     $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql template1
     $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql postgres
 done

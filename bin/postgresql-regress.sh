@@ -17,6 +17,14 @@ do
         ./configure --with-libs=/usr/local/lib --with-includes=/usr/local/include --prefix=$BASE --with-perl PERL=$PERL || exit $?
         make -j3 || exit $?
         sudo make install || exit $?
+
+        # Install contrib modules
+        cd contrib
+        make -j3 || exit $?
+        sudo make install || exit $?
+        cd ..
+
+        # Build PGDATA.
         sudo mkdir $BASE/data
         sudo chown -R postgres:postgres $BASE/data
         sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding UNICODE -D $BASE/data
