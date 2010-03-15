@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=8.4.2
+export VERSION=8.4.3
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 
@@ -41,10 +41,8 @@ make -j3 || exit $?
 make install || exit $?
 
 # Download and build the temporal package.
-download http://pgfoundry.org/frs/download.php/2515/pgsql-temporal-20091223.tar.gz
-tar zxf pgsql-temporal-20091223.tar.gz || exit $?
+git clone git://github.com/davidfetter/PostgreSQL-Temporal.git temporal
 cd temporal
-perl -i -pe 's/CREATE TYPE/SET search_path = contrib;\nCREATE TYPE/i;' period.sql.in
 make -j3 || exit $?
 make install || exit $?
 cd ..
