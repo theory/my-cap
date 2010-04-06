@@ -10,11 +10,11 @@ download http://perl.apache.org/dist/mod_perl-$VERSION.tar.gz
 tar zxf mod_perl-$VERSION.tar.gz || exit $?
 cd mod_perl-$VERSION
 /usr/local/bin/perl Makefile.PL \
-  MP_AP_PREFIX=/usr/local/apache2 \
+  MP_APXS=/usr/local/apache2/bin/apxs \
   MP_PROMPT_DEFAULT=1 || exit $?
 # Debugging mod_perl with debugging Perl:
 #/usr/local/perl-5.10.0.d/bin/perl Makefile.PL \
-#  MP_AP_PREFIX=/usr/local/apache2.d \
+#  MP_APXS=/usr/local/apache2/bin/apxs \
 #  MP_MAINTAINER=1 \
 #  MP_PROMPT_DEFAULT=1
 ( make -j3 && make test && make install UNINST=1) || exit $?
