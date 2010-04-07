@@ -9,12 +9,11 @@ download http://www.cpan.org/src/perl-$VERSION.tar.bz2
 rm -rf perl-$VERSION
 tar jxf perl-$VERSION.tar.bz2 || exit $?
 cd perl-$VERSION
-sh Configure -des -Duseshrplib -Dusemultiplicity -Dperladmin=david@kineticode.com -Dcf_email=david@kineticode.com || exit $?
+sh Configure -des -Duseshrplib -Dusemultiplicity -Duseithreads -Dperladmin=david@kineticode.com -Dcf_email=david@kineticode.com || exit $?
 # * -Dusershrplib required for embedding, e.g. PL/Perl.
 # * -Dusemultiplicity required to allow multiple interpreters in one process,
 #   e.g., to allow both PL/Perl and PL/PerlU functions to be used in a single
 #   database connection.
-# * For threads, add -Duseithreads
 # * For a test build, add  -Dprefix='/usr/local/perl-5.12' or similar
 # * For debugging Perl, add -Dprefix=/usr/local/perl-5.10.0.d -Doptimize='-g'
 make -j3 || exit $?
