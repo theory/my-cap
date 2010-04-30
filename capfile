@@ -536,6 +536,11 @@ namespace :my do
       sudol_scripts( 'postgresql' )
     end
 
+    task :pgbench, :roles => :local do
+      pg
+      sudol_scripts( 'pgbench' )
+    end
+      
     task :pgdev, :roles => :local do
       xml
       runl "#{ BASE }/bin/postgresql-devel.sh"
