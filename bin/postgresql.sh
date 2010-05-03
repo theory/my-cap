@@ -168,15 +168,3 @@ do
     $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql template1
     $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql postgres
 done
-
-cd ..
-
-if [ $OS = 'Darwin' ]; then
-    if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
-        cp `dirname $0`/../config/postgresql.conf $BASE/data
-        chown postgres:postgres $BASE/conf
-        echo '###############################################################################'
-        echo "Shared memory has been updated; changes will take effect after the next reboot."
-        echo '###############################################################################'
-    fi
-fi
