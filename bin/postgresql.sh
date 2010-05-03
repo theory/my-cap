@@ -93,6 +93,11 @@ if [ $OS = 'Darwin' ]; then
         echo kern.sysv.shmmni=32        >> /etc/sysctl.conf
         echo kern.sysv.shmseg=8         >> /etc/sysctl.conf
         echo kern.sysv.shmall=65536     >> /etc/sysctl.conf
+        sysctl -w kern.sysv.shmmax=167772160
+        sysctl -w kern.sysv.shmmin=1
+        sysctl -w kern.sysv.shmmni=32
+        sysctl -w kern.sysv.shmseg=8
+        sysctl -w kern.sysv.shmall=65536
     fi
 else
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
