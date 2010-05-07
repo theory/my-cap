@@ -19,7 +19,7 @@ sudo make install || exit $?
 
 /usr/local/bin/perl Makefile.PL --with-apache2-apxs=/usr/local/apache2/bin/apxs || exit $?
 make -j3 || exit $?
-make test || exit $?
+#make test || exit $?
 make install UNINST=1 || exit $?
 
 # LoadModule apreq_module modules/mod_apreq2.so
