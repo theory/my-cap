@@ -5,7 +5,7 @@ export VERSION=5.12.1
 . `dirname $0`/functions.sh
 
 setup /usr/local/bin/perl$VERSION
-download http://www.cpan.org/src/perl-$VERSION.tar.bz2
+download http://cpan.cpantesters.org/src/perl-$VERSION.tar.bz2
 rm -rf perl-$VERSION
 tar jxf perl-$VERSION.tar.bz2 || exit $?
 cd perl-$VERSION
