@@ -1,0 +1,429 @@
+html, body {
+  font-family: Verdana, Helvetica, Arial, sans-serif;
+  font-size: .95em;
+  line-height: 1.3em;
+  background: #8b795e;
+  margin: 0 0 20px 0;
+  color: black;
+  height: 100%;
+  min-width: 800px;
+}
+
+p>q, a>q, blockquote>q, h2>q, h3>q, li>q {
+    quotes: "\201c" "\201d" "\2018" "\x2019"
+}
+
+blockquote {
+  border: 1px dotted #8b795e;
+  border-left: solid #8b795e 10px;
+  margin: 0 0 1em 25px;
+  padding: 1em 1em 0 1em;
+  font-size: 90%;
+  background: #ffebcd;
+}
+
+#content img, #content object {
+  float: right;
+  margin: 0 0 10px 10px;
+  border: 1px solid black;
+}
+
+img, #content .left {
+  margin: 0 10px 10px 0;
+  float: left;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:link {
+  color:#990000;
+  background-color: transparent;
+}
+
+a:active {
+  color:#ff0000;
+  background-color: transparent;
+}
+
+a:visited {
+  color:#000066;
+  background-color: transparent;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+#crumb {
+  margin: 0 0 5px 0;
+  padding: 0 15px;
+  line-height: 1.7em;
+  background: #eecfa1;
+  border: 1px solid black;
+}
+
+.byline {
+  margin: 0 10px;
+}
+
+#header {
+  width: 100%;
+  background: #eecfa1;
+/*  background: #eecfa1 url("/ui/img/kerry.gif") right no-repeat; */
+  height: 111px;
+}
+
+#banner {
+  position: relative;
+}
+
+#flickr {
+  position: absolute;
+  right: 0;
+  top: 10px;
+  width: 435px;
+}
+
+#flickr .flickr_badge_image img {border: 1px solid black !important; margin: 0 10px 0 0;}
+#stream { font-size: 70%; vertical-align: top; }
+#stream .ff { color: #0063dc; }
+#stream .rr { color: #ff0084; }
+
+h1 {
+  color: black;
+  margin: 0;
+  padding: 0 10px;
+  font-size: 320%;
+  line-height: 1.2em;
+  overflow: hidden;
+}
+
+h1 a, h2 a { color: black ! important; }
+
+#body { width: 100%; position: relative; }
+
+#content {
+  position: absolute;
+  right: 250px;
+  top: 10px;
+  left: 10px;
+}
+
+#content p {
+  padding: 0;
+  margin: 0 0 1em 0;
+}
+
+#content p.note {
+  font-size: 75%;
+}
+
+#content dl {
+  margin: 0 2em;
+}
+
+#content dt {
+  font-weight:bold;
+  margin: 0 0 .2em 0;
+}
+
+#content dd {
+  margin: 0 0 1em 0;
+}
+
+#content h2 {
+  padding: 0 15px;
+  line-height: 1.5em;
+  margin: 0;
+  background: #eecfa1;
+  border-bottom: 1px solid black;
+}
+
+#content h3 {
+  padding: 0;
+  margin: 0;
+  line-height: 1.3em;
+}
+
+#content ul.meta {
+  font-size: 80%;
+  padding: 0 15px 15px 15px;
+  margin: 0;
+  clear:both;
+}
+
+.tags, .sociable {
+  font-size: 80%;
+  padding: 0 15px;
+  margin: 0;
+  font-weight: bold;
+}
+
+.tags ul {
+  display: inline;
+  margin: 0;
+  padding: 0 0 0 5px;
+}
+
+#content ul.meta li, .tags ul li {
+  display: inline;
+  line-height: 25px;
+  padding: 0;
+  margin: 0;
+}
+
+#content ul.meta li:after {
+  color: black;
+  font-weight: normal;
+  content: " ]";
+}
+
+#content ul.meta li:before {
+  color: black;
+  font-weight: normal;
+  content: "[ ";
+}
+
+.story, #comments, .links {
+  background: #fdf5e6;
+  border: solid black 1px;
+  margin-bottom: .5em;
+  clear:both;
+}
+
+.body {
+  padding: 1em 1em 0 1em;
+}
+
+.story .date {
+  color: #cc0000;
+  font-weight:bold;
+}
+
+code {
+  font-family: Courier, monospace;
+  line-height: 0;
+}
+
+pre {
+  font-family: Courier, monospace;
+  font-size: .9em;
+  line-height: 1.2em;
+  border: 1px solid black;
+  padding: 1em;
+  background: #ffffcc;
+  white-space: pre;
+  overflow: auto;
+}
+
+.comment {
+  border: 0;
+  border-bottom: 1px solid #8b795e;
+  margin: 0 0 10px 0;
+}
+
+.comment h4 {
+  margin: 0 0 5px 0;
+}
+
+#find {
+  float: left;
+  margin: 0;
+}
+
+#find input {
+  border: 1px solid #000;
+  font-family: Verdana, Helvetica, Arial, sans-serif;
+  font-size: 100%;
+  padding: .25em;
+  background: #fdf5e6;
+}
+
+#pagelink {
+  float: right;
+  font-size: 90%;
+  background: #eecfa1;
+  border: 1px solid black;
+  line-height: 1.8em;
+  padding: 0 5px;
+  font-weight: bold;
+}
+
+#side {
+  position: absolute;
+  width: 230px;
+  right: 10px;
+  top: 10px;
+  font-size: 90%;
+}
+
+#side h2 {
+  padding: 0 7px;
+  line-height: 1.3em;
+  margin: 0;
+  background: #eecfa1;
+  border-bottom: 1px solid black;
+}
+
+#side .links ul {
+  margin: .5em;
+  padding: 0;
+  list-style: inside square;
+  padding-left: 1em;
+  text-indent: -1em;
+}
+
+#side .vcard, #side .trati {
+  margin: 0;
+  padding: .5em;
+}
+
+#side .links dl {
+  margin: 0;
+  padding: .5em;
+}
+
+#side .links dd {
+  margin: 0 0 1em 0;
+}
+
+#side .links dt {
+  font-weight:bold;
+}
+
+#footer {
+  font-size: 70%;
+  padding: 0;
+  margin: 0;
+  clear: both;
+}
+
+#footer p {
+  margin: 0;
+  padding: 0;
+}
+
+/*
+Coffee with milk
+Table design by Roger Johansson, 456 Berea Street
+www.456bereastreet.com
+================================================*/
+
+table {
+      font:normal 76%/150% "Lucida Grande", "Lucida Sans Unicode", Verdana, Arial, Helvetica, sans-serif;
+      border-collapse:separate;
+      border-spacing:0;
+      margin:0 0 2em;
+      color:#000;
+      }
+thead th,
+thead td,
+tfoot th,
+tfoot td {
+      border:1px solid #523A0B;
+      border-width:1px 0;
+      background:#EBE5D9;
+      }
+th {
+   font-weight:bold;
+   line-height:normal;
+   padding:0.25em 0.5em;
+   text-align:left;
+   }
+tbody th,
+td {
+   padding:0.25em 0.5em;
+   text-align:left;
+   vertical-align:top;
+   }
+tbody th {
+      font-weight:normal;
+      white-space:nowrap;
+      }
+tbody th a:link,
+tbody th a:visited {
+      font-weight:bold;
+      }
+tbody td,
+tbody th {
+      border:1px solid #fff;
+      border-width:1px 0;
+      }
+tbody tr.odd th,
+tbody tr.odd td {
+      border-color:#EBE5D9;
+      background:#F7F4EE;
+      }
+tbody tr:hover td,
+tbody tr:hover th {
+      background:#ffffee;
+      border-color:#523A0B;
+      }
+caption {
+	font-family:Georgia,Times,serif;
+	font-weight:normal;
+	font-size:1.4em;
+	text-align:left;
+	margin:0;
+	padding:0.5em 0.25em;
+	}
+
+.searchhit { margin-bottom: 20px; }
+.searchhit p { margin: 0 ! important; font-size: 85%; }
+.searchhit .searchurl { color: #8b795e; }
+#usconsearch { padding-bottom: 10px; }
+.kinosearch { font-size: 70%; }
+.body .kinosearch { color: #666; }
+
+span.sociable_tagline { position: relative; }
+span.sociable_tagline:hover span {
+    position: absolute;
+    display: block;
+    top: -5em;
+    background: #ffe;
+    border: 1px solid #ccc;
+    color: black;
+    line-height: 1.25em;
+}
+.sociable span {
+    display: block;
+}
+.sociable ul {
+    display: inline;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+.sociable ul li {
+    background: none;
+    display: inline !important;
+    list-style-type: none;
+    margin: 0;
+    padding: 1;
+}
+.sociable ul li:before { content: ""; }
+.sociable img {
+    float: none !important;
+    width: 16px;
+    height: 16px;
+    border: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.sociable-hovers {
+    opacity: .4;
+    -moz-opacity: .4;
+    filter: alpha(opacity=40);
+}
+.sociable-hovers:hover {
+    opacity: 1;
+    -moz-opacity: 1;
+    filter: alpha(opacity=100);
+}
+
+.links p { padding: 0; margin: 0; text-indent: 0; }
+.delicious-banner img { margin: 0; padding: 5px 5px 0 0; }
+.delicious-network-add { padding: 5px; margin: 0; }
+.delicious-network-add img { margin: 0; float: none;  }
