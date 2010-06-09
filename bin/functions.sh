@@ -41,7 +41,7 @@ download() {
     if [ ! -f $file ]; then
         echo Downloading $file...
         if [ $OS = 'Darwin' ]; then
-            curl -kO $1 || exit $?
+            curl -kLO $1 || exit $?
         else
             wget --no-check-certificate $1 || exit $?
         fi
