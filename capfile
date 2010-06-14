@@ -518,6 +518,10 @@ namespace :my do
       sudol_scripts( 'perl' )
     end
 
+    task :perlregress, :roles => :local do
+      sudol_scripts( 'perl-regress' )
+    end
+
     task :parrot, :roles => :local do
       sudol_scripts( 'parrot' )
     end
