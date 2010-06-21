@@ -10,6 +10,7 @@ download http://ftp.gnu.org/gnu/aspell/aspell-$VERSION.tar.gz
 build aspell-$VERSION
 
 cd aspell-$VERSION
+ldconfig
 cp scripts/ispell /usr/local/bin 
 cp scripts/spell /usr/local/bin 
 chmod +x /usr/local/bin/ispell
