@@ -21,6 +21,6 @@ cd perl
 perl Makefile.PL COMPAT=1
 make -j3
 make test
-make install
+make install UNINST=1
 
 cd ../..
