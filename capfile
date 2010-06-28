@@ -10,7 +10,7 @@ role :mail,   'smtp.kineticode.com'
 role :web,    'crocker.kineticode.com'
 role :irc,    'smtp.kineticode.com'
 role :db,     'smtp.kineticode.com'
-role :blog,   '10.0.1.202'
+role :blog,   '10.0.1.201'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
 # methods on Capistrano::CLI.ui, e.g., Capistrano::CLI.ui.ask().
@@ -143,6 +143,19 @@ namespace :build do
     end
   end
 
+  namespace :ntp do
+    desc 'Install NTP'
+    task :default, :roles => [:mail, :blog] do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install ntp'
+    end
+    task :config, :roles => :mail do
+      desc 'Configure NTP.'
+      supload 'config/ntp.conf', '/etc/ntp.conf'
+      sudo '/etc/init.d/ntp restart'
+    end
+  end
+  
   namespace :ldap do
     desc 'Install and configure OpenLDAP with Kineticode’s directory.'
     # change password:
