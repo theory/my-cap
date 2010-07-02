@@ -10,7 +10,7 @@ if [ -f GNUmakefile ]; then
 fi
 git checkout master
 git pull
-rm -rf $BASE
+sudo rm -rf $BASE
 # Add  --enable-cassert --enable-debug for debugging.
 ./configure --with-libs=/usr/local/lib  --with-includes=/usr/local/include --prefix=$BASE --with-libxml  --with-ossp-uuid --with-perl PERL=$PERL || exit $?
 make -j3 || exit $?
