@@ -10,6 +10,8 @@ strongrrl.com           REJECT You are not in strongrrl.com
 .strongrrl.com          REJECT You are not in strongrrl.com
 justatheory.com         REJECT You are not in justatheory.com
 .justatheory.com        REJECT You are not in justatheory.com
+lunar-theory.com         REJECT You are not in lunar-theory.com
+.lunar-theory.com        REJECT You are not in lunar-theory.com
 
 # Somebody HELO'ing with our IP address?
 192.168.1.15            REJECT You are not 192.168.1.15

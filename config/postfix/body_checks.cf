@@ -1,8 +1,8 @@
 if /^[> ]*Received:/
-/^[> ]*Received: +from +((?:kineticode|justatheory|strongrrl)\.com) /
+/^[> ]*Received: +from +((?:kineticode|justatheory|strongrrl|lunar-theory)\.com) /
     reject forged client name in Received: header: $1
-/^[> ]*Received: +from +[^ ]+ +\(([^ ]+ +[he]+lo=|[he]+lo +)((?:kineticode|justatheory|strongrrl)\.com)\)/
+/^[> ]*Received: +from +[^ ]+ +\(([^ ]+ +[he]+lo=|[he]+lo +)((?:kineticode|justatheory|strongrrl}|lunar-theory)\.com)\)/
     reject forged client name in Received: header: $2
-/^[> ]*Received:.* +by +((?:kineticode|justatheory|strongrrl)\.com)\b/
+/^[> ]*Received:.* +by +((?:kineticode|justatheory|strongrrl|lunar-theory)\.com)\b/
     reject forged mail server name in Received: header: $1
 endif
