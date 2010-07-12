@@ -13,7 +13,7 @@
 trainingMode=TEFT
 
 # Spam Action: quarantine, tag
-spamAction=quarantine
+spamAction=tag
 
 # Spam Subject: the text to be prepended onto the subject line of tagged spams
 spamSubject=[SPAM]

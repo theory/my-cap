@@ -257,10 +257,10 @@ namespace :build do
       supload 'config/maildroprc', '/etc/maildroprc', :mode => 0644
       supload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
 
-      supload 'config/dspam/dspam-retrain', '/etc/dspam/dspam-retrain', :mode => 0755
+      supload 'config/dspam/train.dspam', '/etc/dspam/train.dspam', :mode => 0755
       supload 'config/dspam/dspam.conf', '/etc/dspam/dspam.conf', :mode => 0640, :owner => 'dspam', :group => 'dspam'
       supload 'config/dspam/default.prefs', '/etc/dspam/default.prefs', :mode => 0644, :owner => 'dspam', :group => 'dspam'
-
+      supload 'config/cron.daily/dspam', '/etc/cron.daily/dspam', :mode => 0755
 
       %w[ mailbox_maps helo_checks sender_checks client_checks ]. each do |f|
         sudo "postmap /etc/postfix/#{f}.cf"

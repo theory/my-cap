@@ -1,0 +1,139 @@
+#!/bin/bash
+# 
+# Simple shell script to feed DSpam with errors to retrain
+# - info@richard5.net
+#
+#==========================================================
+#USERFILE=/tmp/dspam.users
+DSPAM='sudo -u dspam /usr/bin/dspam'
+#MYSQL=/usr/local/mysql/bin/mysql
+VIRTUAL_BASE=/usr/local/virtual/
+SPAM_VIRTUAL_FOLDER=.Junk
+NOSPAM_VIRTUAL_FOLDER=.Ham
+#DBUSER=postfix
+#DBPASS=postfix
+#DB=postfix
+DELETESPAM=YES
+DELETENOSPAM=YES
+MAILDIR=Maildir/
+
+#echo `date` Begin Spam processing
+
+# this query grabs all the active maildirs for dspam users
+# $MYSQL -u $DBUSER -p$DBPASS -e "select distinct username, maildir from
+# mailbox where active = 1" --skip-column-names $DB > $USERFILE
+
+# while read USER MAILDIR
+
+for USER in `awk '{print $2}' /etc/postfix/mailbox_maps.cf`
+do
+  VIRTUAL_BASE=/home/$USER
+#  echo `date` Processing $USER in $VIRTUAL_BASE$MAILDIR
+  # taking care of false negatives !
+  # check if the user has a .Junk folder 
+  if [ -d $VIRTUAL_BASE$MAILDIR$SPAM_VIRTUAL_FOLDER ]; then
+    # check both new and cur directories for spam !
+    cd $VIRTUAL_BASE$MAILDIR$SPAM_VIRTUAL_FOLDER/new
+    for j in *
+    do
+      # check if the file exists
+      if [ -s $j ]; then
+        # check if file was already identified as SPAM
+        grep "X-DSPAM-Result: Spam" $j 1>/dev/null
+        RESULT=$?
+        if [ $RESULT = 0 ]; then
+          # if wanted, delete the mail.
+          if [ $DELETESPAM = "YES" ]; then
+            rm -f $j
+          fi
+        else 
+          $DSPAM --user $USER --class=spam --source=error < $j
+          # if wanted, delete the mail.
+          if [ $DELETESPAM = "YES" ]; then
+            rm -f $j
+          fi
+        fi
+      fi
+    done
+    
+    cd $VIRTUAL_BASE$MAILDIR$SPAM_VIRTUAL_FOLDER/cur
+    for j in *
+    do
+      # check if the file exists
+      if [ -s $j ]; then
+        # check if file was already identified as SPAM
+        grep "X-DSPAM-Result: Spam" $j 1>/dev/null
+        RESULT=$?
+        if [ $RESULT = 0 ]; then
+          # if wanted, delete the mail.
+          if [ $DELETESPAM = "YES" ]; then
+            rm -f $j
+          fi
+        else 
+         $DSPAM --user $USER --class=spam --source=error < $j
+          # if wanted, delete the mail.
+          if [ $DELETESPAM = "YES" ]; then
+            rm -f $j
+          fi
+        fi
+      fi
+    done
+  fi
+
+  #taking care of false positives
+#  echo `date` Processing False Positives as Clean
+  # check if the user has a .NotSpam folder
+  if [ -d $VIRTUAL_BASE$MAILDIR$NOSPAM_VIRTUAL_FOLDER ]; then
+    # check both new and cur directories for nospam !
+    cd $VIRTUAL_BASE$MAILDIR$NOSPAM_VIRTUAL_FOLDER/new
+    for j in *
+    do
+      # check if the file exists
+      if [ -s $j ]; then
+        # check if file was identified as SPAM if not then ignore it !
+        grep "X-DSPAM-Result: Spam" $j 1>/dev/null
+        RESULT=$?
+        if [ $RESULT = 0 ]; then
+          $DSPAM --user $USER --class=innocent --source=error < $j
+          if [ $DELETENOSPAM = "YES" ]; then
+            rm -f $j
+          fi
+        else
+          # not identified as spam, if needed delete the mail.
+          if [ $DELETENOSPAM = "YES" ]; then
+            rm -f $j
+          fi 
+        fi   
+      fi
+    done
+    cd $VIRTUAL_BASE$MAILDIR$NOSPAM_VIRTUAL_FOLDER/cur
+    for j in *
+    do
+      # check if the file exists
+      if [ -s $j ]; then
+        # check if file was identified as SPAM if not then ignore it !
+        grep "X-DSPAM-Result: Spam" $j 1>/dev/null
+        RESULT=$?
+        if [ $RESULT = 0 ]; then
+          $DSPAM --user $USER --class=innocent --source=error < $j
+          if [ $DELETENOSPAM = "YES" ]; then
+            rm -f $j
+          fi
+        else
+          # not identified as spam, if needed delete the mail.
+          if [ $DELETENOSPAM = "YES" ]; then
+            rm -f $j
+          fi 
+        fi   
+      fi
+    done
+  fi 
+done
+
+#done < $USERFILE
+
+# clean up action..
+#rm -f $USERFILE
+
+#echo `date` End AutoSpam processing
+#echo

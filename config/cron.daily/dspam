@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# Clean up the hash / db4 databases
+
+DSPAMCONF=/etc/dspam/dspam.conf
+
+if egrep -q "^StorageDriver.*(hash|db4)_drv.so" $DSPAMCONF; then
+  if [ -x /usr/bin/dspam_clean ]; then
+    /usr/bin/dspam_clean -s -p >/dev/null
+  fi
+fi
+
+/usr/bin/dspam_logrotate -a 30 -d /var/spool/dspam/data >/dev/null
+/etc/dspam/train.dspam
+
+exit 0
+
