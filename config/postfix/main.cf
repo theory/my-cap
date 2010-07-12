@@ -58,12 +58,17 @@ smtpd_recipient_restrictions =
     reject_rbl_client zen.spamhaus.org,
     # reject_rbl_client list.dsbl.org, # http://dsbl.org/ is gone.
     check_policy_service unix:private/spfpolicy,
-    check_policy_service inet:127.0.0.1:60000,
+#    check_policy_service inet:127.0.0.1:60000, # postgrey
     permit
 
 smtpd_data_restrictions =
     reject_unauth_pipelining,
     permit
+
+smtpd_client_restrictions = 
+    permit_mynetworks,
+#    permit_sasl_authenticated
+    check_client_access pcre:/etc/postfix/dspam_filter_access.cf
 
 header_checks = pcre:/etc/postfix/header_checks.cf
 body_checks = pcre:/etc/postfix/body_checks.cf
@@ -81,10 +86,14 @@ smtpd_sasl_local_domain =
 mailbox_size_limit       = 0
 local_transport          = local
 virtual_transport        = maildrop
+transport_maps           = pcre:/etc/postfix/transport.cf
 maildrop_destination_recipient_limit = 1
 
-virtual_mailbox_domains  = kineticode.com justatheory.com strongrrl.com bricolage.cc vinifile.com bricolagecms.org lunar-theory.com
+virtual_mailbox_domains  = kineticode.com, justatheory.com, strongrrl.com, bricolage.cc, vinifile.com, bricolagecms.org, lunar-theory.com
 virtual_mailbox_maps     = hash:/etc/postfix/mailbox_maps.cf
 virtual_alias_maps       = pcre:/etc/postfix/alias_maps.cf
 virtual_minimum_uid      = 100
 virtual_mailbox_limit    = 0
+
+# DPSAM
+dspam_destination_recipient_limit = 1

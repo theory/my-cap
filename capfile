@@ -236,8 +236,8 @@ namespace :build do
       build::sasl::default
       build::authdaemon::default
       # swaks is a nice tool for testing SMTP.
-      # postgrey, grefix (no package), policyd,
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install maildrop postfix postfix-pcre swaks postgrey postfix-policyd-spf-perl postfix-ldap'
+      # grefix (no package), policyd,
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install maildrop postfix postfix-pcre swaks postfix-policyd-spf-perl postfix-ldap dspam'
       # Add the postfix user to the sasl group so it can authenticate users.
       sudo 'gpasswd -a postfix sasl'
       # Add the mail user to the daemon group so that it can connect to authdaemond.
@@ -248,15 +248,19 @@ namespace :build do
     end
     
     task :config, :roles => :mail do
-      %w[ master main mailbox_maps header_checks body_checks recipient_checks helo_checks sender_checks client_checks ].each do |f|
+      %w[ master main mailbox_maps header_checks body_checks recipient_checks helo_checks sender_checks client_checks dspam_filter_access transport ].each do |f|
         supload "config/postfix/#{f}.cf", "/etc/postfix/#{f}.cf", :mode => 0644
       end
 
       supload '../Corporate/config/alias_maps.cf', '/etc/postfix/alias_maps.cf', :mode => 0644
       supload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
-      supload 'config/postgrey.conf', '/etc/default/postgrey', :mode => 0644
       supload 'config/maildroprc', '/etc/maildroprc', :mode => 0644
       supload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
+
+      supload 'config/dspam/dspam-retrain', '/etc/dspam/dspam-retrain', :mode => 0755
+      supload 'config/dspam/dspam.conf', '/etc/dspam/dspam.conf', :mode => 0640, :owner => 'dspam', :group => 'dspam'
+      supload 'config/dspam/default.prefs', '/etc/dspam/default.prefs', :mode => 0644, :owner => 'dspam', :group => 'dspam'
+
 
       %w[ mailbox_maps helo_checks sender_checks client_checks ]. each do |f|
         sudo "postmap /etc/postfix/#{f}.cf"

@@ -1,0 +1,35 @@
+#!/usr/local/bin/perl -w
+
+use strict;
+
+my ($class, $sender, $recip) = @ARGV;
+
+if ($recip =~ /^(?:spam|ham)-(\w+)@/) {
+    # username is part of the recipient
+    $user = $1;
+} elsif ($sender =~ /^(\w+)@/) {
+    # username is in the sender
+    $user = $1;
+} else {
+    print "Cannot determine user\n";
+    exit 75;                    # EX_TEMPFAIL
+}
+
+my $subj;
+
+# Pull out DSPAM signatures and send them to the dspam program
+while (<>) {
+    if (! $subj && /^Subject: /) {
+        $subj = $_;
+    } elsif (/(!DSPAM:[a-f0-9]+!)/) {
+        open my $fh, "|/usr/bin/dspam --source=error --class=$class --user $user"
+            or die "Cannot pipe to /usr/bin/dspam: $!\n";
+        print $fh "$subj\n$1\n";
+        close $fh;
+    } elsif (/(X-DSPAM-Signature: [a-f0-9]+)/) {
+        open my $fh, "|/usr/bin/dspam --source=error --class=$class --user $user"
+            or die "Cannot pipe to /usr/bin/dspam: $!\n";
+        print $fh "$subj\n$1\n";
+        close $fh;
+    }
+}
