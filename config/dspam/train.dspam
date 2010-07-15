@@ -13,9 +13,11 @@ NOSPAM_VIRTUAL_FOLDER=.Ham
 #DBUSER=postfix
 #DBPASS=postfix
 #DB=postfix
-DELETESPAM=YES
-DELETENOSPAM=YES
+#DELETESPAM=YES
+#DELETENOSPAM=YES
 MAILDIR=Maildir/
+EPOCH=`date +%s`
+DELETEAFTER=86400
 
 #echo `date` Begin Spam processing
 
@@ -43,13 +45,13 @@ do
         RESULT=$?
         if [ $RESULT = 0 ]; then
           # if wanted, delete the mail.
-          if [ $DELETESPAM = "YES" ]; then
+          if [ "$(($EPOCH-`stat --printf %Y $j`))" -gt "$DELETEAFTER" ]; then
             rm -f $j
           fi
         else 
           $DSPAM --user $USER --class=spam --source=error < $j
           # if wanted, delete the mail.
-          if [ $DELETESPAM = "YES" ]; then
+          if [ "$(($EPOCH-`stat --printf %Y $j`))" -gt "$DELETEAFTER" ]; then
             rm -f $j
           fi
         fi
@@ -66,13 +68,13 @@ do
         RESULT=$?
         if [ $RESULT = 0 ]; then
           # if wanted, delete the mail.
-          if [ $DELETESPAM = "YES" ]; then
+          if [ "$(($EPOCH-`stat --printf %Y $j`))" -gt "$DELETEAFTER" ]; then
             rm -f $j
           fi
         else 
          $DSPAM --user $USER --class=spam --source=error < $j
           # if wanted, delete the mail.
-          if [ $DELETESPAM = "YES" ]; then
+          if [ "$(($EPOCH-`stat --printf %Y $j`))" -gt "$DELETEAFTER" ]; then
             rm -f $j
           fi
         fi
@@ -95,12 +97,12 @@ do
         RESULT=$?
         if [ $RESULT = 0 ]; then
           $DSPAM --user $USER --class=innocent --source=error < $j
-          if [ $DELETENOSPAM = "YES" ]; then
+          if [ "$(($EPOCH-`stat --printf %Y $j`))" -gt "$DELETEAFTER" ]; then
             rm -f $j
           fi
         else
           # not identified as spam, if needed delete the mail.
-          if [ $DELETENOSPAM = "YES" ]; then
+          if [ "$(($EPOCH-`stat --printf %Y $j`))" -gt "$DELETEAFTER" ]; then
             rm -f $j
           fi 
         fi   
@@ -116,12 +118,12 @@ do
         RESULT=$?
         if [ $RESULT = 0 ]; then
           $DSPAM --user $USER --class=innocent --source=error < $j
-          if [ $DELETENOSPAM = "YES" ]; then
+          if [ "$(($EPOCH-`stat --printf %Y $j`))" -gt "$DELETEAFTER" ]; then
             rm -f $j
           fi
         else
           # not identified as spam, if needed delete the mail.
-          if [ $DELETENOSPAM = "YES" ]; then
+          if [ "$(($EPOCH-`stat --printf %Y $j`))" -gt "$DELETEAFTER" ]; then
             rm -f $j
           fi 
         fi   
