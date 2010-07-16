@@ -22,6 +22,15 @@ blockquote {
   background: #ffebcd;
 }
 
+#content .box {
+  float: right;
+}
+
+#content .box .caption {
+  font-size: 75%;
+  text-align:right;  
+}
+
 #content img, #content object {
   float: right;
   margin: 0 0 10px 10px;
