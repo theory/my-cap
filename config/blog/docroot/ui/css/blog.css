@@ -195,6 +195,13 @@ h1 a, h2 a { color: black ! important; }
   content: "[ ";
 }
 
+#content .footnotes ol {
+  font-size: 85%;
+  margin: 1.5em;
+  padding: 0;
+  padding-left: .3.em;
+}
+
 .story, #comments, .links {
   background: #fdf5e6;
   border: solid black 1px;
