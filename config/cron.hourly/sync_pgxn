@@ -1,0 +1,4 @@
+#!/bin/bash
+
+/usr/bin/rsync -az --delete rsync://master.pgxn.org/pgxn /var/www/kineticode.com/pgxn
+
