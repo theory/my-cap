@@ -455,6 +455,7 @@ namespace :build do
       supload 'config/rsyncd.conf', '/etc/rsyncd.conf', :mode => 0644
       supload 'config/cron.hourly/sync_pgxn', '/etc/cron.hourly/sync_pgxn', :mode => 0755
       supload 'config/cron.hourly/sync_cpan', '/etc/cron.hourly/sync_cpan', :mode => 0755
+      supload 'config/cron.daily/check_pgxn_mirrors', '/etc/cron.daily/check_pgxn_mirrors', :mode => 0755
       sudo '/etc/init.d/rsync restart'
     end
   end
