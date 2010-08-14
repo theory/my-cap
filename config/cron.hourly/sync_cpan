@@ -1,0 +1,4 @@
+#!/bin/bash
+
+/usr/bin/rsync -az --delete rsync://ftp.funet.fi/CPAN /var/www/kineticode.com/cpan
+
