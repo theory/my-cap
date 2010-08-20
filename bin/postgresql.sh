@@ -30,28 +30,18 @@ else
     --with-includes=/usr/local/include || exit $?    
 fi
 
-make -j3 || exit $?
+make world -j3 || exit $?
 #LD_LIBRARY_PATH=./src/interfaces/libpq ./src/bin/pg_dump/pg_dumpall -U postgres > db.backup
 cd /usr/local/src/postgresql-$VERSION
-make install || exit $?
-
-# Install contrib modules
-cd contrib
-make -j3 || exit $?
-make install || exit $?
+make install-world || exit $?
 
 # Download and build the temporal package.
+cd contrib
 git clone git://github.com/davidfetter/PostgreSQL-Temporal.git temporal
 cd temporal
 make -j3 || exit $?
 make install || exit $?
-cd ..
-
-# Exit contrib directory.
-cd ..
-
-# Leave the contrib directory.
-cd ..
+cd ../..
 
 if [ $OS = 'Darwin' ]; then
     if [ "`dscl . -list /Groups | grep postgres`" = '' ]; then
