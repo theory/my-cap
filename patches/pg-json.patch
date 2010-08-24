@@ -1,0 +1,6238 @@
+--- a/src/backend/utils/adt/Makefile
++++ b/src/backend/utils/adt/Makefile
+@@ -29,7 +29,8 @@ OBJS = acl.o arrayfuncs.o array_userfuncs.o arrayutils.o bool.o \
+ 	tsginidx.o tsgistidx.o tsquery.o tsquery_cleanup.o tsquery_gist.o \
+ 	tsquery_op.o tsquery_rewrite.o tsquery_util.o tsrank.o \
+ 	tsvector.o tsvector_op.o tsvector_parser.o \
+-	txid.o uuid.o windowfuncs.o xml.o
++	txid.o uuid.o windowfuncs.o xml.o \
++	json.o json_io.o json_op.o jsonpath.o
+ 
+ like.o: like.c like_match.c
+ 
+diff --git a/src/backend/utils/adt/json.c b/src/backend/utils/adt/json.c
+new file mode 100644
+index 0000000..0090411
+--- /dev/null
++++ b/src/backend/utils/adt/json.c
+@@ -0,0 +1,1276 @@
++/*-------------------------------------------------------------------------
++ *
++ * json.c
++ *	  Core JSON manipulation routines used by JSON data type support.
++ *
++ * Copyright (c) 2010, PostgreSQL Global Development Group
++ * Written by Joey Adams <joeyadams3.14159@gmail.com>.
++ *
++ *-------------------------------------------------------------------------
++ */
++
++#include "utils/json.h"
++
++#include <ctype.h>
++
++#include "mb/pg_wchar.h"
++
++#define is_internal(node) ((node)->type == JSON_ARRAY || (node)->type == JSON_OBJECT)
++
++/* We can't use isspace() because it also accepts \v and \f, which
++   aren't legal whitespace characters in strict JSON. */
++#define is_whitespace(c) ((c)==' ' || (c)=='\t' || (c)=='\n' || (c)=='\r')
++
++static void
++skip_whitespace(const char **sp)
++{
++	const char *s = *sp;
++
++	while (is_whitespace(*s))
++		s++;
++	*sp = s;
++}
++
++static char
++end_parenthesis(JSON * node)
++{
++	Assert(node != NULL);
++
++	switch (node->type)
++	{
++		case JSON_ARRAY:
++			return ']';
++		case JSON_OBJECT:
++			return '}';
++		default:
++			Assert(false);
++			return '\0';
++	}
++}
++
++/*
++ * Reads exactly 4 hex characters (capital or lowercase).
++ * Writes the result to *out .
++ * Returns true on success, false if any input chars are not [0-9A-Fa-f] .
++ */
++static bool
++read_hex16(const char *in, unsigned int *out)
++{
++	unsigned int i;
++	unsigned int tmp;
++	char		c;
++
++	*out = 0;
++
++	for (i = 0; i < 4; i++)
++	{
++		c = *in++;
++		if (c >= '0' && c <= '9')
++			tmp = c - '0';
++		else if (c >= 'A' && c <= 'F')
++			tmp = c - 'A' + 10;
++		else if (c >= 'a' && c <= 'f')
++			tmp = c - 'a' + 10;
++		else
++			return false;
++
++		*out <<= 4;
++		*out += tmp;
++	}
++
++	return true;
++}
++
++/*
++ * Encodes a 16-bit number into hexadecimal,
++ * writing exactly 4 hex chars.
++ */
++static void
++write_hex16(char *out, unsigned int val)
++{
++	const char *hex = "0123456789ABCDEF";
++
++	*out++ = hex[(val >> 12) & 0xF];
++	*out++ = hex[(val >> 8) & 0xF];
++	*out++ = hex[(val >> 4) & 0xF];
++	*out++ = hex[val & 0xF];
++}
++
++/*
++ * utf8_decode_char
++ *	  Decodes a UTF-8 character, advancing *sp to point to the end of it.
++ *	  Returns the Unicode code point of the character.
++ *
++ *	  This function will go away when a utf8_to_unicode
++ *	  function becomes available.
++ */
++static pg_wchar
++utf8_decode_char(const char **sp)
++{
++	const unsigned char *s = (const unsigned char *) *sp;
++	unsigned char c = *s++;
++	unsigned int len;
++	unsigned char sf[4] = {0xFF, 0x1F, 0xF, 0x7};
++	pg_wchar	uc;
++
++	if (c < 0x80)
++		len = 0;
++	else if (c < 0xE0)
++		len = 1;
++	else if (c < 0xF0)
++		len = 2;
++	else
++		len = 3;
++
++	uc = c & sf[len];
++	while (len--)
++	{
++		uc <<= 6;
++		uc |= *s++ & 0x3F;
++	}
++
++	*sp = (const char *) s;
++	return uc;
++}
++
++#ifdef USE_ASSERT_CHECKING
++
++/*
++ * utf8_validate
++ *	  Essentially a variant of pg_verify_mbstr(PG_UTF8, str, length, true)
++ *	  that allows '\0' characters.
++ *
++ *	  This function is only used by assertions.
++ */
++static bool
++utf8_validate(const char *str, size_t length)
++{
++	const unsigned char *s = (const unsigned char *) str;
++	const unsigned char *e = s + length;
++	int			len;
++
++	while (s < e)
++	{
++		if (!IS_HIGHBIT_SET(*s))
++		{
++			s++;
++			continue;
++		}
++
++		len = pg_utf_mblen(s);
++		if (s + len > e)
++			return false;
++
++		if (!pg_utf8_islegal(s, len))
++			return false;
++
++		s += len;
++	}
++
++	return true;
++}
++#endif
++
++
++/*********** JSON creation, manipulation, and deletion **********/
++
++JSON *
++json_mknode(json_type type)
++{
++	JSON	   *node = palloc(sizeof(*node));
++
++	memset(node, 0, sizeof(*node));
++	node->type = type;
++	return node;
++}
++
++JSON *
++json_mkbool(bool v_bool)
++{
++	JSON	   *node = json_mknode(JSON_BOOL);
++
++	node->v.v_bool = v_bool;
++	return node;
++}
++
++JSON *
++json_mkstring(const char *str, size_t length)
++{
++	JSON	   *node = json_mknode(JSON_STRING);
++
++	if (str)
++	{
++		node->v.string.str = pnstrdup(str, length);
++		node->v.string.length = length;
++	}
++	return node;
++}
++
++JSON *
++json_mknumber(const char *number, size_t length)
++{
++	JSON	   *node = json_mknode(JSON_NUMBER);
++
++	if (number)
++		node->v.number = pnstrdup(number, length);
++	return node;
++}
++
++/*
++ * Indicate that the node's value has changed,
++ * marking ancestors as necessary.
++ *
++ * Call json_touch_value so that json_encode(..., JSONOPT_ORIG)
++ * will encode the new value rather than using original text.
++ */
++void
++json_touch_value(JSON * node)
++{
++	while (node && node->orig.value.start)
++	{
++		node->orig.value.start = NULL;
++		node = node->parent;
++	}
++}
++
++/*
++ * Add child to parent, but don't clear orig pointers of ancestors.
++ *
++ * This is used by json_decode to ensure that original text segments
++ * are preserved while building the JSON tree.
++ */
++static void
++json_append_notouch(JSON * parent, JSON * child)
++{
++	Assert(parent->type == JSON_ARRAY || parent->type == JSON_OBJECT);
++	Assert(child->parent == NULL);
++
++	parent->v.children.count++;
++	child->parent = parent;
++	child->prev = parent->v.children.tail;
++	child->next = NULL;
++
++	if (parent->v.children.tail)
++	{
++		parent->v.children.tail->next = child;
++		parent->v.children.tail = child;
++	}
++	else
++	{
++		parent->v.children.head = parent->v.children.tail = child;
++	}
++}
++
++/*
++ * json_append
++ *	  Add child to parent, putting it at the end of its child list.
++ *
++ *	  Child must not already have another parent.
++ */
++void
++json_append(JSON * parent, JSON * child)
++{
++	json_append_notouch(parent, child);
++	json_touch_value(parent);
++}
++
++/*
++ * json_remove
++ *	  Remove node from its parent, but do not delete it.
++ */
++void
++json_remove(JSON * node)
++{
++	JSON	   *parent = node->parent;
++
++	if (parent == NULL)
++		return;
++	Assert(parent->type == JSON_ARRAY || parent->type == JSON_OBJECT);
++	Assert(parent->v.children.count > 0);
++
++	if (node->prev)
++		node->prev->next = node->next;
++	else
++		parent->v.children.head = node->next;
++	if (node->next)
++		node->next->prev = node->prev;
++	else
++		parent->v.children.tail = node->prev;
++
++	parent->v.children.count--;
++	node->parent = NULL;
++	node->prev = NULL;
++	node->next = NULL;
++
++	json_touch_value(parent);
++}
++
++/*
++ * Update the value of a node, preserving position and key information.
++ *
++ * Note well: If replacement is an array or object with children, the parent
++ *			  pointers of those children will be incorrect
++ *			  (they'll still refer to their original parent).
++ *
++ *			  Untrustworthy parent pointers is the price to pay for
++ *			  being able to copy JSON values by reference.
++ */
++void
++json_replace_value(JSON * node, JSON * replacement)
++{
++	node->type = replacement->type;
++	node->v = replacement->v;
++	node->orig.value = replacement->orig.value;
++
++	if (node->parent)
++		json_touch_value(node->parent);
++}
++
++const char *
++json_get_string(JSON * node, size_t *length_out)
++{
++	Assert(node->type == JSON_STRING);
++	if (length_out)
++		*length_out = node->v.string.length;
++	return node->v.string.str;
++}
++
++void
++json_set_string(JSON * node, const char *str, size_t length)
++{
++	Assert(node->type == JSON_STRING);
++	if (node->v.string.str)
++		pfree(node->v.string.str);
++	if (str)
++	{
++		node->v.string.str = pnstrdup(str, length);
++		node->v.string.length = length;
++	}
++	else
++	{
++		node->v.string.str = NULL;
++		node->v.string.length = 0;
++	}
++	json_touch_value(node);
++}
++
++const char *
++json_get_number(JSON * node)
++{
++	Assert(node->type == JSON_NUMBER);
++	return node->v.number;
++}
++
++void
++json_set_number(JSON * node, const char *number, size_t length)
++{
++	Assert(node->type == JSON_NUMBER);
++	if (node->v.number)
++		pfree(node->v.number);
++	if (number)
++		node->v.number = pnstrdup(number, length);
++	else
++		node->v.number = NULL;
++	json_touch_value(node);
++}
++
++/* Non-recursively free a node */
++static void
++free_node(JSON * node)
++{
++	if (node->type == JSON_STRING)
++	{
++		if (node->v.string.str)
++			pfree(node->v.string.str);
++	}
++	else if (node->type == JSON_NUMBER)
++	{
++		if (node->v.number)
++			pfree(node->v.number);
++	}
++
++	if (node->key)
++		pfree(node->key);
++
++	pfree(node);
++}
++
++/*
++ * Free a JSON node and all its descendants.
++ *
++ * Do not use this function if you have performed json_replace_value on
++ * a descendant, as this function relies on each node's ->parent field
++ * being trustworthy.
++ */
++static void
++json_delete(JSON * node)
++{
++	JSON	   *parent,
++			   *next;
++
++	if (node == NULL)
++		return;
++
++	/* Remove node from parent (if it has one). */
++	json_remove(node);
++
++descend:
++	while (is_internal(node) && node->v.children.head)
++		node = node->v.children.head;
++
++advance:
++	parent = node->parent;
++	next = node->next;
++	free_node(node);
++	node = next;
++
++	if (node != NULL)
++	{
++		goto descend;
++	}
++	else
++	{
++		node = parent;
++		if (node != NULL)
++			goto advance;
++		else
++			return;
++	}
++}
++
++
++/*********************** Parsing and validation **********************/
++
++static JSON *decode_leaf(const char **sp);
++static JSON *decode_number(const char **sp);
++
++/*
++ * json_decode_string has a different signature than its friends
++ * because it's also used to parse object member keys.
++ * It's also useful outside of json.c, such as in jsonpath.c .
++ */
++char	   *json_decode_string(const char **sp, size_t *length, bool strict);
++
++/*
++ * json_validate
++ *	  Make sure the given UTF-8 string is valid JSON.
++ *
++ * TODO: Consider making a dedicated function for this so we don't have to
++ *		 convert to UTF-8, build a JSON node, then free both
++ *		 whenever we need to validate (such as in json_in and json_recv).
++ */
++bool
++json_validate(const char *str)
++{
++	JSON	   *node = json_decode(str);
++
++	if (node == NULL)
++		return false;
++	json_delete(node);
++	return true;
++}
++
++/*
++ * json_validate_server_encoded
++ *	  Variant of json_validate that takes a server-encoded string
++ *	  rather than a UTF-8 string.
++ *
++ *	  Note that a dedicated json_validate (described in the TODO above)
++ *	  would be able to handle both encodings natively, since both are
++ *	  ASCII-compatible.
++ */
++bool
++json_validate_server_encoded(const char *str)
++{
++	char	   *str_utf8 = server_to_utf8(str, strlen(str));
++	bool		result = json_validate(str_utf8);
++
++	if (str_utf8 != str)
++		pfree(str_utf8);
++
++	return result;
++}
++
++/*
++ * json_decode
++ *	  Convert a JSON-encoded string to a JSON node.
++ *	  @str must be valid UTF-8.
++ */
++JSON *
++json_decode(const char *str)
++{
++	JSON	   *root = NULL,
++			   *parent = NULL,
++			   *node = NULL;
++	const char *s = str;
++	char	   *key;
++	size_t		key_length;
++	struct json_orig orig;
++	bool		expect_endp;
++
++	if (str == NULL)
++		return NULL;
++
++	Assert(utf8_validate(str, strlen(str)));
++
++	expect_endp = false;
++	goto item;
++
++item:							/* Expect a value (set expect_endp before goto
++								 * item; ) */
++	key = NULL;
++	key_length = 0;
++	memset(&orig, 0, sizeof(orig));
++
++	orig.key_left_space.start = s;
++	orig.left_space.start = s;
++
++	skip_whitespace(&s);
++
++	if (expect_endp)
++	{
++		if (*s == ']' || *s == '}')
++			goto endp;
++	}
++
++	if (parent != NULL && parent->type == JSON_OBJECT)
++	{
++		/* Parse member key string. */
++		orig.key_left_space.end = s;
++		orig.key.start = s;
++
++		key = json_decode_string(&s, &key_length, true);
++		if (key == NULL)
++			goto failed;
++
++		orig.key.end = s;
++		orig.key_right_space.start = s;
++
++		/* Eat the " : " */
++		skip_whitespace(&s);
++		if (*s != ':')
++			goto failed;
++
++		orig.key_right_space.end = s;
++		s++;
++		orig.left_space.start = s;
++
++		skip_whitespace(&s);
++	}
++
++	/*
++	 * The way orig.value and company are initialized is a bit funky. If this
++	 * node has children, we have to finish parsing the node's children before
++	 * we know where it ends.  Hence, initialization of orig.value_end and
++	 * after will be deferred if this node has children.
++	 */
++
++	orig.left_space.end = s;
++	orig.value.start = s;
++
++	node = decode_leaf(&s);
++	if (node == NULL)
++	{
++		if (*s == '[')
++			node = json_mknode(JSON_ARRAY);
++		else if (*s == '{')
++			node = json_mknode(JSON_OBJECT);
++		else
++			goto failed;
++		s++;
++
++		/*
++		 * orig.value.end and later are dangling (actually NULL) for now, but
++		 * will be initialized when we get to state 'endp' .
++		 */
++	}
++	else
++	{
++		orig.value.end = s;
++		orig.right_space.start = s;
++
++		skip_whitespace(&s);
++
++		orig.right_space.end = s;
++	}
++
++	node->key = key;
++	node->key_length = key_length;
++
++	/*
++	 * The key now belongs to the node.  This prevents a double free on
++	 * failure (see the failed: label).
++	 */
++	key = NULL;
++
++	node->orig = orig;
++
++	if (parent != NULL)
++		json_append_notouch(parent, node);
++	else
++		root = node;
++
++	if (is_internal(node))
++	{
++		/*
++		 * "push" node onto the "stack".  Nodes point up to their parents,
++		 * which is why this function doesn't need a "stack" per se.
++		 */
++		parent = node;
++
++		expect_endp = true;
++		goto item;
++	}
++
++	if (parent != NULL)
++		goto comma_endp;
++	else
++		goto end;
++
++comma_endp:						/* Expect a comma or end bracket/brace */
++	if (*s == ',')
++	{
++		s++;
++
++		expect_endp = false;
++		goto item;
++	}
++	if (*s == ']' || *s == '}')
++		goto endp;
++
++	goto failed;
++
++endp:							/* Handle an end bracket/brace */
++	if (*s != end_parenthesis(parent))
++		goto failed;
++	s++;
++
++	/* "pop" a node from the "stack" */
++	node = parent;
++	parent = parent->parent;
++
++	/*
++	 * The other pointers were set when we started parsing this node in the
++	 * 'item' state.
++	 */
++	node->orig.value.end = s;
++	node->orig.right_space.start = s;
++
++	skip_whitespace(&s);
++
++	node->orig.right_space.end = s;
++
++	if (parent != NULL)
++		goto comma_endp;
++	else
++		goto end;
++
++end:							/* Expect end of text */
++	if (*s != '\0')
++		goto failed;
++	return node;
++
++failed:					/* Handle failure */
++	if (key != NULL)
++		pfree(key);
++	json_delete(root);
++	return NULL;
++}
++
++/*
++ * Decode and skip a node that does not have children.
++ * Whitespace is not skipped first (it is done in the primary decode loop).
++ *
++ * Returns NULL if next character is '[', '{', or invalid.
++ */
++static JSON *
++decode_leaf(const char **sp)
++{
++	char		c = **sp;
++
++	if (c == '"')
++	{
++		size_t		length;
++		char	   *str = json_decode_string(sp, &length, true);
++
++		if (str != NULL)
++		{
++			JSON	   *node = json_mknode(JSON_STRING);
++
++			node->v.string.str = str;
++			node->v.string.length = length;
++			return node;
++		}
++
++		return NULL;
++	}
++	if ((c >= '0' && c <= '9') || c == '-')
++		return decode_number(sp);
++	if (strncmp(*sp, "true", 4) == 0)
++	{
++		(*sp) += 4;
++		return json_mkbool(true);
++	}
++	if (strncmp(*sp, "false", 5) == 0)
++	{
++		(*sp) += 5;
++		return json_mkbool(false);
++	}
++	if (strncmp(*sp, "null", 4) == 0)
++	{
++		(*sp) += 4;
++		return json_mknode(JSON_NULL);
++	}
++
++	return NULL;
++}
++
++/*
++ * The JSON spec says that a number shall follow this precise pattern
++ * (spaces and quotes added for readability):
++ *	 '-'? (0 | [1-9][0-9]*) ('.' [0-9]+)? ([Ee] [+-]? [0-9]+)?
++ *
++ * However, some JSON parsers are more liberal.  For instance, PHP accepts
++ * '.5' and '1.'.  JSON.parse accepts '+3'.
++ *
++ * This function takes the strict approach.
++ */
++static bool
++validate_number(const char **sp)
++{
++	const char *s = *sp;
++
++	/* '-'? */
++	if (*s == '-')
++		s++;
++
++	/* (0 | [1-9][0-9]*) */
++	if (*s == '0')
++	{
++		s++;
++	}
++	else
++	{
++		if (!isdigit(*s))
++			return false;
++		do
++			s++;
++		while (isdigit(*s));
++	}
++
++	/* ('.' [0-9]+)? */
++	if (*s == '.')
++	{
++		s++;
++		if (!isdigit(*s))
++			return false;
++		do
++			s++;
++		while (isdigit(*s));
++	}
++
++	/* ([Ee] [+-]? [0-9]+)? */
++	if (*s == 'E' || *s == 'e')
++	{
++		s++;
++		if (*s == '+' || *s == '-')
++			s++;
++		if (!isdigit(*s))
++			return false;
++		do
++			s++;
++		while (isdigit(*s));
++	}
++
++	*sp = s;
++	return true;
++}
++
++static JSON *
++decode_number(const char **sp)
++{
++	const char *start,
++			   *end;
++
++	start = *sp;
++	if (!validate_number(sp))
++		return NULL;
++	end = *sp;
++
++	return json_mknumber(start, end - start);
++}
++
++/*
++ * json_decode_string
++ *	  If you're interested in the decoding JSON in general, see json_decode.
++ *
++ *	  Decodes a JSON string literal (e.g. "\"hello\"").
++ *
++ *	  If strict is true, string must be double-quoted,
++ *	  as is required by the JSON RFC.
++ *	  Otherwise (e.g. if parsing something JSON-like, such as JSONPath),
++ *	  the string may be single- or double-quoted.
++ *
++ *	  Also, no whitespace skipping is done, so the caller should only
++ *	  call this function when it expects **sp to be either " or '
++ *
++ *	  On success, returns the decoded string, passes the decoded string's
++ *	  length through *length (which must not be NULL), and advances *sp to point
++ *	  to the end of string literal (after the closing quote character).
++ *
++ *	  On failure (parse error), returns NULL and
++ *	  leaves *length and *sp untouched.
++ */
++char *
++json_decode_string(const char **sp, size_t *length, bool strict)
++{
++	const char *s = *sp;
++	StringInfoData ret;
++	char		buf[4];
++	int			len;
++	char		quote;
++
++	Assert(length != NULL);
++
++	initStringInfo(&ret);
++
++	quote = *s++;
++	if (strict)
++	{
++		if (quote != '"')
++			return NULL;
++	}
++	else
++	{
++		if (quote != '"' && quote != '\'')
++			return NULL;
++	}
++
++	while (*s != '\0' && *s != quote)
++	{
++		unsigned char c = *s++;
++		unsigned int uc;
++		unsigned int lc;
++
++		if (c == '\\')
++		{
++			c = *s++;
++			switch (c)
++			{
++				case '\\':
++				case '/':
++					break;
++				case 'b':
++					c = '\b';
++					break;
++				case 'f':
++					c = '\f';
++					break;
++				case 'n':
++					c = '\n';
++					break;
++				case 'r':
++					c = '\r';
++					break;
++				case 't':
++					c = '\t';
++					break;
++				case 'u':
++					if (!read_hex16(s, &uc))
++						goto failed;
++					s += 4;
++
++					if (uc >= 0xD800 && uc <= 0xDFFF)
++					{
++						/* Handle UTF-16 surrogate pair. */
++
++						if (uc >= 0xDC00)
++							goto failed;		/* Second surrogate not
++												 * preceded by first
++												 * surrogate. */
++
++						if (s[0] != '\\' || s[1] != 'u'
++							|| !read_hex16(s + 2, &lc)
++							|| !(lc >= 0xDC00 && lc <= 0xDFFF))
++							goto failed;		/* First surrogate not
++												 * followed by second
++												 * surrogate. */
++
++						s += 6;
++
++						uc = 0x10000 | ((uc & 0x3FF) << 10) | (lc & 0x3FF);
++					}
++
++					unicode_to_utf8(uc, (unsigned char *) buf);
++					len = pg_utf_mblen((unsigned char *) buf);
++
++					Assert(len > 0);
++
++					appendBinaryStringInfo(&ret, buf, len);
++
++					continue;	/* Continue the enclosing while loop to skip
++								 * the str_append below. */
++				default:		/* Invalid escape */
++					if (c == quote)
++						break;
++					if (!strict && (c == '"' || c == '\''))
++						break;
++					goto failed;	/* Invalid escape */
++			}
++		}
++		else if (c <= 0x1F)
++		{
++			/* Control characters not allowed in string literals. */
++			goto failed;
++		}
++		appendStringInfoChar(&ret, c);
++	}
++
++	if (*s++ != quote)
++		goto failed;
++
++	*length = ret.len;
++	*sp = s;
++	return ret.data;
++
++failed:
++	pfree(ret.data);
++	return NULL;
++}
++
++/*
++ * json_text_type
++ *	  Determines the type of a JSON string without fully decoding it.
++ *	  Expects the given string to be valid JSON.
++ *	  Might return JSON_INVALID if something is wrong with the input.
++ */
++json_type
++json_text_type(const char *str, size_t nbytes)
++{
++	const char *s = str;
++	const char *e = str + nbytes;
++	char		c;
++
++	/* Skip whitespace characters. */
++	while (s < e && is_whitespace(*s))
++		s++;
++
++	/* Get first non-white character, making sure it's in bounds. */
++	if (s >= e)
++		return JSON_INVALID;
++	c = *s;
++
++	switch (c)
++	{
++		case 'n':
++			return JSON_NULL;
++		case '"':
++			return JSON_STRING;
++		case 't':
++		case 'f':
++			return JSON_BOOL;
++		case '{':
++			return JSON_OBJECT;
++		case '[':
++			return JSON_ARRAY;
++		default:
++			if (c == '-' || (c >= '0' && c <= '9'))
++				return JSON_NUMBER;
++			return JSON_INVALID;
++	}
++}
++
++
++/****************************** Encoding *****************************/
++
++/*
++ * encode_string
++ *	  Variant of json_encode_string that writes its output to a StringInfo.
++ */
++static void
++encode_string(StringInfo out, const char *string, size_t length, char quote,
++			  bool escape_unicode)
++{
++	const char *s = string;
++	const char *e = s + length;
++
++	Assert(quote != '\\');
++	if (escape_unicode)
++		Assert(utf8_validate(string, length));
++
++	appendStringInfoChar(out, quote);
++
++	while (s < e)
++	{
++		unsigned char c = *s++;
++		unsigned char endchar;
++
++		switch (c)
++		{
++			case '\\':
++				endchar = '\\';
++				break;
++			case '\b':
++				endchar = 'b';
++				break;
++			case '\f':
++				endchar = 'f';
++				break;
++			case '\n':
++				endchar = 'n';
++				break;
++			case '\r':
++				endchar = 'r';
++				break;
++			case '\t':
++				endchar = 't';
++				break;
++			default:
++				{
++					if (c == quote)
++					{
++						endchar = quote;
++						break;
++					}
++					if (c < 0x1F || (c >= 0x80 && escape_unicode))
++					{
++						/* Encode using \u.... */
++						pg_wchar	uc;
++						unsigned int lc;
++						char		txt[13];
++
++						s--;
++						uc = utf8_decode_char(&s);
++
++						txt[0] = '\\';
++						txt[1] = 'u';
++						txt[6] = '\\';
++						txt[7] = 'u';
++						if (uc <= 0xFFFF)
++						{
++							write_hex16(txt + 2, uc);
++							txt[6] = '\0';
++						}
++						else
++						{
++							uc -= 0x10000;
++							lc = uc & 0x3FF;
++							uc = uc >> 10;
++							uc |= 0xD800;
++							lc |= 0xDC00;
++							write_hex16(txt + 2, uc);
++							write_hex16(txt + 8, lc);
++							txt[12] = '\0';
++						}
++
++						appendStringInfoString(out, txt);
++						continue;		/* Skip backslash-encoding code below. */
++					}
++					endchar = '\0';
++				}
++		}
++
++		appendStringInfoChar(out, endchar ? '\\' : c);
++		if (endchar != '\0')
++			appendStringInfoChar(out, endchar);
++	}
++
++	appendStringInfoChar(out, quote);
++}
++
++static bool
++encode_number(StringInfo out, const char *string)
++{
++	const char *s = string;
++	const char *start,
++			   *end;
++
++	if (string == NULL)
++		return false;
++
++	/* Validate number, trimming whitespace. */
++	skip_whitespace(&s);
++	start = s;
++	if (!validate_number(&s))
++		return false;
++	end = s;
++	skip_whitespace(&s);
++	if (*s != '\0')
++		return false;
++
++	/* Append number to out */
++	appendBinaryStringInfo(out, start, end - start);
++
++	return true;
++}
++
++typedef struct
++{
++	StringInfoData str;
++	bool		use_orig;
++	bool		escape_unicode;
++	bool		trim;
++}	json_encode_ctx;
++
++static bool json_encode_recurse(JSON * node, json_encode_ctx * ctx);
++
++/*
++ * json_encode
++ *	  Encode a JSON node.
++ *
++ *	  The JSONOPT_ESCAPE_UNICODE option may only be used
++ *	  if the strings in the JSON tree are UTF-8-encoded.
++ */
++char *
++json_encode(JSON * node, int options)
++{
++	json_encode_ctx ctx;
++
++	initStringInfo(&ctx.str);
++	ctx.use_orig = !!(options & JSONOPT_USE_ORIG);
++	ctx.escape_unicode = !!(options & JSONOPT_ESCAPE_UNICODE);
++	ctx.trim = !(options & JSONOPT_NO_TRIM);
++
++	if (!json_encode_recurse(node, &ctx))
++	{
++		pfree(ctx.str.data);
++		return NULL;
++	}
++
++	return ctx.str.data;
++}
++
++static bool
++json_encode_recurse(JSON * node, json_encode_ctx * ctx)
++{
++#define has_orig(field) \
++		(use_orig && node->orig.field.start)
++#define push_orig(field) \
++		appendBinaryStringInfo(&ctx->str, node->orig.field.start, \
++							node->orig.field.end - node->orig.field.start)
++
++	bool		use_orig = ctx->use_orig;
++	bool		trim = ctx->trim;
++
++	ctx->trim = false;			/* Don't trim internal nodes, just the root
++								 * node. */
++
++	if (!trim && has_orig(left_space))
++		push_orig(left_space);
++
++	if (has_orig(value))
++	{
++		push_orig(value);
++	}
++	else
++	{
++		const char *txt = NULL;
++		JSON	   *child;
++
++		switch (node->type)
++		{
++			case JSON_NULL:
++				txt = "null";
++				break;
++			case JSON_BOOL:
++				if (node->v.v_bool)
++					txt = "true";
++				else
++					txt = "false";
++				break;
++			case JSON_STRING:
++				encode_string(&ctx->str,
++							  node->v.string.str, node->v.string.length,
++							  '"', ctx->escape_unicode);
++				break;
++			case JSON_NUMBER:
++				if (!encode_number(&ctx->str, node->v.number))
++					return false;
++				break;
++			case JSON_ARRAY:
++				appendStringInfoChar(&ctx->str, '[');
++
++				json_foreach(child, node)
++				{
++					json_encode_recurse(child, ctx);
++					if (child->next != NULL)
++						appendStringInfoChar(&ctx->str, ',');
++				}
++
++				appendStringInfoChar(&ctx->str, ']');
++				break;
++			case JSON_OBJECT:
++				appendStringInfoChar(&ctx->str, '{');
++
++				json_foreach(child, node)
++				{
++					/*
++					 * Shadows the parent node (assigned to the variable
++					 * @node) so we can use our macros on the child node
++					 * instead. Hurray for lexical scoping!
++					 */
++					JSON	   *node = child;
++
++					if (has_orig(key_left_space))
++						push_orig(key_left_space);
++
++					if (has_orig(key))
++						push_orig(key);
++					else
++						encode_string(&ctx->str, node->key, node->key_length,
++									  '"', ctx->escape_unicode);
++
++					if (has_orig(key_right_space))
++						push_orig(key_right_space);
++
++					appendStringInfoChar(&ctx->str, ':');
++
++					json_encode_recurse(node, ctx);
++
++					if (node->next != NULL)
++						appendStringInfoChar(&ctx->str, ',');
++				}
++
++				appendStringInfoChar(&ctx->str, '}');
++				break;
++			default:
++				return false;
++		}
++
++		if (txt != NULL)
++			appendStringInfoString(&ctx->str, txt);
++	}
++
++	if (!trim && has_orig(right_space))
++		push_orig(right_space);
++
++	return true;
++
++#undef has_orig
++#undef push_orig
++}
++
++/*
++ * json_encode_string
++ *	  If you're interested in encoding JSON in general, see json_encode .
++ *
++ *	  Encodes a string literal JSON-style using the given quote character.
++ *	  Note that using anything but '"' as the quote character will result
++ *	  in invalid JSON.
++ *
++ *	  If escape_unicode is true, str must be valid UTF-8.
++ *	  In any case, str may contain null characters (hence the length argument).
++ *
++ *	  quote must not be a backslash.
++ */
++char *
++json_encode_string(const char *str, size_t length, char quote,
++				   bool escape_unicode)
++{
++	StringInfoData ret;
++
++	initStringInfo(&ret);
++	encode_string(&ret, str, length, quote, escape_unicode);
++
++	return ret.data;
++}
+diff --git a/src/backend/utils/adt/json_io.c b/src/backend/utils/adt/json_io.c
+new file mode 100644
+index 0000000..c73a708
+--- /dev/null
++++ b/src/backend/utils/adt/json_io.c
+@@ -0,0 +1,464 @@
++/*-------------------------------------------------------------------------
++ *
++ * json_io.c
++ *	  Primary input/output and conversion procedures
++ *	  for JSON data type.
++ *
++ * Copyright (c) 2010, PostgreSQL Global Development Group
++ * Written by Joey Adams <joeyadams3.14159@gmail.com>.
++ *
++ *-------------------------------------------------------------------------
++ */
++
++#include "utils/json.h"
++
++#include "utils/array.h"
++#include "mb/pg_wchar.h"
++
++PG_MODULE_MAGIC;
++
++static json_type decide_json_type(Oid type, char category);
++static const char *datum_to_json(Datum datum, TypeInfo *typeInfo,
++			  json_type target_type);
++static const char *array_to_json(Datum datum);
++static const char *build_array_string(const char **values,
++				   const int *dim, int ndim);
++static void build_array_string_recurse(StringInfo string, const char ***values,
++						   const int *dim, int ndim);
++
++void
++report_corrupt_json(void)
++{
++	ereport(ERROR,
++			(errcode(ERRCODE_DATA_CORRUPTED),
++			 errmsg("corrupt JSON content")));
++}
++
++PG_FUNCTION_INFO_V1(json_in);
++Datum		json_in(PG_FUNCTION_ARGS);
++Datum
++json_in(PG_FUNCTION_ARGS)
++{
++	char	   *string = PG_GETARG_CSTRING(0);
++	jsontype   *vardata;
++
++	if (!json_validate_server_encoded(string))
++		ereport(ERROR,
++				(errcode(ERRCODE_INVALID_TEXT_REPRESENTATION),
++				 errmsg("could not parse JSON value")));
++
++	vardata = cstring_to_text(string);
++	PG_RETURN_JSON_P(vardata);
++}
++
++PG_FUNCTION_INFO_V1(json_out);
++Datum		json_out(PG_FUNCTION_ARGS);
++Datum
++json_out(PG_FUNCTION_ARGS)
++{
++	jsontype   *vardata = PG_GETARG_JSON_P(0);
++	char	   *string = text_to_cstring((text *) vardata);
++
++	Assert(json_validate_server_encoded(string));
++
++	PG_RETURN_CSTRING(string);
++}
++
++PG_FUNCTION_INFO_V1(json_recv);
++Datum		json_recv(PG_FUNCTION_ARGS);
++Datum
++json_recv(PG_FUNCTION_ARGS)
++{
++	StringInfo	buf = (StringInfo) PG_GETARG_POINTER(0);
++	char	   *str;
++	int			nbytes;
++	jsontype   *result;
++
++	str = pq_getmsgtext(buf, buf->len - buf->cursor, &nbytes);
++
++	if (!json_validate_server_encoded(str))
++		ereport(ERROR,
++				(errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
++				 errmsg("could not parse JSON value")));
++
++	result = cstring_to_text_with_len(str, nbytes);
++	pfree(str);
++
++	PG_RETURN_JSON_P(result);
++}
++
++PG_FUNCTION_INFO_V1(json_send);
++Datum		json_send(PG_FUNCTION_ARGS);
++Datum
++json_send(PG_FUNCTION_ARGS)
++{
++	jsontype   *t = PG_GETARG_JSON_P(0);
++	StringInfoData buf;
++
++#ifdef USE_ASSERT_CHECKING
++	{
++		char	   *string = text_to_cstring(t);
++
++		Assert(json_validate_server_encoded(string));
++
++		pfree(string);
++	}
++#endif
++
++	pq_begintypsend(&buf);
++	pq_sendtext(&buf, VARDATA_ANY(t), VARSIZE_ANY_EXHDR(t));
++	PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
++}
++
++/*
++ * Performs JSON value extraction in UTF-8 C-String land.
++ *
++ * If the input was JSON-encoded NULL, this function returns NULL
++ * (indicating that we want from_json to yield actual SQL NULL).
++ */
++static const char *
++from_json_cstring(const char *input)
++{
++	size_t		len;
++	JSON	   *json = json_decode(input);
++	const char *cstring_out = NULL;
++
++	if (json == NULL)
++		report_corrupt_json();
++
++	switch (json->type)
++	{
++		case JSON_NULL:
++			cstring_out = NULL;
++			break;
++		case JSON_STRING:
++			cstring_out = json_get_string(json, &len);
++			if (strlen(cstring_out) != len)
++				ereport(ERROR,
++						(errcode(ERRCODE_UNTRANSLATABLE_CHARACTER),
++						 errmsg("could not convert JSON-encoded string to TEXT: contains \\u0000"),
++						 errdetail("the string was: %s", utf8_to_server(input, strlen(input)))));
++
++			/*
++			 * todo: suggest using from_json_as_bytea instead when that is
++			 * available.
++			 */
++			break;
++		case JSON_NUMBER:
++			cstring_out = json_get_number(json);
++			break;
++		case JSON_BOOL:
++			cstring_out = json_get_bool(json) ? "true" : "false";
++			break;
++		case JSON_OBJECT:
++			ereport(ERROR,
++					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
++					 errmsg("from_json cannot be applied to JSON objects")));
++			break;
++		case JSON_ARRAY:
++			ereport(ERROR,
++					(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
++					 errmsg("from_json cannot be applied to JSON arrays")));
++			break;
++		default:
++			Assert(false);
++	}
++
++	return cstring_out;
++}
++
++PG_FUNCTION_INFO_V1(from_json);
++Datum		from_json(PG_FUNCTION_ARGS);
++Datum
++from_json(PG_FUNCTION_ARGS)
++{
++	char	   *cstring_in = text_to_utf8_cstring(PG_GETARG_JSON_P(0));
++	const char *cstring_out = from_json_cstring(cstring_in);
++	text	   *vardata_out;
++
++	pfree(cstring_in);
++
++	if (cstring_out != NULL)
++	{
++		vardata_out = utf8_cstring_to_text(cstring_out);
++		PG_RETURN_TEXT_P(vardata_out);
++	}
++	else
++	{
++		PG_RETURN_NULL();
++	}
++}
++
++PG_FUNCTION_INFO_V1(to_json);
++Datum		to_json(PG_FUNCTION_ARGS);
++Datum
++to_json(PG_FUNCTION_ARGS)
++{
++	Oid			argtype = get_fn_expr_argtype(fcinfo->flinfo, 0);
++	TypeInfo   *typeInfo;
++	json_type	target_type;
++
++	typeInfo = FN_EXTRA();
++	if (typeInfo == NULL)
++	{
++		typeInfo = FN_EXTRA_ALLOC(sizeof(TypeInfo));
++		getTypeInfo(typeInfo, argtype, IOFunc_output, FN_MCXT());
++	}
++	else if (typeInfo->type != argtype)
++	{
++		getTypeInfo(typeInfo, argtype, IOFunc_output, FN_MCXT());
++	}
++
++	target_type = decide_json_type(argtype, typeInfo->typcategory);
++
++	/*
++	 * If NULL argument is given, return the string "null", not actual NULL.
++	 * The null check is done after the type check so users can identify type
++	 * bugs earlier.
++	 */
++	if (PG_ARGISNULL(0))
++		PG_RETURN_JSON_P(cstring_to_text("null"));
++
++	PG_RETURN_JSON_P(utf8_cstring_to_text(
++				  datum_to_json(PG_GETARG_DATUM(0), typeInfo, target_type)));
++}
++
++/*
++ * decide_json_type
++ *
++ * Given a type and its corresponding typcategory, determine what
++ * JSON type to encode it to.  If it's not possible to encode the type
++ * (or if support for the type isn't implemented yet), report an error.
++ */
++static json_type
++decide_json_type(Oid type, char category)
++{
++	switch (category)
++	{
++		case 'S':
++			return JSON_STRING;
++		case 'P':
++			if (type == CSTRINGOID)
++				return JSON_STRING;
++			goto invalid;
++		case 'N':
++			if (type == CASHOID)
++				goto invalid;
++			return JSON_NUMBER;
++		case 'B':
++			if (type == BOOLOID)
++				return JSON_BOOL;
++			goto invalid;
++		case 'A':
++			return JSON_ARRAY;
++		default:
++			goto invalid;
++	}
++
++invalid:
++	ereport(ERROR,
++			(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
++		 errmsg("to_json cannot convert %s to JSON", format_type_be(type))));
++	return JSON_INVALID;
++}
++
++/*
++ * datum_to_json
++ *	  Converts a datum to a UTF-8-encoded JSON string.
++ *
++ *	  typeInfo comes from the getTypeInfo function, and
++ *	  target_type comes from decide_json_type .
++ *
++ *	  See to_json and array_to_json for examples of
++ *	  how to invoke this function.
++ */
++static const char *
++datum_to_json(Datum datum, TypeInfo *typeInfo, json_type target_type)
++{
++	char	   *cstring;
++	char	   *cstring_utf8;
++	JSON	   *node;
++	char	   *encoded_utf8;
++
++	switch (target_type)
++	{
++		case JSON_STRING:
++		case JSON_NUMBER:
++			cstring = OutputFunctionCall(&typeInfo->proc, datum);
++			cstring_utf8 = server_to_utf8(cstring, strlen(cstring));
++
++			if (cstring != cstring_utf8)
++				pfree(cstring);
++
++			if (target_type == JSON_STRING)
++				node = json_mkstring(cstring_utf8, strlen(cstring_utf8));
++			else
++				node = json_mknumber(cstring_utf8, strlen(cstring_utf8));
++
++			encoded_utf8 = json_encode(node, 0);
++			if (encoded_utf8 == NULL)
++			{
++				/*
++				 * Currently, we assume that output conversion for all types
++				 * in category 'N' (excluding CASH) will, by coincidence,
++				 * always give a valid JSON-encoded number.
++				 *
++				 * If this error message appears, it means the assumption is
++				 * incorrect, and we need to either blacklist the type in
++				 * decide_json_type (like we did with CASH), or add code that
++				 * can parse the number type.
++				 */
++				ereport(ERROR,
++						(errcode(ERRCODE_INTERNAL_ERROR),
++						 errmsg("to_json failed to convert %s \"%s\" to a valid JSON %s.\n",
++								format_type_be(typeInfo->type),
++								cstring,
++						 target_type == JSON_STRING ? "string" : "number")));
++			}
++
++			return encoded_utf8;
++
++		case JSON_BOOL:
++			return DatumGetBool(datum) ? "true" : "false";
++
++		case JSON_ARRAY:
++			return array_to_json(datum);
++
++		default:
++			Assert(false);
++			return NULL;
++	}
++}
++
++/*
++ * array_to_json
++ *	  Converts a PostgreSQL array datum to a UTF-8-encoded JSON string.
++ *
++ *	  Note: We assume that any type with typcategory = 'A'
++ *			is compatible with array_out.
++ */
++static const char *
++array_to_json(Datum datum)
++{
++	ArrayType  *v = DatumGetArrayTypeP(datum);
++	Oid			element_type = ARR_ELEMTYPE(v);
++	TypeInfo	element_typeinfo;
++	json_type	target_type;
++	int		   *dim;
++	int			ndim;
++	int			nitems;
++	int			i;
++	char	   *s;
++	bits8	   *bitmap;
++	int			bitmask;
++	Datum		elt;
++	const char **values;
++	const char *ret;
++
++	/*
++	 * todo: Consider caching the TypeInfo of array items (which we're
++	 * computing now) in the fcinfo->flinfo->fn_mcxt of to_json like we do
++	 * with the TypeInfo of the array itself.
++	 */
++	getTypeInfo(&element_typeinfo, element_type, IOFunc_output, CurrentMemoryContext);
++
++	target_type = decide_json_type(element_type, element_typeinfo.typcategory);
++
++	ndim = ARR_NDIM(v);
++	dim = ARR_DIMS(v);
++	nitems = ArrayGetNItems(ndim, dim);
++
++	/*
++	 * Unfortunately, we can't make SELECT
++	 * to_json(ARRAY[[],[],[]]::integer[][]); yield '[[],[],[]]' because ndim
++	 * is set to 0 when the array has no items.
++	 */
++	if (nitems <= 0)
++		return "[]";
++
++	values = palloc(nitems * sizeof(const char *));
++
++	s = ARR_DATA_PTR(v);
++	bitmap = ARR_NULLBITMAP(v);
++	bitmask = 1;
++
++	for (i = 0; i < nitems; i++)
++	{
++		if (bitmap != NULL && (*bitmap & bitmask) == 0)
++		{
++			values[i] = NULL;
++		}
++		else
++		{
++			elt = fetch_att(s, element_typeinfo.typbyval, element_typeinfo.typlen);
++			s = att_addlength_datum(s, element_typeinfo.typlen, elt);
++			s = (char *) att_align_nominal(s, element_typeinfo.typalign);
++
++			values[i] = datum_to_json(elt, &element_typeinfo, target_type);
++		}
++
++		if (bitmap != NULL)
++		{
++			bitmask <<= 1;
++			if (bitmask == 0x100)
++			{
++				bitmap++;
++				bitmask = 1;
++			}
++		}
++	}
++
++	ret = build_array_string(values, dim, ndim);
++
++	pfree(values);
++
++	return ret;
++}
++
++/*
++ * build_array_string
++ *	  Takes a multidimensional array of (JSON-formatted) strings and
++ *	  converts it to JSON by wrapping the strings in array brackets and commas.
++ */
++static const char *
++build_array_string(const char **values, const int *dim, int ndim)
++{
++	StringInfoData string[1];
++
++	initStringInfo(string);
++	build_array_string_recurse(string, &values, dim, ndim);
++
++	return string->data;
++}
++
++static void
++build_array_string_recurse(StringInfo string, const char ***values,
++						   const int *dim, int ndim)
++{
++	int			i,
++				count = dim[0];
++
++	appendStringInfoChar(string, '[');
++
++	for (i = 0; i < count; i++)
++	{
++		if (ndim > 1)
++		{
++			build_array_string_recurse(string, values, dim + 1, ndim - 1);
++		}
++		else
++		{
++			const char *value = *(*values)++;
++
++			if (value != NULL)
++				appendStringInfoString(string, value);
++			else
++				appendStringInfoString(string, "null");
++		}
++
++		if (i + 1 < count)
++			appendStringInfoChar(string, ',');
++	}
++
++	appendStringInfoChar(string, ']');
++}
+diff --git a/src/backend/utils/adt/json_op.c b/src/backend/utils/adt/json_op.c
+new file mode 100644
+index 0000000..577c4ee
+--- /dev/null
++++ b/src/backend/utils/adt/json_op.c
+@@ -0,0 +1,252 @@
++/*-------------------------------------------------------------------------
++ *
++ * json_op.c
++ *	  Manipulation procedures for JSON data type.
++ *
++ * Copyright (c) 2010, PostgreSQL Global Development Group
++ * Written by Joey Adams <joeyadams3.14159@gmail.com>.
++ *
++ *-------------------------------------------------------------------------
++ */
++
++#include "utils/json.h"
++#include "utils/jsonpath.h"
++
++static EnumLabel enum_labels[JSON_TYPE_COUNT] =
++{
++	{JSON_NULL, "null"},
++	{JSON_STRING, "string"},
++	{JSON_NUMBER, "number"},
++	{JSON_BOOL, "bool"},
++	{JSON_OBJECT, "object"},
++	{JSON_ARRAY, "array"}
++};
++
++/* json_validate(text).  Renamed to avoid clashing
++ * with the C function json_validate. */
++PG_FUNCTION_INFO_V1(json_validate_f);
++Datum		json_validate_f(PG_FUNCTION_ARGS);
++Datum
++json_validate_f(PG_FUNCTION_ARGS)
++{
++	char	   *string;
++	bool		ret;
++
++	string = text_to_utf8_cstring(PG_GETARG_JSON_P(0));
++	ret = json_validate(string);
++	pfree(string);
++
++	PG_RETURN_BOOL(ret);
++}
++
++/* json_type(json).  Renamed to avoid clashing
++ * with the typedef enum of the same name. */
++PG_FUNCTION_INFO_V1(json_get_type);
++Datum		json_get_type(PG_FUNCTION_ARGS);
++Datum
++json_get_type(PG_FUNCTION_ARGS)
++{
++	jsontype   *t = PG_GETARG_JSON_P(0);
++	json_type	type;
++	Oid		   *label_oids;
++
++	/*
++	 * No need to convert to UTF-8 before calling json_text_type, as it looks
++	 * solely at ASCII characters.
++	 */
++	type = json_text_type(VARDATA_ANY(t), VARSIZE_ANY_EXHDR(t));
++
++	if (!json_type_is_valid(type))
++		report_corrupt_json();
++
++	label_oids = FN_EXTRA();
++	if (label_oids == NULL)
++	{
++		label_oids = FN_EXTRA_ALLOC(JSON_TYPE_COUNT * sizeof(Oid));
++		getEnumLabelOids("json_type_t", enum_labels, label_oids, JSON_TYPE_COUNT);
++	}
++
++	PG_RETURN_OID(label_oids[type]);
++}
++
++PG_FUNCTION_INFO_V1(json_condense);
++Datum		json_condense(PG_FUNCTION_ARGS);
++Datum
++json_condense(PG_FUNCTION_ARGS)
++{
++	char	   *string;
++	JSON	   *json;
++	char	   *condensed;
++
++	string = text_to_utf8_cstring(PG_GETARG_JSON_P(0));
++	json = json_decode(string);
++	condensed = json_encode(json, 0);
++
++	if (condensed == NULL)
++		report_corrupt_json();
++
++	PG_RETURN_JSON_P(utf8_cstring_to_text(condensed));
++}
++
++/*
++ * json_path_base
++ *	  Given the function call info of a PostgreSQL function
++ *	  with arguments (JSON, jsonpath TEXT [, ...]),
++ *	  match the JSONPath string given in the second argument
++ *	  against the JSON tree given in the first argument.
++ *
++ *	  This returns a List of JPRef* items, just like jp_match.
++ *	  jpref_encode() is used to convert them to JSON-formatted strings.
++ */
++static List *
++json_path_base(FunctionCallInfo fcinfo)
++{
++	char	   *json_string = text_to_utf8_cstring(PG_GETARG_JSON_P(0));
++	char	   *path_string = text_to_utf8_cstring(PG_GETARG_TEXT_PP(1));
++	JSONPath   *jpath = jp_parse(path_string);
++	JSON	   *json = json_decode(json_string);
++	List	   *result_list;
++
++	if (jpath == NULL)
++		ereport(ERROR,
++				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
++				 errmsg("invalid JSONPath expression")));
++	if (json == NULL)
++		report_corrupt_json();
++
++	result_list = jp_match(jpath, json);
++
++	return result_list;
++}
++
++PG_FUNCTION_INFO_V1(json_get);
++Datum		json_get(PG_FUNCTION_ARGS);
++Datum
++json_get(PG_FUNCTION_ARGS)
++{
++	List	   *result_list = json_path_base(fcinfo);
++	ListCell   *result;
++	char	   *rs_json;
++	jsontype   *result_vardata;
++	int			length = list_length(result_list);
++
++	if (length == 0)
++	{
++		PG_RETURN_NULL();
++	}
++	else if (length == 1)
++	{
++		result = list_head(result_list);
++		rs_json = jpref_encode(lfirst(result));
++
++		Assert(rs_json != NULL);
++		Assert(json_validate(rs_json) == true);
++
++		result_vardata = (jsontype *) utf8_cstring_to_text(rs_json);
++
++		pfree(rs_json);
++
++		PG_RETURN_JSON_P(result_vardata);
++	}
++	else
++	{
++		ereport(ERROR,
++				(errcode(ERRCODE_DATA_EXCEPTION),
++				 errmsg("JSONPath expression matched multiple results")));
++		PG_RETURN_NULL();
++	}
++}
++
++PG_FUNCTION_INFO_V1(json_set);
++Datum		json_set(PG_FUNCTION_ARGS);
++Datum
++json_set(PG_FUNCTION_ARGS)
++{
++	char	   *json_string = text_to_utf8_cstring(PG_GETARG_JSON_P(0));
++	char	   *path_string = text_to_utf8_cstring(PG_GETARG_TEXT_PP(1));
++	char	   *rvalue_string = text_to_utf8_cstring(PG_GETARG_JSON_P(2));
++	JSONPath   *jpath = jp_parse(path_string);
++	JSON	   *json = json_decode(json_string);
++	JSON	   *rvalue = json_decode(rvalue_string);
++	char	   *result;
++	jsontype   *result_text;
++
++	if (jpath == NULL)
++		ereport(ERROR,
++				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
++				 errmsg("invalid JSONPath expression")));
++
++	if (json == NULL || rvalue == NULL)
++		report_corrupt_json();
++
++	jp_set(jpath, json, rvalue);
++
++	result = json_encode(json, JSONOPT_USE_ORIG | JSONOPT_NO_TRIM);
++	result_text = utf8_cstring_to_text(result);
++
++	pfree(result);
++
++	PG_RETURN_JSON_P(result_text);
++}
++
++PG_FUNCTION_INFO_V1(json_path);
++Datum		json_path(PG_FUNCTION_ARGS);
++Datum
++json_path(PG_FUNCTION_ARGS)
++{
++	FuncCallContext *funcctx;
++	ListCell   *result;
++
++	/* TODO: consider returning the entire result set in one call. */
++
++	if (SRF_IS_FIRSTCALL())
++	{
++		MemoryContext oldcontext;
++		List	   *results;
++
++		funcctx = SRF_FIRSTCALL_INIT();
++		oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
++
++		results = json_path_base(fcinfo);
++		funcctx->user_fctx = list_head(results);
++
++		MemoryContextSwitchTo(oldcontext);
++	}
++
++	funcctx = SRF_PERCALL_SETUP();
++	result = funcctx->user_fctx;
++
++	if (result != NULL)
++	{
++		char	   *json_string;
++		jsontype   *json_text;
++
++		json_string = jpref_encode(lfirst(result));
++		Assert(json_string != NULL);
++		Assert(json_validate(json_string) == true);
++
++		json_text = utf8_cstring_to_text(json_string);
++
++		funcctx->user_fctx = lnext(result);
++
++		SRF_RETURN_NEXT(funcctx, JSONPGetDatum(json_text));
++	}
++
++	SRF_RETURN_DONE(funcctx);
++}
++
++PG_FUNCTION_INFO_V1(parse_json_path);
++Datum		parse_json_path(PG_FUNCTION_ARGS);
++Datum
++parse_json_path(PG_FUNCTION_ARGS)
++{
++	char	   *string = text_to_utf8_cstring(PG_GETARG_TEXT_PP(0));
++	JSONPath   *jpath = jp_parse(string);
++	char	   *normalized;
++
++	if (jpath == NULL)
++		PG_RETURN_NULL();
++
++	normalized = jp_show(jpath);
++	PG_RETURN_TEXT_P(utf8_cstring_to_text(normalized));
++}
+diff --git a/src/backend/utils/adt/jsonpath.c b/src/backend/utils/adt/jsonpath.c
+new file mode 100644
+index 0000000..70b67a6
+--- /dev/null
++++ b/src/backend/utils/adt/jsonpath.c
+@@ -0,0 +1,596 @@
++/*-------------------------------------------------------------------------
++ *
++ * jsonpath.c
++ *	  JSONPath implementation routines for JSON data type support.
++ *
++ * Copyright (c) 2010, PostgreSQL Global Development Group
++ * Written by Joey Adams <joeyadams3.14159@gmail.com>.
++ *
++ *-------------------------------------------------------------------------
++ */
++
++#include "utils/jsonpath.h"
++#include "mb/pg_wchar.h"
++
++#include <ctype.h>
++
++/* NB: These macros evaluate their argument multiple times. */
++
++#define isletter(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
++ /* isalpha() is locale-specific.  This simply matches [A-Za-z] . */
++#define isextended(c) ((unsigned char)(c) > 127)
++
++/* Note that Unicode characters are allowed in identifiers. */
++#define identifier_start(c) (isletter(c) || (c) == '_' || (c) == '$' || isextended(c))
++#define identifier_char(c) (identifier_start(c) || isdigit(c))
++
++#define integer_start(c) (isdigit(c) || (c) == '+' || (c) == '-')
++
++/*
++ * In a valid JSONPath list, the first element is always of type JP_ROOT.
++ * This element is used so an otherwise empty JSONPath list won't be NULL.
++ * This allows us to use NULL to indicate an invalid JSONPath.
++ *
++ * This function returns the first cell,
++ * making sure it is of type JP_ROOT.
++ */
++static ListCell *
++jp_root(JSONPath * jp)
++{
++	ListCell   *cell;
++	jp_element *elem;
++
++	Assert(jp != NULL);
++
++	cell = list_head(jp);
++	elem = lfirst(cell);
++	Assert(elem->type == JP_ROOT);
++
++	return cell;
++}
++
++/*
++ * This function returns the second cell of a JSONPath list
++ * (the first cell after the JP_ROOT).
++ */
++static ListCell *
++jp_head(JSONPath * jp)
++{
++	return lnext(jp_root(jp));
++}
++
++/*
++ * Note that skip_spaces differs from skip_whitespace in json.c
++ * in that this function treats '\f' and '\v' as whitespace.
++ * This is because JSON does not accept these characters as
++ * whitespace, but since this is JSONPath,
++ * we can do whatever we want here :-)
++ */
++static void
++skip_spaces(const char **sp)
++{
++	const char *s = *sp;
++
++	while (isspace(*s))
++		s++;
++	*sp = s;
++}
++
++static jp_element *
++mkElement(jp_element_type type, bool rd)
++{
++	jp_element *elem = palloc0(sizeof(*elem));
++
++	elem->type = type;
++	elem->recursive_descent = rd;
++	return elem;
++}
++
++static jp_element *
++mkRoot(void)
++{
++	jp_element *elem = mkElement(JP_ROOT, false);
++
++	return elem;
++}
++
++static jp_element *
++mkWildcard(bool rd)
++{
++	jp_element *elem = mkElement(JP_WILDCARD, rd);
++
++	return elem;
++}
++
++static jp_element *
++mkIndexSubscript(long index, bool rd)
++{
++	jp_element *elem = mkElement(JP_INDEX_SUBSCRIPT, rd);
++
++	elem->data.index = index;
++	return elem;
++}
++
++static jp_element *
++mkKeySubscript(char *key, size_t length, bool rd)
++{
++	jp_element *elem = mkElement(JP_KEY_SUBSCRIPT, rd);
++
++	elem->data.key.ptr = key;
++	elem->data.key.length = length;
++	return elem;
++}
++
++static jp_element *
++mkCallChar(long index, bool rd)
++{
++	jp_element *elem = mkElement(JP_CALL_CHAR, rd);
++
++	elem->data.index = index;
++	return elem;
++}
++
++static JPRef *
++mkRef(JPRefType type)
++{
++	JPRef	   *ref = palloc0(sizeof(*ref));
++
++	ref->type = type;
++	return ref;
++}
++
++static JPRef *
++mkRefNode(JSON * node)
++{
++	JPRef	   *ref = mkRef(JP_REF_NODE);
++
++	ref->u.node = node;
++	return ref;
++}
++
++static JPRef *
++mkRefChar(const char *bytes, size_t length)
++{
++	JPRef	   *ref = mkRef(JP_REF_CHAR);
++	ref->u.chr. bytes = bytes;
++	ref->u.chr. length = length;
++
++	return ref;
++}
++
++/*
++ * jp_show
++ *	  Unparse a JSONPath expression.  This is used by parse_json_path
++ *	  to stringify successfully parsed JSONPaths.
++ */
++char *
++jp_show(JSONPath * jp)
++{
++	StringInfoData string[1];
++	ListCell   *cell;
++	jp_element *elem;
++	bool		rd;
++	char	   *tmp;
++
++	initStringInfo(string);
++
++	foreach(cell, jp)
++	{
++		elem = lfirst(cell);
++		rd = elem->recursive_descent;
++
++		switch (elem->type)
++		{
++			case JP_ROOT:
++				appendStringInfoChar(string, '$');
++				break;
++			case JP_WILDCARD:
++				appendStringInfoString(string, rd ? "..[*]" : "[*]");
++				break;
++			case JP_INDEX_SUBSCRIPT:
++				appendStringInfo(string, "%s[%ld]", rd ? ".." : "", elem->data.index);
++				break;
++			case JP_KEY_SUBSCRIPT:
++				tmp = json_encode_string(elem->data.key.ptr, elem->data.key.length, '"', false);
++				appendStringInfo(string, "%s[%s]", rd ? ".." : "", tmp);
++				pfree(tmp);
++				break;
++			case JP_CALL_CHAR:
++				appendStringInfo(string, "%s(%ld)", rd ? "..char" : ".char", elem->data.index);
++				break;
++			default:
++				Assert(false);
++		}
++	}
++
++	return string->data;
++}
++
++/*
++ * Parse a long starting at *s .
++ *
++ * On success, return true and update *s to point to the end of the number.
++ * On failure, return false and leave *s untouched.
++ */
++static bool
++parse_long(const char **s, long *out)
++{
++	const char *p = *s;
++
++	errno = 0;
++	*out = strtol(*s, (char **) &p, 10);
++	if (p <= *s || errno != 0)
++		return false;
++
++	*s = p;
++	return true;
++}
++
++/*
++ * jp_parse
++ *	  Parse a JSONPath expression (into a List of jp_element items).
++ *
++ *	  TODO: Get rid of all those gotos.  The parser uses constant space,
++ *			so there's no chance of a stack overflow anyway.
++ */
++JSONPath *
++jp_parse(const char *pattern)
++{
++	JSONPath   *jp = NIL;
++	const char *s = pattern;
++	const char *start;
++	const char *end;
++	bool		recursive_descent = false;
++	bool		bracket = false;
++	const char *err_msg = NULL;
++	long		index;
++	char	   *key;
++	size_t		key_length;
++
++	skip_spaces(&s);
++
++	/* pattern may not be empty */
++	if (*s == '\0')
++		return NULL;
++
++	jp = lappend(jp, mkRoot());
++
++	if (*s == '$')
++	{
++		s++;
++		goto begin_element;
++	}
++	else if (*s != '.')
++	{
++		goto dot_subscript;
++		/* implicit '.' at beginning */
++	}
++
++begin_element:
++	skip_spaces(&s);
++begin_element_noskip:
++
++	recursive_descent = false;
++	bracket = false;
++
++	if (*s == '\0')
++		goto end;
++	if (s[0] == '.' && s[1] == '.')
++	{
++		recursive_descent = true;
++		s += 2;
++		goto dot_subscript;
++	}
++	if (s[0] == '.')
++	{
++		s++;
++		goto dot_subscript;
++	}
++	if (s[0] == '[')
++	{
++		s++;
++		goto bracket_subscript;
++	}
++
++	goto failed;
++
++next_element:
++	if (bracket)
++	{
++		skip_spaces(&s);
++		if (*s != ']')
++			goto failed;
++		s++;
++	}
++	goto begin_element;
++
++dot_subscript:
++	skip_spaces(&s);
++
++	if (*s == '*')
++		goto wildcard;
++	if (integer_start(*s))
++		goto integer;
++	if (identifier_start(*s))
++		goto identifier;
++	if (*s == '"' || *s == '\'')
++		goto string;
++	if (*s == '[')
++	{
++		s++;
++		goto bracket_subscript;
++	}
++
++	goto failed;
++
++bracket_subscript:
++	skip_spaces(&s);
++
++	bracket = true;
++
++	if (*s == '*')
++		goto wildcard;
++	if (integer_start(*s))
++		goto integer;
++	if (identifier_start(*s))
++	{
++		err_msg = "Identifiers may not be bracketed.  This syntax is reserved for future use.";
++		goto failed;
++	}
++	if (*s == '"' || *s == '\'')
++		goto string;
++
++	goto failed;
++
++wildcard:
++	s++;
++	jp = lappend(jp, mkWildcard(recursive_descent));
++	goto next_element;
++
++integer:
++	if (!parse_long(&s, &index))
++		goto failed;
++
++	jp = lappend(jp, mkIndexSubscript(index, recursive_descent));
++	goto next_element;
++
++identifier:
++	start = s;
++	while (identifier_char(*s))
++		s++;
++	end = s;
++
++	skip_spaces(&s);
++
++	if (*s == '(')
++	{
++		if (end - start == 4 && memcmp(start, "char", 4) == 0)
++		{
++			s++;
++			skip_spaces(&s);
++			goto call_char;
++		}
++
++		goto failed;
++	}
++
++	key = pnstrdup(start, end - start);
++	key_length = end - start;
++
++	jp = lappend(jp, mkKeySubscript(key, key_length, recursive_descent));
++	goto begin_element_noskip;
++
++string:
++	key = json_decode_string(&s, &key_length, false);
++	if (key == NULL)
++		goto failed;
++
++	jp = lappend(jp, mkKeySubscript(key, key_length, recursive_descent));
++	goto next_element;
++
++call_char:
++	if (!parse_long(&s, &index))
++		goto failed;
++
++	skip_spaces(&s);
++
++	if (*s++ != ')')
++		goto failed;
++
++	jp = lappend(jp, mkCallChar(index, recursive_descent));
++	goto begin_element;
++
++end:
++	return jp;
++
++failed:
++	return NULL;
++}
++
++/*
++ * Currently, a lot of JPRef nodes are allocated just to pass JSON pointers
++ * to match_recurse.  If this becomes a memory/performance issue in the future,
++ * JPRef could merged with JSON by adding JPRef's specialty types to the
++ * json_type enum and JSON union.	JPRef is currently not merged with
++ * JSON in an attempt to keep the codebase tidy and easier to extend.
++ */
++static void match_recurse(void on_match(void *ctx, JPRef * ref), void *ctx,
++									  ListCell *path, JPRef * ref)
++{
++	jp_element *elem;
++	JSON	   *json,
++			   *child;
++
++	if (path == NULL)
++	{
++		/* The end of the JSONPath list is the "accept" state. */
++		on_match(ctx, ref);
++		return;
++	}
++
++	elem = lfirst(path);
++
++	if (ref->type == JP_REF_NODE)
++		json = ref->u.node;
++	else
++		json = NULL;
++
++	switch (elem->type)
++	{
++		case JP_WILDCARD:
++			if (json != NULL)
++			{
++				json_foreach(child, json)
++					match_recurse(on_match, ctx, lnext(path), mkRefNode(child));
++			}
++			break;
++
++		case JP_INDEX_SUBSCRIPT:
++			if (json != NULL && json->type == JSON_ARRAY &&
++				elem->data.index >= 0 &&
++				(size_t) elem->data.index < json->v.children.count)
++			{
++				size_t		i;
++
++				for (child = json->v.children.head, i = 0;
++					 child != NULL && i < (size_t) elem->data.index;
++					 child = child->next, i++)
++				{
++				}
++
++				/*
++				 * If this fails, it means json->v.children.count was greater
++				 * than the actual number of children.
++				 */
++				Assert(i == elem->data.index && child != NULL);
++
++				match_recurse(on_match, ctx, lnext(path), mkRefNode(child));
++			}
++			break;
++
++		case JP_KEY_SUBSCRIPT:
++			if (json != NULL && json->type == JSON_OBJECT)
++			{
++				json_foreach(child, json)
++				{
++					if (child->key != NULL &&
++						child->key_length == elem->data.key.length &&
++						memcmp(child->key, elem->data.key.ptr, child->key_length) == 0)
++					{
++						match_recurse(on_match, ctx, lnext(path), mkRefNode(child));
++					}
++				}
++			}
++			break;
++
++		case JP_CALL_CHAR:
++			if (json != NULL && json->type == JSON_STRING &&
++				elem->data.index >= 0)
++			{
++				const char *sub_start;
++				int			sub_bytes;
++				int			sub_length;
++
++				pg_encoding_substring(PG_UTF8,
++								   json->v.string.str, json->v.string.length,
++									  elem->data.index, 1,
++									  &sub_start, &sub_bytes, &sub_length);
++
++				if (sub_length == 1)
++					match_recurse(on_match, ctx, lnext(path), mkRefChar(sub_start, sub_bytes));
++			}
++			else if (ref->type == JP_REF_CHAR && elem->data.index == 0)
++			{
++				/* char(0) on a character yields itself. */
++				match_recurse(on_match, ctx, lnext(path), ref);
++			}
++			break;
++
++		default:;
++	}
++
++	if (elem->recursive_descent && json != NULL)
++	{
++		json_foreach(child, json)
++		{
++			if (!child->jp_changed)
++				match_recurse(on_match, ctx, path, mkRefNode(child));
++		}
++	}
++}
++
++static void
++jp_match_callback(List **results, JPRef * ref)
++{
++	*results = lappend(*results, ref);
++}
++
++/*
++ * jp_match
++ *	  Match a parsed JSONPath expression against a JSON tree,
++ *	  yielding a List of JPRef* items.
++ *
++ *	  To convert the JPRef* items to JSON-formatted strings, use jpref_encode.
++ */
++List *
++jp_match(JSONPath * jp, JSON * json)
++{
++	ListCell   *lc = jp_head(jp);
++	List	   *results = NIL;
++
++	match_recurse((void *) jp_match_callback, &results, lc, mkRefNode(json));
++
++	return results;
++}
++
++static void
++jp_set_callback(JSON * value, JPRef * ref)
++{
++	switch (ref->type)
++	{
++		case JP_REF_NODE:
++			json_replace_value(ref->u.node, value);
++			ref->u.node->jp_changed = true;
++			break;
++
++		default:;				/* Do nothing if ref is immutable. */
++	}
++}
++
++/*
++ * jp_set
++ *	  Set all elements that match a parsed JSONPath expression
++ *	  in a JSON tree to a new value.
++ *
++ *	  Note that jp_set uses json_replace_value so it doesn't have to deep-copy
++ *	  on every assignment if @value is a tree.	This means that parent pointers
++ *	  of the resulting tree will not be trustworthy.
++ */
++void
++jp_set(JSONPath * jp, JSON * json, JSON * value)
++{
++	ListCell   *lc = jp_head(jp);
++
++	match_recurse((void *) jp_set_callback, value, lc, mkRefNode(json));
++}
++
++/*
++ * jpref_encode
++ *	  Convert a JPRef to a JSON-formatted string.
++ */
++char *
++jpref_encode(JPRef * ref)
++{
++	switch (ref->type)
++	{
++		case JP_REF_NODE:
++			return json_encode(ref->u.node, JSONOPT_USE_ORIG);
++
++		case JP_REF_CHAR:
++			return json_encode_string(ref->u.chr.bytes, ref->u.chr.length, '"', false);
++
++		default:
++			Assert(false);
++			return NULL;
++	}
++}
+diff --git a/src/include/catalog/pg_enum.h b/src/include/catalog/pg_enum.h
+index 826b8bd..2409fcd 100644
+--- a/src/include/catalog/pg_enum.h
++++ b/src/include/catalog/pg_enum.h
+@@ -52,11 +52,26 @@ typedef FormData_pg_enum *Form_pg_enum;
+ #define Anum_pg_enum_enumtypid			1
+ #define Anum_pg_enum_enumlabel			2
+ 
++#define JSON_NULL_OID					3880
++#define JSON_STRING_OID					3881
++#define JSON_NUMBER_OID					3882
++#define JSON_BOOL_OID					3883
++#define JSON_OBJECT_OID					3884
++#define JSON_ARRAY_OID					3885
++
+ /* ----------------
+- *		pg_enum has no initial contents
++ *		initial contents of pg_enum
+  * ----------------
+  */
+ 
++/* json_type_t */
++DATA(insert OID = 3880 (146, null));
++DATA(insert OID = 3881 (146, string));
++DATA(insert OID = 3882 (146, number));
++DATA(insert OID = 3883 (146, bool));
++DATA(insert OID = 3884 (146, object));
++DATA(insert OID = 3885 (146, array));
++
+ /*
+  * prototypes for functions in pg_enum.c
+  */
+diff --git a/src/include/catalog/pg_proc.h b/src/include/catalog/pg_proc.h
+index d613038..f834eb5 100644
+--- a/src/include/catalog/pg_proc.h
++++ b/src/include/catalog/pg_proc.h
+@@ -4424,6 +4424,33 @@ DESCR("test XML value against XPath expression, with namespace support");
+ DATA(insert OID = 3050 (  xpath_exists	 PGNSP PGUID 14 1 0 0 f f f t f i 2 0 16 "25 142" _null_ _null_ _null_ _null_ "select pg_catalog.xpath_exists($1, $2, ''{}''::pg_catalog.text[])" _null_ _null_ _null_ ));
+ DESCR("test XML value against XPath expression");
+ 
++/* JSON support */
++DATA(insert OID = 3850 (  json_in			PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 144  "2275"		  _null_ _null_ _null_					_null_ json_in		   _null_ _null_ _null_ ));
++DESCR("I/O");
++DATA(insert OID = 3851 (  json_out			PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 2275 "144"		  _null_ _null_ _null_					_null_ json_out		   _null_ _null_ _null_ ));
++DESCR("I/O");
++DATA(insert OID = 3852 (  json_recv			PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 144  "2281"		  _null_ _null_ _null_					_null_ json_recv	   _null_ _null_ _null_ ));
++DESCR("I/O");
++DATA(insert OID = 3853 (  json_send			PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 17	 "144"		  _null_ _null_ _null_					_null_ json_send	   _null_ _null_ _null_ ));
++DESCR("I/O");
++DATA(insert OID = 3854 (  json_type			PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 146  "144"		  _null_ _null_ _null_					_null_ json_get_type   _null_ _null_ _null_ ));
++DESCR("get type of a JSON value");
++DATA(insert OID = 3855 (  json_validate		PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 16	 "25"		  _null_ _null_ _null_					_null_ json_validate_f _null_ _null_ _null_ ));
++DESCR("determine if text is valid JSON");
++DATA(insert OID = 3856 (  from_json			PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 25	 "144"		  _null_ _null_ _null_					_null_ from_json	   _null_ _null_ _null_ ));
++DESCR("decode a JSON value");
++DATA(insert OID = 3857 (  to_json			PGNSP PGUID 12 1 0	  0 f f f f f i 1 0 144  "2283"		  _null_ _null_ _null_					_null_ to_json		   _null_ _null_ _null_ ));
++DESCR("encode a value as JSON");
++DATA(insert OID = 3858 (  json_get			PGNSP PGUID 12 1 0	  0 f f f t f i 2 0 144  "144 25"	  _null_ _null_ "{null,json_path}"		_null_ json_get		   _null_ _null_ _null_ ));
++DESCR("get a single element matching a JSONPath expression");
++DATA(insert OID = 3859 (  json_set			PGNSP PGUID 12 1 0	  0 f f f t f i 3 0 144  "144 25 144" _null_ _null_ "{null,json_path,null}" _null_ json_set		   _null_ _null_ _null_ ));
++DESCR("set all elements matching a JSONPath expression to a new value");
++DATA(insert OID = 3860 (  json_path			PGNSP PGUID 12 1 1000 0 f f f t t i 2 0 144  "144 25"	  _null_ _null_ "{null,json_path}"		_null_ json_path	   _null_ _null_ _null_ ));
++DESCR("get all elements matching a JSONPath expression as a set");
++DATA(insert OID = 3861 (  json_condense		PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 144  "144"		  _null_ _null_ _null_					_null_ json_condense   _null_ _null_ _null_ ));
++DESCR("remove whitespace and unnecessary escapes in a JSON value");
++DATA(insert OID = 3862 (  parse_json_path	PGNSP PGUID 12 1 0	  0 f f f t f i 1 0 25	 "25"		  _null_ _null_ _null_					_null_ parse_json_path _null_ _null_ _null_ ));
++
+ /* uuid */
+ DATA(insert OID = 2952 (  uuid_in		   PGNSP PGUID 12 1 0 0 f f f t f i 1 0 2950 "2275" _null_ _null_ _null_ _null_ uuid_in _null_ _null_ _null_ ));
+ DESCR("I/O");
+diff --git a/src/include/catalog/pg_type.h b/src/include/catalog/pg_type.h
+index c22aacc..f4a3fdb 100644
+--- a/src/include/catalog/pg_type.h
++++ b/src/include/catalog/pg_type.h
+@@ -343,6 +343,16 @@ DESCR("XML content");
+ #define XMLOID 142
+ DATA(insert OID = 143 ( _xml	   PGNSP PGUID -1 f b A f t \054 0 142 0 array_in array_out array_recv array_send - - - i x f 0 -1 0 _null_ _null_ ));
+ 
++
++DATA(insert OID = 144 ( json	   PGNSP PGUID -1 f b S f t \054 0 0 145 json_in json_out json_recv json_send - - - i x f 0 -1 0 _null_ _null_ ));
++DESCR("JSON content");
++DATA(insert OID = 145 ( _json	   PGNSP PGUID -1 f b A f t \054 0 144 0 array_in array_out array_recv array_send - - - i x f 0 -1 0 _null_ _null_ ));
++
++DATA(insert OID = 146 ( json_type_t  PGNSP PGUID 4	t e E f t \054 0 0 147 enum_in enum_out enum_recv enum_send - - - i p f 0 -1 0 _null_ _null_ ));
++DESCR("type of JSON value, as given by the json_type function");
++DATA(insert OID = 147 ( _json_type_t PGNSP PGUID -1 f b A f t \054 0 146 0 array_in array_out array_recv array_send - - - i x f 0 -1 0 _null_ _null_ ));
++
++
+ /* OIDS 200 - 299 */
+ 
+ DATA(insert OID = 210 (  smgr	   PGNSP PGUID 2 t b U f t \054 0 0 0 smgrin smgrout - - - - - s p f 0 -1 0 _null_ _null_ ));
+diff --git a/src/include/utils/json.h b/src/include/utils/json.h
+new file mode 100644
+index 0000000..16654ed
+--- /dev/null
++++ b/src/include/utils/json.h
+@@ -0,0 +1,220 @@
++/*-------------------------------------------------------------------------
++ *
++ * json.h
++ *	  Core JSON manipulation routines used by JSON data type support,
++ *	  along with miscellaneous declarations and includes.
++ *
++ * Copyright (c) 2010, PostgreSQL Global Development Group
++ * Written by Joey Adams <joeyadams3.14159@gmail.com>.
++ *
++ *-------------------------------------------------------------------------
++ */
++
++#ifndef JSON_H
++#define JSON_H
++
++#include "postgres.h"
++
++#include "access/heapam.h"
++#include "access/htup.h"
++#include "catalog/namespace.h"
++#include "catalog/pg_type.h"
++#include "funcapi.h"
++#include "libpq/pqformat.h"
++#include "utils/builtins.h"
++#include "utils/lsyscache.h"
++#include "utils/syscache.h"
++#include "utils/typcache.h"
++
++typedef struct varlena jsontype;
++
++#define DatumGetJSONP(X)	((jsontype *) PG_DETOAST_DATUM(X))
++#define JSONPGetDatum(X)	PointerGetDatum(X)
++
++#define PG_GETARG_JSON_P(n) DatumGetJSONP(PG_GETARG_DATUM(n))
++#define PG_RETURN_JSON_P(x) PG_RETURN_POINTER(x)
++
++void		report_corrupt_json(void);
++
++/* Keep the order of these enum entries in sync with
++ * enum_type_names[] in json_ops.c . */
++typedef enum
++{
++	JSON_NULL,
++	JSON_STRING,
++	JSON_NUMBER,
++	JSON_BOOL,
++	JSON_OBJECT,
++	JSON_ARRAY,
++	JSON_TYPE_COUNT = JSON_ARRAY + 1,
++
++	JSON_INVALID
++}	json_type;
++
++#define json_type_is_valid(type) ((type) >= 0 && (type) < JSON_TYPE_COUNT)
++
++typedef struct JSON JSON;
++
++/*
++ * All strings in JSON nodes are UTF-8-encoded, not server encoded.
++ * The reason for this is because we need to encode/decode individual
++ * Unicode codepoints when dealing with escape characters, but there
++ * are no functions for efficiently converting between Unicode code points
++ * and any server encoding.
++ *
++ * As an exception to the rule, if you only use node factory functions and
++ * json_encode without the JSONOPT_ESCAPE_UNICODE option, you may operate
++ * in the server encoding instead.
++ */
++struct JSON
++{
++	json_type	type;
++
++	union
++	{
++		/* JSON_BOOL */
++		bool		v_bool;
++
++		/* JSON_STRING */
++		struct
++		{
++			char	   *str;
++			size_t		length;
++		}			string;
++
++		/*
++		 * JSON_NUMBER
++		 *
++		 * Numbers are encoded as strings to avoid unnecessary precision loss.
++		 */
++		char	   *number;
++
++		/* JSON_ARRAY or JSON_OBJECT (children) */
++		struct
++		{
++			JSON	   *head;
++			JSON	   *tail;
++			size_t		count;
++		}			children;
++	}			v;
++
++	JSON	   *parent;
++	JSON	   *prev;
++	JSON	   *next;
++
++	/*
++	 * If node is a member of an object, key will be set. Otherwise, key will
++	 * be null.
++	 */
++	char	   *key;
++	size_t		key_length;
++
++	struct json_orig
++	{
++		/* These only apply if this node is a member of an object. */
++		struct
++		{
++			const char *start;
++			const char *end;
++		}			key_left_space, key, key_right_space;
++
++		struct
++		{
++			const char *start;
++			const char *end;
++		}			left_space, value, right_space;
++	}			orig;
++
++	/* Used by jp_set to indicate we should not visit this node again. */
++	bool		jp_changed;
++};
++
++
++/*** Encoding / decoding / validation ***/
++
++bool		json_validate(const char *str);
++bool		json_validate_server_encoded(const char *str);
++JSON	   *json_decode(const char *str);
++
++#define JSONOPT_USE_ORIG		1
++#define JSONOPT_ESCAPE_UNICODE	2
++#define JSONOPT_NO_TRIM			4
++char	   *json_encode(JSON * node, int options);
++
++json_type	json_text_type(const char *str, size_t nbytes);
++
++
++/*** Lookup / traversal ***/
++
++#define json_foreach(child, parent) \
++	for ((child) = json_head(parent); (child) != NULL; (child) = (child)->next)
++
++static inline JSON *
++json_head(JSON * parent)
++{
++	switch (parent->type)
++	{
++		case JSON_ARRAY:
++		case JSON_OBJECT:
++			return parent->v.children.head;
++		default:
++			return NULL;
++	}
++}
++
++
++/*** Parent/child manipulation ***/
++
++void		json_append(JSON * parent, JSON * child);
++void		json_remove(JSON * node);
++
++
++/*** Node factory functions ***/
++
++JSON	   *json_mknode(json_type type);
++JSON	   *json_mkbool(bool v_bool);
++JSON	   *json_mkstring(const char *str, size_t length);
++JSON	   *json_mknumber(const char *number, size_t length);
++static inline JSON *
++json_mkarray(void)
++{
++	return json_mknode(JSON_ARRAY);
++}
++static inline JSON *
++json_mkobject(void)
++{
++	return json_mknode(JSON_OBJECT);
++}
++
++
++/*** Value get/set functions ***/
++
++void		json_touch_value(JSON * node);
++
++static inline bool
++json_get_bool(JSON * node)
++{
++	Assert(node->type == JSON_BOOL);
++	return node->v.v_bool;
++}
++static inline void
++json_set_bool(JSON * node, bool v_bool)
++{
++	Assert(node->type == JSON_BOOL);
++	node->v.v_bool = v_bool;
++	json_touch_value(node);
++}
++const char *json_get_string(JSON * node, size_t *length_out);
++void		json_set_string(JSON * node, const char *str, size_t length);
++const char *json_get_number(JSON * node);
++void		json_set_number(JSON * node, const char *number, size_t length);
++
++void		json_replace_value(JSON * node, JSON * replacement);
++
++
++/*** Miscellaneous utility functions ***/
++
++char	   *json_decode_string(const char **sp, size_t *length, bool strict);
++char	   *json_encode_string(const char *str, size_t length, char quote, bool escape_unicode);
++
++#endif
+diff --git a/src/include/utils/jsonpath.h b/src/include/utils/jsonpath.h
+new file mode 100644
+index 0000000..3caf0ab
+--- /dev/null
++++ b/src/include/utils/jsonpath.h
+@@ -0,0 +1,103 @@
++/*-------------------------------------------------------------------------
++ *
++ * jsonpath.h
++ *	  JSONPath implementation routines for JSON data type support.
++ *
++ *	  The "JSONPath" implemented here is similar to, but not exactly the same as,
++ *	  the JSONPath described at http://goessner.net/articles/JsonPath/ .
++ *	  The main differences are stronger subscripting rules, special methods
++ *	  via function-call notation (currently, the only one provided is .char()),
++ *	  and that the '$' at the beginning of a JSONPath expression is optional.
++ *	  Also, array indices as a set (e.g. [0,1]) and filters/scripts are currently
++ *	  not implemented.	Array indices are a planned feature.  True filters
++ *	  would require an honest-to-goodness JavaScript engine, so perhaps
++ *	  someone will write a module for that in the future.
++ *
++ * Copyright (c) 2010, PostgreSQL Global Development Group
++ * Written by Joey Adams <joeyadams3.14159@gmail.com>.
++ *
++ *-------------------------------------------------------------------------
++ */
++
++#ifndef JSONPATH_H
++#define JSONPATH_H
++
++#include "utils/json.h"
++
++#include "nodes/pg_list.h"
++
++typedef enum
++{
++	JP_ROOT,
++	JP_WILDCARD,
++	JP_INDEX_SUBSCRIPT,
++	JP_KEY_SUBSCRIPT,
++	JP_CALL_CHAR
++}	jp_element_type;
++
++/*
++ * A jp_element is a single piece of a JSONPath expression
++ * (e.g. [3], .foo, .char(3), ..*).  It represents subscripting
++ * down one level in a JSON tree, or invoking a special method
++ * (like .char() ).  However, if recursive_descent is set to true,
++ * the subscript applies to a value and all of its descendants.
++ */
++typedef struct
++{
++	jp_element_type type;
++
++	union
++	{
++		long		index;
++		struct
++		{
++			char	   *ptr;
++			size_t		length;
++		}			key;
++	}			data;
++
++	/* If element was preceded by ".." in pattern */
++	bool		recursive_descent;
++}	jp_element;
++
++typedef enum
++{
++	JP_REF_NODE,
++	JP_REF_CHAR
++}	JPRefType;
++
++/*
++ * A JPRef is a reference to some part of a JSON tree,
++ * typically a value (but not always).
++ *
++ * JPRef* is really a "subclass" of JSON* .  In the future, this structure
++ * will likely be merged into the JSON structure to improve performance.
++ */
++typedef struct
++{
++	JPRefType	type;
++
++	union
++	{
++		JSON	   *node;
++
++		struct
++		{
++			const char *bytes;
++			size_t		length;
++		} chr;
++	}			u;
++}	JPRef;
++
++typedef List /* jp_element* */ JSONPath;
++
++JSONPath   *jp_parse(const char *pattern);
++char	   *jp_show(JSONPath * jp);
++
++List /* JPRef* */ *jp_match(JSONPath * jp, JSON * json);
++void		jp_set(JSONPath * jp, JSON * json, JSON * value);
++
++/* Returns the JSON encoding of the given reference. */
++char	   *jpref_encode(JPRef * ref);
++
++#endif
+diff --git a/src/test/regress/expected/json.out b/src/test/regress/expected/json.out
+new file mode 100644
+index 0000000..157298d
+--- /dev/null
++++ b/src/test/regress/expected/json.out
+@@ -0,0 +1,2440 @@
++SET client_min_messages = warning;
++\set ECHO none
++RESET client_min_messages;
++SELECT '[]'::JSON;
++ json 
++------
++ []
++(1 row)
++
++SELECT '['::JSON;
++ERROR:  could not parse JSON value
++LINE 1: SELECT '['::JSON;
++               ^
++SELECT '[1,2,3]'::JSON;
++  json   
++---------
++ [1,2,3]
++(1 row)
++
++SELECT '[1,2,3]'::JSON::TEXT;
++  text   
++---------
++ [1,2,3]
++(1 row)
++
++SELECT '[1,2,3  ]'::JSON;
++   json    
++-----------
++ [1,2,3  ]
++(1 row)
++
++SELECT '[1,2,3  ,4]'::JSON;
++    json     
++-------------
++ [1,2,3  ,4]
++(1 row)
++
++SELECT '[1,2,3  ,4.0]'::JSON;
++     json      
++---------------
++ [1,2,3  ,4.0]
++(1 row)
++
++SELECT '[1,2,3  ,4]'::JSON;
++    json     
++-------------
++ [1,2,3  ,4]
++(1 row)
++
++SELECT 'true'::JSON;
++ json 
++------
++ true
++(1 row)
++
++SELECT 'true'::TEXT::JSON;
++ json 
++------
++ true
++(1 row)
++
++SELECT 'false'::JSON;
++ json  
++-------
++ false
++(1 row)
++
++SELECT 'null'::JSON;
++ json 
++------
++ null
++(1 row)
++
++SELECT '1.1'::JSON;
++ json 
++------
++ 1.1
++(1 row)
++
++SELECT '"string"'::JSON;
++   json   
++----------
++ "string"
++(1 row)
++
++SELECT '{"key1":"value1", "key2":"value2"}'::JSON;
++                json                
++------------------------------------
++ {"key1":"value1", "key2":"value2"}
++(1 row)
++
++SELECT '{"key1":"value1", "key2":"value2"}'::JSON;
++                json                
++------------------------------------
++ {"key1":"value1", "key2":"value2"}
++(1 row)
++
++SELECT 15::JSON;
++ json 
++------
++ 15
++(1 row)
++
++SELECT json_type('[]');
++ json_type 
++-----------
++ array
++(1 row)
++
++SELECT json_type('{}');
++ json_type 
++-----------
++ object
++(1 row)
++
++SELECT json_type('true');
++ json_type 
++-----------
++ bool
++(1 row)
++
++SELECT json_type('false');
++ json_type 
++-----------
++ bool
++(1 row)
++
++SELECT json_type('null');
++ json_type 
++-----------
++ null
++(1 row)
++
++CREATE TABLE testjson (j JSON);
++INSERT INTO testjson VALUES ('[1,2,3,4]');
++INSERT INTO testjson VALUES ('{"key":"value"}');
++INSERT INTO testjson VALUES ('{"key":"value"');
++ERROR:  could not parse JSON value
++LINE 1: INSERT INTO testjson VALUES ('{"key":"value"');
++                                     ^
++INSERT INTO testjson VALUES ('');
++ERROR:  could not parse JSON value
++LINE 1: INSERT INTO testjson VALUES ('');
++                                     ^
++INSERT INTO testjson VALUES ('""');
++INSERT INTO testjson VALUES ('true');
++INSERT INTO testjson VALUES ('false');
++INSERT INTO testjson VALUES ('null');
++INSERT INTO testjson VALUES ('[]');
++INSERT INTO testjson VALUES ('{}');
++SELECT * FROM testjson;
++        j        
++-----------------
++ [1,2,3,4]
++ {"key":"value"}
++ ""
++ true
++ false
++ null
++ []
++ {}
++(8 rows)
++
++SELECT json_type(j) FROM testjson;
++ json_type 
++-----------
++ array
++ object
++ string
++ bool
++ bool
++ null
++ array
++ object
++(8 rows)
++
++-- to_json: null
++SELECT to_json(NULL);
++ERROR:  could not determine polymorphic type because input has type "unknown"
++SELECT to_json(NULL::INT);
++ to_json 
++---------
++ null
++(1 row)
++
++SELECT to_json(NULL::INT[]);
++ to_json 
++---------
++ null
++(1 row)
++
++SELECT to_json(NULL::VOID);
++ERROR:  to_json cannot convert void to JSON
++SELECT to_json(NULL::MONEY);
++ERROR:  to_json cannot convert money to JSON
++SELECT to_json('null'::text); -- should yield '"null"', not 'null'
++ to_json 
++---------
++ "null"
++(1 row)
++
++SELECT json_type(to_json(NULL));
++ERROR:  could not determine polymorphic type because input has type "unknown"
++SELECT json_type(to_json(NULL::INT));
++ json_type 
++-----------
++ null
++(1 row)
++
++SELECT json_type(to_json(NULL::VOID));
++ERROR:  to_json cannot convert void to JSON
++SELECT json_type(to_json(NULL::MONEY));
++ERROR:  to_json cannot convert money to JSON
++-- to_json: string
++SELECT to_json('');
++ERROR:  could not determine polymorphic type because input has type "unknown"
++SELECT json_type(to_json(''));
++ERROR:  could not determine polymorphic type because input has type "unknown"
++SELECT to_json('string');
++ERROR:  could not determine polymorphic type because input has type "unknown"
++SELECT json_type(to_json('string'));
++ERROR:  could not determine polymorphic type because input has type "unknown"
++SELECT to_json('string'::VARCHAR);
++ to_json  
++----------
++ "string"
++(1 row)
++
++SELECT json_type(to_json('string'::VARCHAR));
++ json_type 
++-----------
++ string
++(1 row)
++
++SELECT to_json('string'::VARCHAR(3));
++ to_json 
++---------
++ "str"
++(1 row)
++
++SELECT json_type(to_json('string'::VARCHAR(3)));
++ json_type 
++-----------
++ string
++(1 row)
++
++SELECT to_json('{1,2,3}'::TEXT);
++  to_json  
++-----------
++ "{1,2,3}"
++(1 row)
++
++SELECT json_type(to_json('{1,2,3}'::TEXT));
++ json_type 
++-----------
++ string
++(1 row)
++
++SELECT to_json('"doubly-encoded"'::JSON);
++       to_json        
++----------------------
++ "\"doubly-encoded\""
++(1 row)
++
++SELECT json_type(to_json('"doubly-encoded"'::JSON));
++ json_type 
++-----------
++ string
++(1 row)
++
++SELECT to_json('"nested quotes"'::TEXT);
++       to_json       
++---------------------
++ "\"nested quotes\""
++(1 row)
++
++SELECT json_type(to_json('"nested quotes"'::TEXT));
++ json_type 
++-----------
++ string
++(1 row)
++
++SELECT to_json('"nested quotes"'::TEXT)::TEXT::JSON;
++       to_json       
++---------------------
++ "\"nested quotes\""
++(1 row)
++
++SELECT json_type(to_json('"nested quotes"'::TEXT)::TEXT::JSON);
++ json_type 
++-----------
++ string
++(1 row)
++
++SELECT to_json('h'::CHAR);
++ to_json 
++---------
++ "h"
++(1 row)
++
++SELECT json_type(to_json('h'::CHAR));
++ json_type 
++-----------
++ string
++(1 row)
++
++SELECT to_json('hello world'::CHAR);
++ to_json 
++---------
++ "h"
++(1 row)
++
++SELECT json_type(to_json('hello world'::CHAR));
++ json_type 
++-----------
++ string
++(1 row)
++
++SELECT to_json('hello world!'::CHAR(11));
++    to_json    
++---------------
++ "hello world"
++(1 row)
++
++SELECT json_type(to_json('hello world!'::CHAR(11)));
++ json_type 
++-----------
++ string
++(1 row)
++
++-- to_json: number
++SELECT to_json(12345);
++ to_json 
++---------
++ 12345
++(1 row)
++
++SELECT to_json(12345.678);
++  to_json  
++-----------
++ 12345.678
++(1 row)
++
++SELECT json_type(to_json(12345));
++ json_type 
++-----------
++ number
++(1 row)
++
++SELECT json_type(to_json(12345.678));
++ json_type 
++-----------
++ number
++(1 row)
++
++SELECT to_json(+1.23e100::FLOAT);
++  to_json  
++-----------
++ 1.23e+100
++(1 row)
++
++SELECT to_json('+1.23e100'::FLOAT);
++  to_json  
++-----------
++ 1.23e+100
++(1 row)
++
++SELECT to_json(123456789012345678901234567890123456789012345678901234567890.123456789012345678901234567890123456789012345678901234567890);
++                                                          to_json                                                          
++---------------------------------------------------------------------------------------------------------------------------
++ 123456789012345678901234567890123456789012345678901234567890.123456789012345678901234567890123456789012345678901234567890
++(1 row)
++
++SELECT json_type(to_json(123456789012345678901234567890123456789012345678901234567890.123456789012345678901234567890123456789012345678901234567890));
++ json_type 
++-----------
++ number
++(1 row)
++
++SELECT to_json('100'::MONEY);
++ERROR:  to_json cannot convert money to JSON
++-- to_json: bool
++SELECT to_json(TRUE);
++ to_json 
++---------
++ true
++(1 row)
++
++SELECT to_json(FALSE);
++ to_json 
++---------
++ false
++(1 row)
++
++SELECT to_json(1=1);
++ to_json 
++---------
++ true
++(1 row)
++
++SELECT to_json(1=2);
++ to_json 
++---------
++ false
++(1 row)
++
++SELECT json_type(to_json(TRUE));
++ json_type 
++-----------
++ bool
++(1 row)
++
++SELECT json_type(to_json(FALSE));
++ json_type 
++-----------
++ bool
++(1 row)
++
++SELECT json_type(to_json(1=1));
++ json_type 
++-----------
++ bool
++(1 row)
++
++SELECT json_type(to_json(1=2));
++ json_type 
++-----------
++ bool
++(1 row)
++
++SELECT to_json(TRUE::TEXT)::TEXT = '"' || TRUE || '"';
++ ?column? 
++----------
++ t
++(1 row)
++
++SELECT to_json(FALSE::TEXT)::TEXT = '"' || FALSE || '"';
++ ?column? 
++----------
++ t
++(1 row)
++
++-- to_json: array
++SELECT to_json(ARRAY[1,2,3]);
++ to_json 
++---------
++ [1,2,3]
++(1 row)
++
++SELECT to_json(ARRAY[1,2,3]);
++ to_json 
++---------
++ [1,2,3]
++(1 row)
++
++SELECT to_json(ARRAY[[1],[2],[3]]);
++    to_json    
++---------------
++ [[1],[2],[3]]
++(1 row)
++
++SELECT to_json(ARRAY[[1,2],[2],[3]]);
++ERROR:  multidimensional arrays must have array expressions with matching dimensions
++SELECT to_json(ARRAY[[1,2],[3,4],[5,6]]);
++       to_json       
++---------------------
++ [[1,2],[3,4],[5,6]]
++(1 row)
++
++SELECT to_json(ARRAY[[],[],[]]);
++ERROR:  cannot determine type of empty array
++LINE 1: SELECT to_json(ARRAY[[],[],[]]);
++                             ^
++HINT:  Explicitly cast to the desired type, for example ARRAY[]::integer[].
++SELECT to_json(ARRAY[[],[],[]]::integer[][]);
++ to_json 
++---------
++ []
++(1 row)
++
++SELECT to_json(ARRAY['hello']);
++  to_json  
++-----------
++ ["hello"]
++(1 row)
++
++SELECT to_json(ARRAY['hello', 'world']);
++      to_json      
++-------------------
++ ["hello","world"]
++(1 row)
++
++SELECT to_json(ARRAY['hello', 'world', 5]);
++ERROR:  invalid input syntax for integer: "hello"
++LINE 1: SELECT to_json(ARRAY['hello', 'world', 5]);
++                             ^
++SELECT to_json(ARRAY['hello', 'world', 5]::text[]);
++        to_json        
++-----------------------
++ ["hello","world","5"]
++(1 row)
++
++SELECT to_json(ARRAY[ARRAY['hello', 'world', 5]]::text[][]);
++         to_json         
++-------------------------
++ [["hello","world","5"]]
++(1 row)
++
++SELECT to_json(ARRAY[]);
++ERROR:  cannot determine type of empty array
++LINE 1: SELECT to_json(ARRAY[]);
++                       ^
++HINT:  Explicitly cast to the desired type, for example ARRAY[]::integer[].
++SELECT to_json(ARRAY[]::text[]);
++ to_json 
++---------
++ []
++(1 row)
++
++SELECT to_json(ARRAY['hello', 'world', null]);
++        to_json         
++------------------------
++ ["hello","world",null]
++(1 row)
++
++SELECT to_json(ARRAY['hello', 'world', null, 5]);
++ERROR:  invalid input syntax for integer: "hello"
++LINE 1: SELECT to_json(ARRAY['hello', 'world', null, 5]);
++                             ^
++SELECT to_json(ARRAY['hello', 'world', null, '5']);
++          to_json           
++----------------------------
++ ["hello","world",null,"5"]
++(1 row)
++
++SELECT to_json(ARRAY[null]);
++ to_json 
++---------
++ [null]
++(1 row)
++
++SELECT to_json(ARRAY[null, null]);
++   to_json   
++-------------
++ [null,null]
++(1 row)
++
++SELECT to_json(ARRAY[[null],[null],[null]]);
++        to_json         
++------------------------
++ [[null],[null],[null]]
++(1 row)
++
++SELECT to_json(ARRAY[[null,null],[null,null],[null,null]]);
++                to_json                
++---------------------------------------
++ [[null,null],[null,null],[null,null]]
++(1 row)
++
++SELECT to_json(ARRAY[[[null,null]],[[null,null]],[[null,null]]]);
++                   to_json                   
++---------------------------------------------
++ [[[null,null]],[[null,null]],[[null,null]]]
++(1 row)
++
++SELECT to_json(ARRAY[[[null,null],[0,1]],[[null,null],[2,3]],[[null,null],[4,5]]]);
++ERROR:  ARRAY could not convert type integer[] to text[]
++LINE 1: SELECT to_json(ARRAY[[[null,null],[0,1]],[[null,null],[2,3]]...
++                                          ^
++SELECT to_json(ARRAY[[[null,null],[0,1]],[[null,null],[2,3]],[[null,null],[4,5]]]::int[][][]);
++                            to_json                            
++---------------------------------------------------------------
++ [[[null,null],[0,1]],[[null,null],[2,3]],[[null,null],[4,5]]]
++(1 row)
++
++SELECT to_json(array[1,2,3,4,5]::int2vector);
++   to_json   
++-------------
++ [1,2,3,4,5]
++(1 row)
++
++SELECT to_json(array[1,2,3,4,5]::oidvector);
++   to_json   
++-------------
++ [1,2,3,4,5]
++(1 row)
++
++SELECT to_json(array[[1,2],[3,4],5]::oidvector);
++ERROR:  syntax error at or near "5"
++LINE 1: SELECT to_json(array[[1,2],[3,4],5]::oidvector);
++                                         ^
++SELECT to_json(array[[1,2],[3,4],[5]]::oidvector);
++ERROR:  multidimensional arrays must have array expressions with matching dimensions
++SELECT to_json(array[[1,2],[3,4],[5,5]]::oidvector);
++       to_json       
++---------------------
++ [[1,2],[3,4],[5,5]]
++(1 row)
++
++SELECT to_json(array[[1,2],[3,4],[5,6]]::oidvector);
++       to_json       
++---------------------
++ [[1,2],[3,4],[5,6]]
++(1 row)
++
++SELECT to_json(array[[1,2],[3,4],[5,6]]::int2vector);
++       to_json       
++---------------------
++ [[1,2],[3,4],[5,6]]
++(1 row)
++
++SELECT to_json(array[[1,2],[3,4],[5,6000]]::int2vector);
++        to_json         
++------------------------
++ [[1,2],[3,4],[5,6000]]
++(1 row)
++
++SELECT to_json(array[[1,2],[3,4],[5,60000]]::int2vector);
++ERROR:  smallint out of range
++SELECT to_json(array[[1,2],[3,4],[5,null]]::int2vector);
++        to_json         
++------------------------
++ [[1,2],[3,4],[5,null]]
++(1 row)
++
++SELECT to_json(array[[1,2],[null,4],[5,null]]::int2vector);
++          to_json          
++---------------------------
++ [[1,2],[null,4],[5,null]]
++(1 row)
++
++SELECT to_json(array[[1,2],[null,4],[5,null]]::oidvector);
++          to_json          
++---------------------------
++ [[1,2],[null,4],[5,null]]
++(1 row)
++
++SELECT to_json(array[[true,false],[false,true]]::bool[][]);
++           to_json           
++-----------------------------
++ [[true,false],[false,true]]
++(1 row)
++
++SELECT to_json(array[[true,false],[false,true],[null,null]]::bool[][]);
++                 to_json                 
++-----------------------------------------
++ [[true,false],[false,true],[null,null]]
++(1 row)
++
++SELECT to_json('{1,2,3}');
++ERROR:  could not determine polymorphic type because input has type "unknown"
++SELECT to_json('{1,2,3}'::text); -- should form "{1,2,3}", not build an array
++  to_json  
++-----------
++ "{1,2,3}"
++(1 row)
++
++SELECT to_json('{1,2,3}'::int[]);
++ to_json 
++---------
++ [1,2,3]
++(1 row)
++
++SELECT to_json('{one,two,three}'::text[]);
++        to_json        
++-----------------------
++ ["one","two","three"]
++(1 row)
++
++SELECT to_json('{one,two,three,null}'::text[]);
++          to_json           
++----------------------------
++ ["one","two","three",null]
++(1 row)
++
++SELECT to_json('{one,two,three,null,five}'::text[]);
++              to_json              
++-----------------------------------
++ ["one","two","three",null,"five"]
++(1 row)
++
++SELECT to_json('{null}'::text[]);
++ to_json 
++---------
++ [null]
++(1 row)
++
++SELECT to_json('{{null}}'::text[][]);
++ to_json  
++----------
++ [[null]]
++(1 row)
++
++-- to_json: invalid types
++SELECT to_json(row(1,2));
++ERROR:  to_json cannot convert record to JSON
++SELECT to_json('127.0.0.1'::INET);
++ERROR:  to_json cannot convert inet to JSON
++-- from_json: null
++SELECT from_json(null);
++ from_json 
++-----------
++ 
++(1 row)
++
++SELECT from_json(NULL::TEXT);
++ERROR:  function from_json(text) does not exist
++LINE 1: SELECT from_json(NULL::TEXT);
++               ^
++HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
++SELECT from_json(NULL::JSON);
++ from_json 
++-----------
++ 
++(1 row)
++
++-- from_json: string
++SELECT from_json('"valid string"');
++  from_json   
++--------------
++ valid string
++(1 row)
++
++SELECT from_json($$ "hello\nworld" $$);
++ from_json 
++-----------
++ hello    +
++ world
++(1 row)
++
++SELECT from_json($$ "hello\u0000world" $$);
++ERROR:  could not convert JSON-encoded string to TEXT: contains \u0000
++DETAIL:  the string was:  "hello\u0000world" 
++-- from_json: number
++SELECT from_json('123');
++ from_json 
++-----------
++ 123
++(1 row)
++
++SELECT from_json('123')::INT;
++ from_json 
++-----------
++       123
++(1 row)
++
++SELECT from_json('123.456')::INT;
++ERROR:  invalid input syntax for integer: "123.456"
++SELECT from_json('123.456')::FLOAT;
++ from_json 
++-----------
++   123.456
++(1 row)
++
++SELECT from_json('123e-38');
++ from_json 
++-----------
++ 123e-38
++(1 row)
++
++SELECT from_json('123e-38')::FLOAT;
++ from_json 
++-----------
++  1.23e-36
++(1 row)
++
++SELECT from_json('1.23e-38')::FLOAT;
++ from_json 
++-----------
++  1.23e-38
++(1 row)
++
++SELECT from_json('1.23e-38');
++ from_json 
++-----------
++ 1.23e-38
++(1 row)
++
++SELECT from_json('1.23e-38')::NUMERIC;
++                 from_json                  
++--------------------------------------------
++ 0.0000000000000000000000000000000000000123
++(1 row)
++
++-- from_json: bool
++SELECT from_json('true')::JSON;
++ from_json 
++-----------
++ true
++(1 row)
++
++SELECT from_json('true');
++ from_json 
++-----------
++ true
++(1 row)
++
++SELECT from_json('true')::BOOLEAN;
++ from_json 
++-----------
++ t
++(1 row)
++
++SELECT from_json('true')::BOOLEAN::JSON;
++ERROR:  could not parse JSON value
++SELECT from_json('true')::BOOLEAN::TEXT::JSON;
++ from_json 
++-----------
++ true
++(1 row)
++
++SELECT from_json('false')::BOOLEAN::TEXT::JSON;
++ from_json 
++-----------
++ false
++(1 row)
++
++SELECT from_json('false');
++ from_json 
++-----------
++ false
++(1 row)
++
++SELECT from_json('f');
++ERROR:  could not parse JSON value
++LINE 1: SELECT from_json('f');
++                         ^
++SELECT from_json('t');
++ERROR:  could not parse JSON value
++LINE 1: SELECT from_json('t');
++                         ^
++SELECT from_json('f'::BOOLEAN::TEXT);
++ERROR:  function from_json(text) does not exist
++LINE 1: SELECT from_json('f'::BOOLEAN::TEXT);
++               ^
++HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
++SELECT from_json('f'::BOOLEAN::TEXT::JSON);
++ from_json 
++-----------
++ false
++(1 row)
++
++SELECT from_json('t'::BOOLEAN::TEXT::JSON);
++ from_json 
++-----------
++ true
++(1 row)
++
++-- from_json: object
++SELECT from_json('{"key": "value"}');
++ERROR:  from_json cannot be applied to JSON objects
++-- from_json: array
++SELECT from_json('[1,2,3]');
++ERROR:  from_json cannot be applied to JSON arrays
++-- from_json: invalid
++SELECT from_json('invalid');
++ERROR:  could not parse JSON value
++LINE 1: SELECT from_json('invalid');
++                         ^
++-- test from_json on a large string
++CREATE TABLE sample_query_text (json JSON);
++INSERT INTO sample_query_text VALUES ($$
++"SELECT pg_catalog.quote_ident(c.relname) FROM pg_catalog.pg_class c WHERE c.relkind IN ('i') AND substring(pg_catalog.quote_ident(c.relname),1,0)='' AND pg_catalog.pg_table_is_visible(c.oid) AND c.relnamespace <> (SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = 'pg_catalog')\nUNION\nSELECT pg_catalog.quote_ident(n.nspname) || '.' FROM pg_catalog.pg_namespace n WHERE substring(pg_catalog.quote_ident(n.nspname) || '.',1,0)='' AND (SELECT pg_catalog.count(*) FROM pg_catalog.pg_namespace WHERE substring(pg_catalog.quote_ident(nspname) || '.',1,0) = substring('',1,pg_catalog.length(pg_catalog.quote_ident(nspname))+1)) > 1\nUNION\nSELECT pg_catalog.quote_ident(n.nspname) || '.' || pg_catalog.quote_ident(c.relname) FROM pg_catalog.pg_class c, pg_catalog.pg_namespace n WHERE c.relnamespace = n.oid AND c.relkind IN ('i') AND substring(pg_catalog.quote_ident(n.nspname) || '.' || pg_catalog.quote_ident(c.relname),1,0)='' AND substring(pg_catalog.quote_ident(n.nspname) || '.',1,0) = substring('',1,pg_catalog.length(pg_catalog.quote_ident(n.nspname))+1) AND (SELECT pg_catalog.count(*) FROM pg_catalog.pg_namespace WHERE substring(pg_catalog.quote_ident(nspname) || '.',1,0) = substring('',1,pg_catalog.length(pg_catalog.quote_ident(nspname))+1)) = 1\n UNION SELECT 'ON' UNION SELECT 'CONCURRENTLY'\nLIMIT 1000"
++$$);
++SELECT md5(from_json(json)) FROM sample_query_text;
++               md5                
++----------------------------------
++ 1c0d28af72da21149acbdf305c197141
++(1 row)
++
++/* Make sure creating an array literal and subscripting
++ * preserves the original string exactly
++ * (except for trimming surrounding whitespace). */
++SELECT bool_and(btrim(before, E'\t\n\r ') = after) FROM (
++	SELECT
++		string AS before,
++		json_path(('  [ ' || string || '  ] ')::json, '$.[0]')::text AS after
++	FROM json_valid_test_strings
++) AS subquery;
++ bool_and 
++----------
++ t
++(1 row)
++
++-- Make sure json_validate works
++SELECT json_validate(string), string FROM json_test_strings;
++ json_validate |                          string                          
++---------------+----------------------------------------------------------
++ f             | 
++ f             |   
++ f             | "
++ f             | [,]
++ f             | [)
++ f             | []]
++ f             | [}
++ f             | {,}
++ f             | {]
++ f             | ["1":2]
++ f             | [1,2,]
++ f             | [1:2}
++ f             | {"1":2,}
++ f             | {1:2}
++ f             | {"1":2, "2.5" : [3, 4, {}, {"5": ["6"], [7 ]}]}
++ f             | {"1":2, "2.5" : [3, 4, {}, {"5": ["6"], [7]}]}
++ f             | {"1":2, "2.5" : [3, 4, {}, {"5": ["6"], "7" :[8 ]}]
++ f             | {"1":2, "2.5" : [3, 4, {}, {"5": ["6"], "7" :[8 ]}]]
++ f             | {"1":2, "3":4
++ f             | "1\u2"
++ f             | [,2]
++ f             | "3
++ f             | "3" "4"
++ f             | [3[4]
++ f             | [3[4]]
++ f             | [3, [4, [5], 6] 7, 8 9]
++ f             | [3, [4, [5], 6] 7, 8, 9]
++ f             | [3, [4, [5], 6], 7, 8 9]
++ f             | {"hello":true, "bye":false, null}
++ f             | {"hello":true, "bye":false, null:null}
++ f             | "hi
++ f             | "hi"""
++ f             | {"hi": "bye"]
++ f             | "\uD800\uD800"
++ f             | "\uD800\uDBFF"
++ f             | "\UD834\UDD1E"
++ f             | "\uDB00"
++ f             | "\uDB00\uDBFF"
++ t             | "\uFFFE"
++ t             | "\uFFFF"
++ f             | .
++ t             | ""
++ t             | []
++ t             | {}
++ f             | +.
++ t             | 0.5
++ f             | 0.e1
++ t             | {"1":{}}
++ t             | {"1":2}
++ t             | {"1":2, "2.5" : [3, 4, {}, {"5": ["6"]}]}
++ t             | {"1":2, "2.5" : [3, 4, {}, {"5": ["6"], "7" :[8 ]}]}
++ t             | 1234
++ t             | -1234
++ t             | {"1":2, "3":4}
++ f             | +1234
++ f             | ++1234
++ t             | 123.456e14234
++ t             | 123.456e-14234
++ t             | 123.456e+14234
++ f             | 123.e-14234
++ t             | "1\u2000"
++ t             | "1\u20001"
++ t             | 2
++ f             | .246e-14234
++ f             | .2e-14234
++ t             | 3
++ f             | .3
++ t             | "3"
++ t             | [3]
++ f             | +3.
++ t             | 3.2e+1
++ t             | [3, [4]]
++ t             | [3, [4, [5]]]
++ t             | [3, [4, [5], 6]]
++ t             | [3, [4, [5], 6], 7]
++ t             | [3, [4, [5], 6], 7, 8]
++ t             | [3, [4, [5], 6], 7, 8, 9]
++ f             | +3.5
++ f             | .3e
++ f             | .3e1
++ f             | .3e-1
++ f             | .3e+1
++ f             | 3.e1
++ f             | 3.e+1
++ t             | 3e+1
++ f             | .5
++ f             | +.5
++ f             | .5e+1
++ t             | [ 7]
++ t             | [7 ]
++ t             | [7]
++ f             | .e-14234
++ t             | "hello"
++ t             | ["hello"]
++ t             | ["hello", "bye"]
++ t             | ["hello", "bye\n"]
++ t             | ["hello", "bye\n\r\t"]
++ t             | ["hello", "bye\n\r\t\b"]
++ t             | ["hello", "bye\n\r\t\b",true]
++ t             | ["hello", "bye\n\r\t\b",true , false]
++ t             | ["hello", "bye\n\r\t\b",true , false,    null]
++ f             | ["hello", "bye\n\r\t\v"]
++ t             | {"hello":true}
++ t             | {"hello":true, "bye":false}
++ t             | {"hello":true, "bye":false, "foo":["one","two","three"]}
++ t             | "hi"
++ t             | ["hi"]
++ t             | ["hi", "bye"]
++ t             | {"hi": "bye"}
++ t             | ["hi", "bye", 3]
++ t             | ["hi", "bye[", 3]
++ t             | "\u0007"
++ t             | "\u0008"
++ t             | "\u0009"
++ t             | "\u0010"
++ t             | "\u0020"
++ t             | "\u10000"
++ t             | "\u1234"
++ t             | "\u99999"
++ t             | "\ud800\udc00"
++ t             | "\uD800\uDC00"
++ t             | "\uD834\uDD1E"
++ t             | "\uDBFF\uDFFF"
++ t             | "\uFFFD"
++ t             | "\uFFFF"
++ f             | hello
++ t             | [32, 1]
++ f             | [32, 
++ t             | "\uD800\uDC00"
++ t             | "\n"
++ t             | "hello"
++ t             | "hello\u0009world"
++ t             | "hello"
++ t             | "hello\n"
++ t             | "hello"
++ t             | 3
++ f             | 3.
++ f             | .3
++ t             | 0.3
++ f             | 0.3e
++ f             | 0.3e+
++ t             | 0.3e+5
++ t             | 0.3e-5
++ t             | 0.3e5
++ t             | "hello"
++ f             | +3
++ t             | -3
++ f             | -3.
++ t             | -3.1
++ f             | .5
++ f             | 5.
++ f             | 5.e1
++ t             | 0.5
++ f             | .3e1
++ f             | .3e+1
++ f             | .3e-1
++ f             | .3e-1 .5
++ f             | .3e-1.5
++ f             | .3e+1.5
++ f             | .3e+.
++ f             | .3e+.5
++ f             | .3e+1.5
++ f             | 9.3e+1.5
++ f             | 9.e+1.5
++ f             | 9.e+
++ f             | 9.e+1
++ t             | "\""
++ t             | "\"3.5"
++ t             | "\"."
++ f             | "\".".
++ t             | "\"....."
++ f             | "\"\"\"\"""
++ f             | ["\"\"\"\"", .5]
++ f             | [.5]
++ t             | ["\"\"\"\"", 0.5]
++ f             | ["\"\"\"\"", .5]
++ f             | ["\"\"\"\"",.5]
++ f             | ["\"",.5]
++ f             | ["\".5",.5]
++ f             | ["\".5",".5\"".5]
++ f             | ["\".5",".5\"", .5]
++ f             | ["\".5",".5\"",.5]
++ t             | ["\".5",".5\"",0.5]
++ f             | {"key":/*comment*/"value"}
++ f             | {"key":/*comment"value"}
++ f             | {"key":"value"}/*
++ f             | {"key":"value"}/**/
++ f             | {"key":"value"}/***/
++ f             | {"key":"value"}/**//
++ f             | {"key":"value"}/**///
++ f             | {"key":"value"}/**///----
++ f             | {"key":"value"}#
++ f             | {"key":"value"}#{
++ f             | {"key":"value"}#{}
++ f             | {"key":"value"}#,
++ f             | {"key":"value"/**/, "k2":"v2"}
++ t             | "\u0027"
++ f             | "hello\'"
++ f             | 'hello\''
++ f             | 'hello'
++ f             | 'hell\'o'
++ f             | '\'hello'
++ f             | '\'hello\''
++ f             | \'hello\'
++ f             | 'hello\'
++ f             | ['hello\']
++ f             | ['hello\'']
++ f             | ['hello"']
++ f             | ['hello\"']
++ f             | ['hello"o']
++ f             | ['"']
++ f             | '"'
++ f             | '"hello"'
++ f             | '"hello'
++ f             | '"hi"'
++(215 rows)
++
++/*** json_get ***/
++SELECT json_get('{"key": "value", "key2": "value2"}', 'key');
++ json_get 
++----------
++ "value"
++(1 row)
++
++SELECT json_get('{"key": "value", "key": "value2"}', 'key');
++ERROR:  JSONPath expression matched multiple results
++/* These each return no result because 0 is a number
++   (indicating a numeric subscript),
++   not a string (indicating an object subscript). */
++SELECT json_get('{"0": "value", "key": "value"}', '0');
++ json_get 
++----------
++ 
++(1 row)
++
++SELECT json_get('{"0": "value", "0": "value"}', '[0]');
++ json_get 
++----------
++ 
++(1 row)
++
++SELECT json_get('{"0": "value", "0": "value"}', '.0');
++ json_get 
++----------
++ 
++(1 row)
++
++SELECT json_get('{"0": "value", "1": "value"}', '["0"]');
++ json_get 
++----------
++ "value"
++(1 row)
++
++SELECT json_get('{"0": "value", "0": "value"}', '["0"]');
++ERROR:  JSONPath expression matched multiple results
++SELECT json_get('[0,1,2,3]', '0');
++ json_get 
++----------
++ 0
++(1 row)
++
++SELECT json_get('[0,1,2,3]', '"0"');
++ json_get 
++----------
++ 
++(1 row)
++
++SELECT json_get('[0,1,2,3]', '*');
++ERROR:  JSONPath expression matched multiple results
++SELECT json_get('[0]', '*');
++ json_get 
++----------
++ 0
++(1 row)
++
++SELECT json_get('[[0]]', '..*');
++ERROR:  JSONPath expression matched multiple results
++/*** json_set ***/
++SELECT json_set('[1,2,3]', '[1]', 5::json);
++ json_set 
++----------
++ [1,5,3]
++(1 row)
++
++SELECT json_set('[1,2,3]', '[3]', 5::json);
++ json_set 
++----------
++ [1,2,3]
++(1 row)
++
++SELECT json_set('[1,2,3]', '[2]', 5::json);
++ json_set 
++----------
++ [1,2,5]
++(1 row)
++
++SELECT json_set('[1,2,3]', '[2]', '[0,1]'::json);
++  json_set   
++-------------
++ [1,2,[0,1]]
++(1 row)
++
++SELECT json_set('  [ 1 ,   2,3]', '1', '5');
++    json_set    
++----------------
++   [ 1 ,   5,3]
++(1 row)
++
++SELECT json_set('  [ 1 ,   [2,3],3]', '1', '5');
++    json_set    
++----------------
++   [ 1 ,   5,3]
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[1][0]', '5');
++           json_set            
++-------------------------------
++   [ 1 ,   [  5 ,   3     ],3]
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[5][0]', '5');
++           json_set            
++-------------------------------
++   [ 1 ,   [  2 ,   3     ],3]
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[4][0]', '5');
++           json_set            
++-------------------------------
++   [ 1 ,   [  2 ,   3     ],3]
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[3][0]', '5');
++           json_set            
++-------------------------------
++   [ 1 ,   [  2 ,   3     ],3]
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[2][0]', '5');
++           json_set            
++-------------------------------
++   [ 1 ,   [  2 ,   3     ],3]
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[1][0]', '   5  ');
++           json_set            
++-------------------------------
++   [ 1 ,   [  5 ,   3     ],3]
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1][0]', '   5  ');
++              json_set               
++-------------------------------------
++   [ 1 ,   [  5 ,   3     ]  , 3  ] 
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][0]', '   5  ');
++              json_set               
++-------------------------------------
++   [ 1 ,   [  5 ,   3     ]  , 3  ] 
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][0]', '     5  ');
++              json_set               
++-------------------------------------
++   [ 1 ,   [  5 ,   3     ]  , 3  ] 
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][0]', $$     "hello\tworld"  $$);
++                     json_set                     
++--------------------------------------------------
++   [ 1 ,   [  "hello\tworld" ,   3     ]  , 3  ] 
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][0]', $$     "hello\u0009world"  $$);
++                       json_set                       
++------------------------------------------------------
++   [ 1 ,   [  "hello\u0009world" ,   3     ]  , 3  ] 
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][*]', $$     "hello\u0009world"  $$);
++                               json_set                                
++-----------------------------------------------------------------------
++   [ 1 ,   [  "hello\u0009world" ,   "hello\u0009world"     ]  , 3  ] 
++(1 row)
++
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '$', $$     "hello\u0009world"  $$);
++       json_set        
++-----------------------
++   "hello\u0009world" 
++(1 row)
++
++SELECT json_set('       [ 1 ,   [  2 ,   3     ]  , 3  ] ', '$', $$     "hello\u0009world"  $$);
++          json_set          
++----------------------------
++        "hello\u0009world" 
++(1 row)
++
++-- Since JavaScript doesn't do anything when you assign to a character subscript,
++-- neither will json_set.
++SELECT json_set('"hello"', '[0]', '"H"');
++ json_set 
++----------
++ "hello"
++(1 row)
++
++SELECT json_set('"hello"', '[0][0]', '"H"');
++ json_set 
++----------
++ "hello"
++(1 row)
++
++SELECT json_set('["hello"]', '[0][0]', '"H"');
++ json_set  
++-----------
++ ["hello"]
++(1 row)
++
++SELECT json_set('["hello"]', '[0][0][0]', '"H"');
++ json_set  
++-----------
++ ["hello"]
++(1 row)
++
++SELECT json_set('[0,1,2,[3,4,5],4]', '$[*]', '["set"]');
++                 json_set                  
++-------------------------------------------
++ [["set"],["set"],["set"],["set"],["set"]]
++(1 row)
++
++SELECT json_set('[0,1,2,[3,4,5],4]', '$[*][*]', '["set"]');
++              json_set               
++-------------------------------------
++ [0,1,2,[["set"],["set"],["set"]],4]
++(1 row)
++
++SELECT json_set('[0,1,2,[3,4,5],4]', '$..[*]', '["set"]');
++                 json_set                  
++-------------------------------------------
++ [["set"],["set"],["set"],["set"],["set"]]
++(1 row)
++
++/*** json_path ***/
++SELECT parse_json_path('..');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path('..*');
++ parse_json_path 
++-----------------
++ $..[*]
++(1 row)
++
++SELECT parse_json_path('.*');
++ parse_json_path 
++-----------------
++ $[*]
++(1 row)
++
++SELECT parse_json_path('');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path('$.*');
++ parse_json_path 
++-----------------
++ $[*]
++(1 row)
++
++SELECT parse_json_path('$');
++ parse_json_path 
++-----------------
++ $
++(1 row)
++
++SELECT parse_json_path('$*');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path('*');
++ parse_json_path 
++-----------------
++ $[*]
++(1 row)
++
++SELECT parse_json_path($$ .. [ 025  ] $$);
++ parse_json_path 
++-----------------
++ $..[25]
++(1 row)
++
++SELECT parse_json_path($$ $ . 0 . 3 $$);
++ parse_json_path 
++-----------------
++ $[0][3]
++(1 row)
++
++SELECT parse_json_path($$ $ . 0_3 $$);
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path($$ $ . 0.3 $$);
++ parse_json_path 
++-----------------
++ $[0][3]
++(1 row)
++
++SELECT parse_json_path($$ .. [ 031  ] $$);
++ parse_json_path 
++-----------------
++ $..[31]
++(1 row)
++
++SELECT parse_json_path($$ $ . 0 . 3 . hello $$);
++ parse_json_path  
++------------------
++ $[0][3]["hello"]
++(1 row)
++
++SELECT parse_json_path($$ $ . 0 . 3 . hello . "back\\slash" $$);
++         parse_json_path         
++---------------------------------
++ $[0][3]["hello"]["back\\slash"]
++(1 row)
++
++SELECT parse_json_path($$ $ . 0 . 3 . hello . ["back\\slash"] $$);
++         parse_json_path         
++---------------------------------
++ $[0][3]["hello"]["back\\slash"]
++(1 row)
++
++SELECT parse_json_path($$ $ . 0 . 3 . hello . back\slash $$);
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path($$ $ . 0 . 3 . hello . backslash $$);
++        parse_json_path        
++-------------------------------
++ $[0][3]["hello"]["backslash"]
++(1 row)
++
++SELECT parse_json_path($$ .. [ 0x31  ] $$);
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path($$ [ 0x31  ] $$);
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path($$ _3 $$);
++ parse_json_path 
++-----------------
++ $["_3"]
++(1 row)
++
++SELECT parse_json_path($$ _3_ $$);
++ parse_json_path 
++-----------------
++ $["_3_"]
++(1 row)
++
++SELECT parse_json_path($$ [ _3 ] $$);
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path($$ $ _3 $$);
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path($$ $ . _3 $$);
++ parse_json_path 
++-----------------
++ $["_3"]
++(1 row)
++
++SELECT parse_json_path('..["5"]');
++ parse_json_path 
++-----------------
++ $..["5"]
++(1 row)
++
++SELECT parse_json_path('..[5]');
++ parse_json_path 
++-----------------
++ $..[5]
++(1 row)
++
++SELECT parse_json_path('..5');
++ parse_json_path 
++-----------------
++ $..[5]
++(1 row)
++
++SELECT parse_json_path($$ .. [ -5  ] $$);
++ parse_json_path 
++-----------------
++ $..[-5]
++(1 row)
++
++SELECT parse_json_path($$ .. [ "5"  ] $$);
++ parse_json_path 
++-----------------
++ $..["5"]
++(1 row)
++
++SELECT parse_json_path($$ .. [ +5  ] $$);
++ parse_json_path 
++-----------------
++ $..[5]
++(1 row)
++
++SELECT parse_json_path($$ .. [ 5  ] $$);
++ parse_json_path 
++-----------------
++ $..[5]
++(1 row)
++
++SELECT parse_json_path($$ .. ["5"] $$);
++ parse_json_path 
++-----------------
++ $..["5"]
++(1 row)
++
++SELECT parse_json_path($$ ..["5"] $$);
++ parse_json_path 
++-----------------
++ $..["5"]
++(1 row)
++
++SELECT parse_json_path($$ [ "5" ] $$);
++ parse_json_path 
++-----------------
++ $["5"]
++(1 row)
++
++SELECT parse_json_path($$ [ 5 ] $$);
++ parse_json_path 
++-----------------
++ $[5]
++(1 row)
++
++SELECT parse_json_path('."hello"');
++ parse_json_path 
++-----------------
++ $["hello"]
++(1 row)
++
++SELECT parse_json_path('.hello');
++ parse_json_path 
++-----------------
++ $["hello"]
++(1 row)
++
++SELECT parse_json_path('...["hello world"]');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path('..["hello world"]');
++  parse_json_path   
++--------------------
++ $..["hello world"]
++(1 row)
++
++SELECT parse_json_path('."hello world"');
++ parse_json_path  
++------------------
++ $["hello world"]
++(1 row)
++
++SELECT parse_json_path('.["hello world"]');
++ parse_json_path  
++------------------
++ $["hello world"]
++(1 row)
++
++SELECT parse_json_path('.hello world');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path('..["hello world"]["5"]');
++     parse_json_path     
++-------------------------
++ $..["hello world"]["5"]
++(1 row)
++
++SELECT parse_json_path('..["hello world"][5]');
++    parse_json_path    
++-----------------------
++ $..["hello world"][5]
++(1 row)
++
++SELECT parse_json_path('..["hello world"][5]..[3]..*.[*]');
++          parse_json_path           
++------------------------------------
++ $..["hello world"][5]..[3]..[*][*]
++(1 row)
++
++SELECT parse_json_path('..["hello world"][5]..[3]..*');
++         parse_json_path         
++---------------------------------
++ $..["hello world"][5]..[3]..[*]
++(1 row)
++
++SELECT parse_json_path('..["hello world"][5]..[3]');
++      parse_json_path       
++----------------------------
++ $..["hello world"][5]..[3]
++(1 row)
++
++SELECT parse_json_path('..["hello world"][5]..[3]*');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT parse_json_path($$
++	.. [ '"hello"\\"world"' ]
++	[ 5 ] .. [3] . * [ * ]
++$$);
++              parse_json_path              
++-------------------------------------------
++ $..["\"hello\"\\\"world\""][5]..[3][*][*]
++(1 row)
++
++select parse_json_path('$char');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++select parse_json_path('$.char');
++ parse_json_path 
++-----------------
++ $["char"]
++(1 row)
++
++select parse_json_path('$.char()');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++select parse_json_path('$.char(5)');
++ parse_json_path 
++-----------------
++ $.char(5)
++(1 row)
++
++select parse_json_path('$.char(  -1  )');
++ parse_json_path 
++-----------------
++ $.char(-1)
++(1 row)
++
++select parse_json_path('$.char(  -1  )  . char(0)');
++  parse_json_path   
++--------------------
++ $.char(-1).char(0)
++(1 row)
++
++select parse_json_path('$.char(  -1  )  . char  ( 0 )  ');
++  parse_json_path   
++--------------------
++ $.char(-1).char(0)
++(1 row)
++
++select parse_json_path('$.char(  +1  )  . char  ( 0 )  ');
++  parse_json_path  
++-------------------
++ $.char(1).char(0)
++(1 row)
++
++select parse_json_path('$ . char(  +1  )  . char  ( 0 )  ');
++  parse_json_path  
++-------------------
++ $.char(1).char(0)
++(1 row)
++
++select parse_json_path('$ .. char(  +1  )  . char  ( 0 )  ');
++  parse_json_path   
++--------------------
++ $..char(1).char(0)
++(1 row)
++
++select parse_json_path('$ .. char(  +1  )  .. char  ( 0 )  ');
++   parse_json_path   
++---------------------
++ $..char(1)..char(0)
++(1 row)
++
++select parse_json_path('$ . char(  +1  )  .. char  ( 0 )  ');
++  parse_json_path   
++--------------------
++ $.char(1)..char(0)
++(1 row)
++
++select parse_json_path('$ . char(  +1  )  char  ( 0 )  ');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++select parse_json_path('$ char(  +1  )  char  ( 0 )  ');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++select parse_json_path('char(  +1  )  . char  ( 0 )  ');
++  parse_json_path  
++-------------------
++ $.char(1).char(0)
++(1 row)
++
++select parse_json_path('.char(  +1  )  . char  ( 0 )  ');
++  parse_json_path  
++-------------------
++ $.char(1).char(0)
++(1 row)
++
++select parse_json_path('..char(  +1  )  . char  ( 0 )  ');
++  parse_json_path   
++--------------------
++ $..char(1).char(0)
++(1 row)
++
++select parse_json_path('...char(  +1  )  . char  ( 0 )  ');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++select parse_json_path('[char(5)]');
++ parse_json_path 
++-----------------
++ 
++(1 row)
++
++SELECT json_path($$"⁰¹\u0000³"$$, 'char(0)');
++ json_path 
++-----------
++ "⁰"
++(1 row)
++
++SELECT json_path($$"⁰¹\u0000³"$$, 'char(1)');
++ json_path 
++-----------
++ "¹"
++(1 row)
++
++SELECT json_path($$"⁰¹\u0000³"$$, 'char(2)');
++ json_path 
++-----------
++ "\u0000"
++(1 row)
++
++SELECT json_path($$"⁰¹\u0000³"$$, 'char(3)');
++ json_path 
++-----------
++ "³"
++(1 row)
++
++SELECT json_path('"0123"', 'char(-1)');
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path('"0123"', 'char(0)');
++ json_path 
++-----------
++ "0"
++(1 row)
++
++SELECT json_path('"0123"', 'char(1)');
++ json_path 
++-----------
++ "1"
++(1 row)
++
++SELECT json_path('"0123"', 'char(2)');
++ json_path 
++-----------
++ "2"
++(1 row)
++
++SELECT json_path('"0123"', 'char(3)');
++ json_path 
++-----------
++ "3"
++(1 row)
++
++SELECT json_path('"0123"', 'char(4)');
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path('"⁰¹²³"', 'char(0)');
++ json_path 
++-----------
++ "⁰"
++(1 row)
++
++SELECT json_path('"⁰¹²³"', 'char(1)');
++ json_path 
++-----------
++ "¹"
++(1 row)
++
++SELECT json_path('"⁰¹²³"', 'char(2)');
++ json_path 
++-----------
++ "²"
++(1 row)
++
++SELECT json_path('"⁰¹²³"', 'char(3)');
++ json_path 
++-----------
++ "³"
++(1 row)
++
++SELECT json_path('[1,2,3]', '$');
++ json_path 
++-----------
++ [1,2,3]
++(1 row)
++
++SELECT json_path('[1,2,3]', '$.+1');
++ json_path 
++-----------
++ 2
++(1 row)
++
++SELECT json_path('[1,2,3]', '$.-1');
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path('[1,2,3]', '$.0');
++ json_path 
++-----------
++ 1
++(1 row)
++
++SELECT json_path('[1,2,3]', '$.1');
++ json_path 
++-----------
++ 2
++(1 row)
++
++SELECT json_path('[1,2,3]', '$.2');
++ json_path 
++-----------
++ 3
++(1 row)
++
++SELECT json_path('[1,2,3]', '$.3');
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path('[1,2,3]', '*');
++ json_path 
++-----------
++ 1
++ 2
++ 3
++(3 rows)
++
++SELECT json_path('[1,2,3]', '[0]');
++ json_path 
++-----------
++ 1
++(1 row)
++
++SELECT json_path('[1,2,3]', '[1]');
++ json_path 
++-----------
++ 2
++(1 row)
++
++SELECT json_path('[1,2,3]', '[2]');
++ json_path 
++-----------
++ 3
++(1 row)
++
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', $$['2']$$);
++ json_path 
++-----------
++ "two"
++(1 row)
++
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '["0"]');
++ json_path 
++-----------
++ "zero"
++(1 row)
++
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '["1"]');
++ json_path 
++-----------
++ "one"
++(1 row)
++
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '["2"]');
++ json_path 
++-----------
++ "two"
++(1 row)
++
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '[0]');
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '[1]');
++ json_path 
++-----------
++(0 rows)
++
++-- Multiple JSONPath results are listed in BFS order
++-- (just because it's easier to implement efficiently than DFS)
++SELECT json_path('[0,1,[2, [3,4 , 5],6,[7,8],9],10]', '$..*');
++        json_path         
++--------------------------
++ 0
++ 1
++ [2, [3,4 , 5],6,[7,8],9]
++ 10
++ 2
++ [3,4 , 5]
++ 6
++ [7,8]
++ 9
++ 3
++ 4
++ 5
++ 7
++ 8
++(14 rows)
++
++CREATE TABLE sample (json JSON);
++INSERT INTO sample VALUES ($$
++{
++	"store": {
++		"books": [
++			{
++				"title": "book 0",
++				"author": "author 0",
++				"prices": [1,2,3]
++			}, {
++				"title": "book 1",
++				"author": "author 1",
++				"prices": [4,5,6]
++			}, {
++				"title": "book 2",
++				"author": "author 2",
++				"prices": [7,8,9]
++			}
++		],
++		"toys": [
++			"Yo-yo",
++			"Boomerang",
++			"Basketball"
++		]
++	}
++}
++$$);
++SELECT json_path(json, 'store.books[*]') FROM sample;
++                       json_path                       
++-------------------------------------------------------
++ {                                                    +
++                                 "title": "book 0",   +
++                                 "author": "author 0",+
++                                 "prices": [1,2,3]    +
++                         }
++ {                                                    +
++                                 "title": "book 1",   +
++                                 "author": "author 1",+
++                                 "prices": [4,5,6]    +
++                         }
++ {                                                    +
++                                 "title": "book 2",   +
++                                 "author": "author 2",+
++                                 "prices": [7,8,9]    +
++                         }
++(3 rows)
++
++SELECT json_path(json, 'store.books[*].title') FROM sample;
++ json_path 
++-----------
++ "book 0"
++ "book 1"
++ "book 2"
++(3 rows)
++
++SELECT json_path(json, 'store.books[*].author') FROM sample;
++ json_path  
++------------
++ "author 0"
++ "author 1"
++ "author 2"
++(3 rows)
++
++SELECT json_path(json, 'store.books[*].prices') FROM sample;
++ json_path 
++-----------
++ [1,2,3]
++ [4,5,6]
++ [7,8,9]
++(3 rows)
++
++SELECT json_path(json, 'store.books[*].prices[*]') FROM sample;
++ json_path 
++-----------
++ 1
++ 2
++ 3
++ 4
++ 5
++ 6
++ 7
++ 8
++ 9
++(9 rows)
++
++SELECT json_path(json, 'store.toys[*]') FROM sample;
++  json_path   
++--------------
++ "Yo-yo"
++ "Boomerang"
++ "Basketball"
++(3 rows)
++
++SELECT json_path(json, 'store.toys[*][0]') FROM sample;
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path(json, 'store.toys[*][1]') FROM sample;
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path(json, 'store.toys[*][0][0]') FROM sample;
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path(json, 'store.toys[*][0][1]') FROM sample;
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path(json, '..books') FROM sample;
++                       json_path                       
++-------------------------------------------------------
++ [                                                    +
++                         {                            +
++                                 "title": "book 0",   +
++                                 "author": "author 0",+
++                                 "prices": [1,2,3]    +
++                         }, {                         +
++                                 "title": "book 1",   +
++                                 "author": "author 1",+
++                                 "prices": [4,5,6]    +
++                         }, {                         +
++                                 "title": "book 2",   +
++                                 "author": "author 2",+
++                                 "prices": [7,8,9]    +
++                         }                            +
++                 ]
++(1 row)
++
++SELECT json_path(json, '..books[*]') FROM sample;
++                       json_path                       
++-------------------------------------------------------
++ {                                                    +
++                                 "title": "book 0",   +
++                                 "author": "author 0",+
++                                 "prices": [1,2,3]    +
++                         }
++ {                                                    +
++                                 "title": "book 1",   +
++                                 "author": "author 1",+
++                                 "prices": [4,5,6]    +
++                         }
++ {                                                    +
++                                 "title": "book 2",   +
++                                 "author": "author 2",+
++                                 "prices": [7,8,9]    +
++                         }
++(3 rows)
++
++SELECT json_path(json, '..title') FROM sample;
++ json_path 
++-----------
++ "book 0"
++ "book 1"
++ "book 2"
++(3 rows)
++
++SELECT json_path(json, '..author') FROM sample;
++ json_path  
++------------
++ "author 0"
++ "author 1"
++ "author 2"
++(3 rows)
++
++SELECT json_path(json, '..prices[*]') FROM sample;
++ json_path 
++-----------
++ 1
++ 2
++ 3
++ 4
++ 5
++ 6
++ 7
++ 8
++ 9
++(9 rows)
++
++SELECT json_path(json, '..toys[*]') FROM sample;
++  json_path   
++--------------
++ "Yo-yo"
++ "Boomerang"
++ "Basketball"
++(3 rows)
++
++SELECT json_path(json, '..toys..[*]') FROM sample;
++  json_path   
++--------------
++ "Yo-yo"
++ "Boomerang"
++ "Basketball"
++(3 rows)
++
++SELECT json_path(json, '..[-1]') FROM sample;
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path(json, '..[0]') FROM sample;
++                       json_path                       
++-------------------------------------------------------
++ {                                                    +
++                                 "title": "book 0",   +
++                                 "author": "author 0",+
++                                 "prices": [1,2,3]    +
++                         }
++ 1
++ 4
++ 7
++ "Yo-yo"
++(5 rows)
++
++SELECT json_path(json, '..[1]') FROM sample;
++                       json_path                       
++-------------------------------------------------------
++ {                                                    +
++                                 "title": "book 1",   +
++                                 "author": "author 1",+
++                                 "prices": [4,5,6]    +
++                         }
++ 2
++ 5
++ 8
++ "Boomerang"
++(5 rows)
++
++SELECT json_path(json, '..[2]') FROM sample;
++                       json_path                       
++-------------------------------------------------------
++ {                                                    +
++                                 "title": "book 2",   +
++                                 "author": "author 2",+
++                                 "prices": [7,8,9]    +
++                         }
++ 3
++ 6
++ 9
++ "Basketball"
++(5 rows)
++
++SELECT json_path(json, '..[3]') FROM sample;
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path(json, '$') FROM sample;
++                       json_path                       
++-------------------------------------------------------
++ {                                                    +
++         "store": {                                   +
++                 "books": [                           +
++                         {                            +
++                                 "title": "book 0",   +
++                                 "author": "author 0",+
++                                 "prices": [1,2,3]    +
++                         }, {                         +
++                                 "title": "book 1",   +
++                                 "author": "author 1",+
++                                 "prices": [4,5,6]    +
++                         }, {                         +
++                                 "title": "book 2",   +
++                                 "author": "author 2",+
++                                 "prices": [7,8,9]    +
++                         }                            +
++                 ],                                   +
++                 "toys": [                            +
++                         "Yo-yo",                     +
++                         "Boomerang",                 +
++                         "Basketball"                 +
++                 ]                                    +
++         }                                            +
++ }
++(1 row)
++
++SELECT json_path(json, '..*') FROM sample;
++                       json_path                       
++-------------------------------------------------------
++ {                                                    +
++                 "books": [                           +
++                         {                            +
++                                 "title": "book 0",   +
++                                 "author": "author 0",+
++                                 "prices": [1,2,3]    +
++                         }, {                         +
++                                 "title": "book 1",   +
++                                 "author": "author 1",+
++                                 "prices": [4,5,6]    +
++                         }, {                         +
++                                 "title": "book 2",   +
++                                 "author": "author 2",+
++                                 "prices": [7,8,9]    +
++                         }                            +
++                 ],                                   +
++                 "toys": [                            +
++                         "Yo-yo",                     +
++                         "Boomerang",                 +
++                         "Basketball"                 +
++                 ]                                    +
++         }
++ [                                                    +
++                         {                            +
++                                 "title": "book 0",   +
++                                 "author": "author 0",+
++                                 "prices": [1,2,3]    +
++                         }, {                         +
++                                 "title": "book 1",   +
++                                 "author": "author 1",+
++                                 "prices": [4,5,6]    +
++                         }, {                         +
++                                 "title": "book 2",   +
++                                 "author": "author 2",+
++                                 "prices": [7,8,9]    +
++                         }                            +
++                 ]
++ [                                                    +
++                         "Yo-yo",                     +
++                         "Boomerang",                 +
++                         "Basketball"                 +
++                 ]
++ {                                                    +
++                                 "title": "book 0",   +
++                                 "author": "author 0",+
++                                 "prices": [1,2,3]    +
++                         }
++ {                                                    +
++                                 "title": "book 1",   +
++                                 "author": "author 1",+
++                                 "prices": [4,5,6]    +
++                         }
++ {                                                    +
++                                 "title": "book 2",   +
++                                 "author": "author 2",+
++                                 "prices": [7,8,9]    +
++                         }
++ "book 0"
++ "author 0"
++ [1,2,3]
++ 1
++ 2
++ 3
++ "book 1"
++ "author 1"
++ [4,5,6]
++ 4
++ 5
++ 6
++ "book 2"
++ "author 2"
++ [7,8,9]
++ 7
++ 8
++ 9
++ "Yo-yo"
++ "Boomerang"
++ "Basketball"
++(27 rows)
++
++SELECT json_path(json, '..char(-1)') FROM sample;
++ json_path 
++-----------
++(0 rows)
++
++SELECT json_path(json, '..char(0)') FROM sample;
++ json_path 
++-----------
++ "b"
++ "a"
++ "b"
++ "a"
++ "b"
++ "a"
++ "Y"
++ "B"
++ "B"
++(9 rows)
++
++SELECT json_path(json, '..char(1)') FROM sample;
++ json_path 
++-----------
++ "o"
++ "u"
++ "o"
++ "u"
++ "o"
++ "u"
++ "o"
++ "o"
++ "a"
++(9 rows)
++
++SELECT json_path(json, '..char(2)') FROM sample;
++ json_path 
++-----------
++ "o"
++ "t"
++ "o"
++ "t"
++ "o"
++ "t"
++ "-"
++ "o"
++ "s"
++(9 rows)
++
++SELECT json_path(json, '..char(3)') FROM sample;
++ json_path 
++-----------
++ "k"
++ "h"
++ "k"
++ "h"
++ "k"
++ "h"
++ "y"
++ "m"
++ "k"
++(9 rows)
++
++SELECT json_path(json, '..char(100)') FROM sample;
++ json_path 
++-----------
++(0 rows)
++
++/*** json_condense ***/
++SELECT json_condense('"hello"');
++ json_condense 
++---------------
++ "hello"
++(1 row)
++
++SELECT json_condense($$"hello\u266Bworld"$$);
++  json_condense  
++-----------------
++ "hello♫world"
++(1 row)
++
++SELECT json_condense($$"hello\u266bworld"$$);
++  json_condense  
++-----------------
++ "hello♫world"
++(1 row)
++
++SELECT json_condense($$"hello♫world"$$);
++  json_condense  
++-----------------
++ "hello♫world"
++(1 row)
++
++SELECT json_condense($$      "hello world"    $$);
++ json_condense 
++---------------
++ "hello world"
++(1 row)
++
++SELECT json_condense($$    {  "hello" : "world"}    $$);
++   json_condense   
++-------------------
++ {"hello":"world"}
++(1 row)
++
++SELECT json_condense($$    {  "hello" : "world", "bye": 0.0001  }    $$);
++         json_condense          
++--------------------------------
++ {"hello":"world","bye":0.0001}
++(1 row)
++
++SELECT json_condense($$    {  "hello" : "world",
++								"bye": 0.0000001
++}    $$);
++           json_condense           
++-----------------------------------
++ {"hello":"world","bye":0.0000001}
++(1 row)
++
++SELECT json_condense($$    {  "hello" : "world"
++,
++"bye"
++: [-0.1234e1, 12345e0]		}    $$);
++                json_condense                
++---------------------------------------------
++ {"hello":"world","bye":[-0.1234e1,12345e0]}
++(1 row)
++
+diff --git a/src/test/regress/parallel_schedule b/src/test/regress/parallel_schedule
+index 191d1fe..4436be0 100644
+--- a/src/test/regress/parallel_schedule
++++ b/src/test/regress/parallel_schedule
+@@ -84,7 +84,7 @@ test: rules
+ # ----------
+ # Another group of parallel tests
+ # ----------
+-test: select_views portals_p2 foreign_key cluster dependency guc bitmapops combocid tsearch tsdicts foreign_data window xmlmap
++test: select_views portals_p2 foreign_key cluster dependency guc bitmapops combocid tsearch tsdicts foreign_data window xmlmap json
+ 
+ # ----------
+ # Another group of parallel tests
+diff --git a/src/test/regress/serial_schedule b/src/test/regress/serial_schedule
+index 80a9881..1210c7c 100644
+--- a/src/test/regress/serial_schedule
++++ b/src/test/regress/serial_schedule
+@@ -104,6 +104,7 @@ test: foreign_data
+ test: foreign_data
+ test: window
+ test: xmlmap
++test: json
+ test: plancache
+ test: limit
+ test: plpgsql
+diff --git a/src/test/regress/sql/json.sql b/src/test/regress/sql/json.sql
+new file mode 100644
+index 0000000..c6b9e42
+--- /dev/null
++++ b/src/test/regress/sql/json.sql
+@@ -0,0 +1,484 @@
++SET client_min_messages = warning;
++\set ECHO none
++
++\i sql/json_test_strings.sql
++CREATE TABLE json_valid_test_strings AS
++	SELECT string FROM json_test_strings WHERE json_validate(string);
++
++\set ECHO all
++RESET client_min_messages;
++
++SELECT '[]'::JSON;
++SELECT '['::JSON;
++SELECT '[1,2,3]'::JSON;
++SELECT '[1,2,3]'::JSON::TEXT;
++SELECT '[1,2,3  ]'::JSON;
++SELECT '[1,2,3  ,4]'::JSON;
++SELECT '[1,2,3  ,4.0]'::JSON;
++SELECT '[1,2,3  ,4]'::JSON;
++SELECT 'true'::JSON;
++SELECT 'true'::TEXT::JSON;
++SELECT 'false'::JSON;
++SELECT 'null'::JSON;
++SELECT '1.1'::JSON;
++SELECT '"string"'::JSON;
++SELECT '{"key1":"value1", "key2":"value2"}'::JSON;
++SELECT '{"key1":"value1", "key2":"value2"}'::JSON;
++SELECT 15::JSON;
++
++SELECT json_type('[]');
++SELECT json_type('{}');
++SELECT json_type('true');
++SELECT json_type('false');
++SELECT json_type('null');
++
++CREATE TABLE testjson (j JSON);
++INSERT INTO testjson VALUES ('[1,2,3,4]');
++INSERT INTO testjson VALUES ('{"key":"value"}');
++INSERT INTO testjson VALUES ('{"key":"value"');
++INSERT INTO testjson VALUES ('');
++INSERT INTO testjson VALUES ('""');
++INSERT INTO testjson VALUES ('true');
++INSERT INTO testjson VALUES ('false');
++INSERT INTO testjson VALUES ('null');
++INSERT INTO testjson VALUES ('[]');
++INSERT INTO testjson VALUES ('{}');
++
++SELECT * FROM testjson;
++
++SELECT json_type(j) FROM testjson;
++
++
++-- to_json: null
++SELECT to_json(NULL);
++SELECT to_json(NULL::INT);
++SELECT to_json(NULL::INT[]);
++SELECT to_json(NULL::VOID);
++SELECT to_json(NULL::MONEY);
++SELECT to_json('null'::text); -- should yield '"null"', not 'null'
++SELECT json_type(to_json(NULL));
++SELECT json_type(to_json(NULL::INT));
++SELECT json_type(to_json(NULL::VOID));
++SELECT json_type(to_json(NULL::MONEY));
++
++-- to_json: string
++SELECT to_json('');
++SELECT json_type(to_json(''));
++SELECT to_json('string');
++SELECT json_type(to_json('string'));
++SELECT to_json('string'::VARCHAR);
++SELECT json_type(to_json('string'::VARCHAR));
++SELECT to_json('string'::VARCHAR(3));
++SELECT json_type(to_json('string'::VARCHAR(3)));
++SELECT to_json('{1,2,3}'::TEXT);
++SELECT json_type(to_json('{1,2,3}'::TEXT));
++SELECT to_json('"doubly-encoded"'::JSON);
++SELECT json_type(to_json('"doubly-encoded"'::JSON));
++SELECT to_json('"nested quotes"'::TEXT);
++SELECT json_type(to_json('"nested quotes"'::TEXT));
++SELECT to_json('"nested quotes"'::TEXT)::TEXT::JSON;
++SELECT json_type(to_json('"nested quotes"'::TEXT)::TEXT::JSON);
++SELECT to_json('h'::CHAR);
++SELECT json_type(to_json('h'::CHAR));
++SELECT to_json('hello world'::CHAR);
++SELECT json_type(to_json('hello world'::CHAR));
++SELECT to_json('hello world!'::CHAR(11));
++SELECT json_type(to_json('hello world!'::CHAR(11)));
++
++-- to_json: number
++SELECT to_json(12345);
++SELECT to_json(12345.678);
++SELECT json_type(to_json(12345));
++SELECT json_type(to_json(12345.678));
++SELECT to_json(+1.23e100::FLOAT);
++SELECT to_json('+1.23e100'::FLOAT);
++SELECT to_json(123456789012345678901234567890123456789012345678901234567890.123456789012345678901234567890123456789012345678901234567890);
++SELECT json_type(to_json(123456789012345678901234567890123456789012345678901234567890.123456789012345678901234567890123456789012345678901234567890));
++SELECT to_json('100'::MONEY);
++
++-- to_json: bool
++SELECT to_json(TRUE);
++SELECT to_json(FALSE);
++SELECT to_json(1=1);
++SELECT to_json(1=2);
++SELECT json_type(to_json(TRUE));
++SELECT json_type(to_json(FALSE));
++SELECT json_type(to_json(1=1));
++SELECT json_type(to_json(1=2));
++SELECT to_json(TRUE::TEXT)::TEXT = '"' || TRUE || '"';
++SELECT to_json(FALSE::TEXT)::TEXT = '"' || FALSE || '"';
++
++-- to_json: array
++SELECT to_json(ARRAY[1,2,3]);
++SELECT to_json(ARRAY[1,2,3]);
++SELECT to_json(ARRAY[[1],[2],[3]]);
++SELECT to_json(ARRAY[[1,2],[2],[3]]);
++SELECT to_json(ARRAY[[1,2],[3,4],[5,6]]);
++SELECT to_json(ARRAY[[],[],[]]);
++SELECT to_json(ARRAY[[],[],[]]::integer[][]);
++SELECT to_json(ARRAY['hello']);
++SELECT to_json(ARRAY['hello', 'world']);
++SELECT to_json(ARRAY['hello', 'world', 5]);
++SELECT to_json(ARRAY['hello', 'world', 5]::text[]);
++SELECT to_json(ARRAY[ARRAY['hello', 'world', 5]]::text[][]);
++SELECT to_json(ARRAY[]);
++SELECT to_json(ARRAY[]::text[]);
++SELECT to_json(ARRAY['hello', 'world', null]);
++SELECT to_json(ARRAY['hello', 'world', null, 5]);
++SELECT to_json(ARRAY['hello', 'world', null, '5']);
++SELECT to_json(ARRAY[null]);
++SELECT to_json(ARRAY[null, null]);
++SELECT to_json(ARRAY[[null],[null],[null]]);
++SELECT to_json(ARRAY[[null,null],[null,null],[null,null]]);
++SELECT to_json(ARRAY[[[null,null]],[[null,null]],[[null,null]]]);
++SELECT to_json(ARRAY[[[null,null],[0,1]],[[null,null],[2,3]],[[null,null],[4,5]]]);
++SELECT to_json(ARRAY[[[null,null],[0,1]],[[null,null],[2,3]],[[null,null],[4,5]]]::int[][][]);
++SELECT to_json(array[1,2,3,4,5]::int2vector);
++SELECT to_json(array[1,2,3,4,5]::oidvector);
++SELECT to_json(array[[1,2],[3,4],5]::oidvector);
++SELECT to_json(array[[1,2],[3,4],[5]]::oidvector);
++SELECT to_json(array[[1,2],[3,4],[5,5]]::oidvector);
++SELECT to_json(array[[1,2],[3,4],[5,6]]::oidvector);
++SELECT to_json(array[[1,2],[3,4],[5,6]]::int2vector);
++SELECT to_json(array[[1,2],[3,4],[5,6000]]::int2vector);
++SELECT to_json(array[[1,2],[3,4],[5,60000]]::int2vector);
++SELECT to_json(array[[1,2],[3,4],[5,null]]::int2vector);
++SELECT to_json(array[[1,2],[null,4],[5,null]]::int2vector);
++SELECT to_json(array[[1,2],[null,4],[5,null]]::oidvector);
++SELECT to_json(array[[true,false],[false,true]]::bool[][]);
++SELECT to_json(array[[true,false],[false,true],[null,null]]::bool[][]);
++SELECT to_json('{1,2,3}');
++SELECT to_json('{1,2,3}'::text); -- should form "{1,2,3}", not build an array
++SELECT to_json('{1,2,3}'::int[]);
++SELECT to_json('{one,two,three}'::text[]);
++SELECT to_json('{one,two,three,null}'::text[]);
++SELECT to_json('{one,two,three,null,five}'::text[]);
++SELECT to_json('{null}'::text[]);
++SELECT to_json('{{null}}'::text[][]);
++
++-- to_json: invalid types
++SELECT to_json(row(1,2));
++SELECT to_json('127.0.0.1'::INET);
++
++
++-- from_json: null
++SELECT from_json(null);
++SELECT from_json(NULL::TEXT);
++SELECT from_json(NULL::JSON);
++
++-- from_json: string
++SELECT from_json('"valid string"');
++SELECT from_json($$ "hello\nworld" $$);
++SELECT from_json($$ "hello\u0000world" $$);
++
++-- from_json: number
++SELECT from_json('123');
++SELECT from_json('123')::INT;
++SELECT from_json('123.456')::INT;
++SELECT from_json('123.456')::FLOAT;
++SELECT from_json('123e-38');
++SELECT from_json('123e-38')::FLOAT;
++SELECT from_json('1.23e-38')::FLOAT;
++SELECT from_json('1.23e-38');
++SELECT from_json('1.23e-38')::NUMERIC;
++
++-- from_json: bool
++SELECT from_json('true')::JSON;
++SELECT from_json('true');
++SELECT from_json('true')::BOOLEAN;
++SELECT from_json('true')::BOOLEAN::JSON;
++SELECT from_json('true')::BOOLEAN::TEXT::JSON;
++SELECT from_json('false')::BOOLEAN::TEXT::JSON;
++SELECT from_json('false');
++SELECT from_json('f');
++SELECT from_json('t');
++SELECT from_json('f'::BOOLEAN::TEXT);
++SELECT from_json('f'::BOOLEAN::TEXT::JSON);
++SELECT from_json('t'::BOOLEAN::TEXT::JSON);
++
++-- from_json: object
++SELECT from_json('{"key": "value"}');
++
++-- from_json: array
++SELECT from_json('[1,2,3]');
++
++-- from_json: invalid
++SELECT from_json('invalid');
++
++
++-- test from_json on a large string
++CREATE TABLE sample_query_text (json JSON);
++INSERT INTO sample_query_text VALUES ($$
++"SELECT pg_catalog.quote_ident(c.relname) FROM pg_catalog.pg_class c WHERE c.relkind IN ('i') AND substring(pg_catalog.quote_ident(c.relname),1,0)='' AND pg_catalog.pg_table_is_visible(c.oid) AND c.relnamespace <> (SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = 'pg_catalog')\nUNION\nSELECT pg_catalog.quote_ident(n.nspname) || '.' FROM pg_catalog.pg_namespace n WHERE substring(pg_catalog.quote_ident(n.nspname) || '.',1,0)='' AND (SELECT pg_catalog.count(*) FROM pg_catalog.pg_namespace WHERE substring(pg_catalog.quote_ident(nspname) || '.',1,0) = substring('',1,pg_catalog.length(pg_catalog.quote_ident(nspname))+1)) > 1\nUNION\nSELECT pg_catalog.quote_ident(n.nspname) || '.' || pg_catalog.quote_ident(c.relname) FROM pg_catalog.pg_class c, pg_catalog.pg_namespace n WHERE c.relnamespace = n.oid AND c.relkind IN ('i') AND substring(pg_catalog.quote_ident(n.nspname) || '.' || pg_catalog.quote_ident(c.relname),1,0)='' AND substring(pg_catalog.quote_ident(n.nspname) || '.',1,0) = substring('',1,pg_catalog.length(pg_catalog.quote_ident(n.nspname))+1) AND (SELECT pg_catalog.count(*) FROM pg_catalog.pg_namespace WHERE substring(pg_catalog.quote_ident(nspname) || '.',1,0) = substring('',1,pg_catalog.length(pg_catalog.quote_ident(nspname))+1)) = 1\n UNION SELECT 'ON' UNION SELECT 'CONCURRENTLY'\nLIMIT 1000"
++$$);
++SELECT md5(from_json(json)) FROM sample_query_text;
++
++
++/* Make sure creating an array literal and subscripting
++ * preserves the original string exactly
++ * (except for trimming surrounding whitespace). */
++SELECT bool_and(btrim(before, E'\t\n\r ') = after) FROM (
++	SELECT
++		string AS before,
++		json_path(('  [ ' || string || '  ] ')::json, '$.[0]')::text AS after
++	FROM json_valid_test_strings
++) AS subquery;
++
++
++-- Make sure json_validate works
++SELECT json_validate(string), string FROM json_test_strings;
++
++
++/*** json_get ***/
++
++SELECT json_get('{"key": "value", "key2": "value2"}', 'key');
++SELECT json_get('{"key": "value", "key": "value2"}', 'key');
++
++/* These each return no result because 0 is a number
++   (indicating a numeric subscript),
++   not a string (indicating an object subscript). */
++SELECT json_get('{"0": "value", "key": "value"}', '0');
++SELECT json_get('{"0": "value", "0": "value"}', '[0]');
++SELECT json_get('{"0": "value", "0": "value"}', '.0');
++
++SELECT json_get('{"0": "value", "1": "value"}', '["0"]');
++SELECT json_get('{"0": "value", "0": "value"}', '["0"]');
++
++SELECT json_get('[0,1,2,3]', '0');
++SELECT json_get('[0,1,2,3]', '"0"');
++SELECT json_get('[0,1,2,3]', '*');
++SELECT json_get('[0]', '*');
++SELECT json_get('[[0]]', '..*');
++
++
++/*** json_set ***/
++
++SELECT json_set('[1,2,3]', '[1]', 5::json);
++SELECT json_set('[1,2,3]', '[3]', 5::json);
++SELECT json_set('[1,2,3]', '[2]', 5::json);
++SELECT json_set('[1,2,3]', '[2]', '[0,1]'::json);
++SELECT json_set('  [ 1 ,   2,3]', '1', '5');
++SELECT json_set('  [ 1 ,   [2,3],3]', '1', '5');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[1][0]', '5');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[5][0]', '5');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[4][0]', '5');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[3][0]', '5');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[2][0]', '5');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ],3]', '[1][0]', '   5  ');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1][0]', '   5  ');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][0]', '   5  ');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][0]', '     5  ');
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][0]', $$     "hello\tworld"  $$);
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][0]', $$     "hello\u0009world"  $$);
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '[1 ][*]', $$     "hello\u0009world"  $$);
++SELECT json_set('  [ 1 ,   [  2 ,   3     ]  , 3  ] ', '$', $$     "hello\u0009world"  $$);
++SELECT json_set('       [ 1 ,   [  2 ,   3     ]  , 3  ] ', '$', $$     "hello\u0009world"  $$);
++
++-- Since JavaScript doesn't do anything when you assign to a character subscript,
++-- neither will json_set.
++SELECT json_set('"hello"', '[0]', '"H"');
++SELECT json_set('"hello"', '[0][0]', '"H"');
++SELECT json_set('["hello"]', '[0][0]', '"H"');
++SELECT json_set('["hello"]', '[0][0][0]', '"H"');
++
++SELECT json_set('[0,1,2,[3,4,5],4]', '$[*]', '["set"]');
++SELECT json_set('[0,1,2,[3,4,5],4]', '$[*][*]', '["set"]');
++SELECT json_set('[0,1,2,[3,4,5],4]', '$..[*]', '["set"]');
++
++
++/*** json_path ***/
++
++SELECT parse_json_path('..');
++SELECT parse_json_path('..*');
++SELECT parse_json_path('.*');
++SELECT parse_json_path('');
++SELECT parse_json_path('$.*');
++SELECT parse_json_path('$');
++SELECT parse_json_path('$*');
++SELECT parse_json_path('*');
++SELECT parse_json_path($$ .. [ 025  ] $$);
++SELECT parse_json_path($$ $ . 0 . 3 $$);
++SELECT parse_json_path($$ $ . 0_3 $$);
++SELECT parse_json_path($$ $ . 0.3 $$);
++SELECT parse_json_path($$ .. [ 031  ] $$);
++SELECT parse_json_path($$ $ . 0 . 3 . hello $$);
++SELECT parse_json_path($$ $ . 0 . 3 . hello . "back\\slash" $$);
++SELECT parse_json_path($$ $ . 0 . 3 . hello . ["back\\slash"] $$);
++SELECT parse_json_path($$ $ . 0 . 3 . hello . back\slash $$);
++SELECT parse_json_path($$ $ . 0 . 3 . hello . backslash $$);
++SELECT parse_json_path($$ .. [ 0x31  ] $$);
++SELECT parse_json_path($$ [ 0x31  ] $$);
++SELECT parse_json_path($$ _3 $$);
++SELECT parse_json_path($$ _3_ $$);
++SELECT parse_json_path($$ [ _3 ] $$);
++SELECT parse_json_path($$ $ _3 $$);
++SELECT parse_json_path($$ $ . _3 $$);
++SELECT parse_json_path('..["5"]');
++SELECT parse_json_path('..[5]');
++SELECT parse_json_path('..5');
++SELECT parse_json_path($$ .. [ -5  ] $$);
++SELECT parse_json_path($$ .. [ "5"  ] $$);
++SELECT parse_json_path($$ .. [ +5  ] $$);
++SELECT parse_json_path($$ .. [ 5  ] $$);
++SELECT parse_json_path($$ .. ["5"] $$);
++SELECT parse_json_path($$ ..["5"] $$);
++SELECT parse_json_path($$ [ "5" ] $$);
++SELECT parse_json_path($$ [ 5 ] $$);
++SELECT parse_json_path('."hello"');
++SELECT parse_json_path('.hello');
++SELECT parse_json_path('...["hello world"]');
++SELECT parse_json_path('..["hello world"]');
++SELECT parse_json_path('."hello world"');
++SELECT parse_json_path('.["hello world"]');
++SELECT parse_json_path('.hello world');
++SELECT parse_json_path('..["hello world"]["5"]');
++SELECT parse_json_path('..["hello world"][5]');
++SELECT parse_json_path('..["hello world"][5]..[3]..*.[*]');
++SELECT parse_json_path('..["hello world"][5]..[3]..*');
++SELECT parse_json_path('..["hello world"][5]..[3]');
++SELECT parse_json_path('..["hello world"][5]..[3]*');
++SELECT parse_json_path($$
++	.. [ '"hello"\\"world"' ]
++	[ 5 ] .. [3] . * [ * ]
++$$);
++
++select parse_json_path('$char');
++select parse_json_path('$.char');
++select parse_json_path('$.char()');
++select parse_json_path('$.char(5)');
++select parse_json_path('$.char(  -1  )');
++select parse_json_path('$.char(  -1  )  . char(0)');
++select parse_json_path('$.char(  -1  )  . char  ( 0 )  ');
++select parse_json_path('$.char(  +1  )  . char  ( 0 )  ');
++select parse_json_path('$ . char(  +1  )  . char  ( 0 )  ');
++select parse_json_path('$ .. char(  +1  )  . char  ( 0 )  ');
++select parse_json_path('$ .. char(  +1  )  .. char  ( 0 )  ');
++select parse_json_path('$ . char(  +1  )  .. char  ( 0 )  ');
++select parse_json_path('$ . char(  +1  )  char  ( 0 )  ');
++select parse_json_path('$ char(  +1  )  char  ( 0 )  ');
++select parse_json_path('char(  +1  )  . char  ( 0 )  ');
++select parse_json_path('.char(  +1  )  . char  ( 0 )  ');
++select parse_json_path('..char(  +1  )  . char  ( 0 )  ');
++select parse_json_path('...char(  +1  )  . char  ( 0 )  ');
++select parse_json_path('[char(5)]');
++
++SELECT json_path($$"⁰¹\u0000³"$$, 'char(0)');
++SELECT json_path($$"⁰¹\u0000³"$$, 'char(1)');
++SELECT json_path($$"⁰¹\u0000³"$$, 'char(2)');
++SELECT json_path($$"⁰¹\u0000³"$$, 'char(3)');
++SELECT json_path('"0123"', 'char(-1)');
++SELECT json_path('"0123"', 'char(0)');
++SELECT json_path('"0123"', 'char(1)');
++SELECT json_path('"0123"', 'char(2)');
++SELECT json_path('"0123"', 'char(3)');
++SELECT json_path('"0123"', 'char(4)');
++SELECT json_path('"⁰¹²³"', 'char(0)');
++SELECT json_path('"⁰¹²³"', 'char(1)');
++SELECT json_path('"⁰¹²³"', 'char(2)');
++SELECT json_path('"⁰¹²³"', 'char(3)');
++SELECT json_path('[1,2,3]', '$');
++SELECT json_path('[1,2,3]', '$.+1');
++SELECT json_path('[1,2,3]', '$.-1');
++SELECT json_path('[1,2,3]', '$.0');
++SELECT json_path('[1,2,3]', '$.1');
++SELECT json_path('[1,2,3]', '$.2');
++SELECT json_path('[1,2,3]', '$.3');
++SELECT json_path('[1,2,3]', '*');
++SELECT json_path('[1,2,3]', '[0]');
++SELECT json_path('[1,2,3]', '[1]');
++SELECT json_path('[1,2,3]', '[2]');
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', $$['2']$$);
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '["0"]');
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '["1"]');
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '["2"]');
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '[0]');
++SELECT json_path('{"0": "zero", "1": "one", "2": "two"}', '[1]');
++
++-- Multiple JSONPath results are listed in BFS order
++-- (just because it's easier to implement efficiently than DFS)
++SELECT json_path('[0,1,[2, [3,4 , 5],6,[7,8],9],10]', '$..*');
++
++
++CREATE TABLE sample (json JSON);
++INSERT INTO sample VALUES ($$
++{
++	"store": {
++		"books": [
++			{
++				"title": "book 0",
++				"author": "author 0",
++				"prices": [1,2,3]
++			}, {
++				"title": "book 1",
++				"author": "author 1",
++				"prices": [4,5,6]
++			}, {
++				"title": "book 2",
++				"author": "author 2",
++				"prices": [7,8,9]
++			}
++		],
++		"toys": [
++			"Yo-yo",
++			"Boomerang",
++			"Basketball"
++		]
++	}
++}
++$$);
++
++SELECT json_path(json, 'store.books[*]') FROM sample;
++SELECT json_path(json, 'store.books[*].title') FROM sample;
++SELECT json_path(json, 'store.books[*].author') FROM sample;
++SELECT json_path(json, 'store.books[*].prices') FROM sample;
++SELECT json_path(json, 'store.books[*].prices[*]') FROM sample;
++SELECT json_path(json, 'store.toys[*]') FROM sample;
++SELECT json_path(json, 'store.toys[*][0]') FROM sample;
++SELECT json_path(json, 'store.toys[*][1]') FROM sample;
++SELECT json_path(json, 'store.toys[*][0][0]') FROM sample;
++SELECT json_path(json, 'store.toys[*][0][1]') FROM sample;
++
++SELECT json_path(json, '..books') FROM sample;
++SELECT json_path(json, '..books[*]') FROM sample;
++SELECT json_path(json, '..title') FROM sample;
++SELECT json_path(json, '..author') FROM sample;
++SELECT json_path(json, '..prices[*]') FROM sample;
++SELECT json_path(json, '..toys[*]') FROM sample;
++SELECT json_path(json, '..toys..[*]') FROM sample;
++
++SELECT json_path(json, '..[-1]') FROM sample;
++SELECT json_path(json, '..[0]') FROM sample;
++SELECT json_path(json, '..[1]') FROM sample;
++SELECT json_path(json, '..[2]') FROM sample;
++SELECT json_path(json, '..[3]') FROM sample;
++
++SELECT json_path(json, '$') FROM sample;
++SELECT json_path(json, '..*') FROM sample;
++
++SELECT json_path(json, '..char(-1)') FROM sample;
++SELECT json_path(json, '..char(0)') FROM sample;
++SELECT json_path(json, '..char(1)') FROM sample;
++SELECT json_path(json, '..char(2)') FROM sample;
++SELECT json_path(json, '..char(3)') FROM sample;
++SELECT json_path(json, '..char(100)') FROM sample;
++
++
++/*** json_condense ***/
++
++SELECT json_condense('"hello"');
++SELECT json_condense($$"hello\u266Bworld"$$);
++SELECT json_condense($$"hello\u266bworld"$$);
++SELECT json_condense($$"hello♫world"$$);
++SELECT json_condense($$      "hello world"    $$);
++SELECT json_condense($$    {  "hello" : "world"}    $$);
++SELECT json_condense($$    {  "hello" : "world", "bye": 0.0001  }    $$);
++SELECT json_condense($$    {  "hello" : "world",
++								"bye": 0.0000001
++}    $$);
++SELECT json_condense($$    {  "hello" : "world"
++,
++"bye"
++: [-0.1234e1, 12345e0]		}    $$);
++
++
++
+diff --git a/src/test/regress/sql/json_test_strings.sql b/src/test/regress/sql/json_test_strings.sql
+new file mode 100644
+index 0000000..e64bdd1
+--- /dev/null
++++ b/src/test/regress/sql/json_test_strings.sql
+@@ -0,0 +1,221 @@
++/*
++ * This is not a test.  It is the set of
++ * test strings used by the json.sql test.
++ */
++
++CREATE TABLE json_test_strings (string TEXT);
++INSERT INTO json_test_strings VALUES ($$$$);
++INSERT INTO json_test_strings VALUES ($$  $$);
++INSERT INTO json_test_strings VALUES ($$"$$);
++INSERT INTO json_test_strings VALUES ($$[,]$$);
++INSERT INTO json_test_strings VALUES ($$[)$$);
++INSERT INTO json_test_strings VALUES ($$[]]$$);
++INSERT INTO json_test_strings VALUES ($$[}$$);
++INSERT INTO json_test_strings VALUES ($${,}$$);
++INSERT INTO json_test_strings VALUES ($${]$$);
++INSERT INTO json_test_strings VALUES ($$["1":2]$$);
++INSERT INTO json_test_strings VALUES ($$[1,2,]$$);
++INSERT INTO json_test_strings VALUES ($$[1:2}$$);
++INSERT INTO json_test_strings VALUES ($${"1":2,}$$);
++INSERT INTO json_test_strings VALUES ($${1:2}$$);
++INSERT INTO json_test_strings VALUES ($${"1":2, "2.5" : [3, 4, {}, {"5": ["6"], [7 ]}]}$$);
++INSERT INTO json_test_strings VALUES ($${"1":2, "2.5" : [3, 4, {}, {"5": ["6"], [7]}]}$$);
++INSERT INTO json_test_strings VALUES ($${"1":2, "2.5" : [3, 4, {}, {"5": ["6"], "7" :[8 ]}]$$);
++INSERT INTO json_test_strings VALUES ($${"1":2, "2.5" : [3, 4, {}, {"5": ["6"], "7" :[8 ]}]]$$);
++INSERT INTO json_test_strings VALUES ($${"1":2, "3":4$$);
++INSERT INTO json_test_strings VALUES ($$"1\u2"$$);
++INSERT INTO json_test_strings VALUES ($$[,2]$$);
++INSERT INTO json_test_strings VALUES ($$"3$$);
++INSERT INTO json_test_strings VALUES ($$"3" "4"$$);
++INSERT INTO json_test_strings VALUES ($$[3[4]$$);
++INSERT INTO json_test_strings VALUES ($$[3[4]]$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4, [5], 6] 7, 8 9]$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4, [5], 6] 7, 8, 9]$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4, [5], 6], 7, 8 9]$$);
++INSERT INTO json_test_strings VALUES ($${"hello":true, "bye":false, null}$$);
++INSERT INTO json_test_strings VALUES ($${"hello":true, "bye":false, null:null}$$);
++INSERT INTO json_test_strings VALUES ($$"hi$$);
++INSERT INTO json_test_strings VALUES ($$"hi"""$$);
++INSERT INTO json_test_strings VALUES ($${"hi": "bye"]$$);
++INSERT INTO json_test_strings VALUES ($$"\uD800\uD800"$$);
++INSERT INTO json_test_strings VALUES ($$"\uD800\uDBFF"$$);
++INSERT INTO json_test_strings VALUES ($$"\UD834\UDD1E"$$);
++INSERT INTO json_test_strings VALUES ($$"\uDB00"$$);
++INSERT INTO json_test_strings VALUES ($$"\uDB00\uDBFF"$$);
++INSERT INTO json_test_strings VALUES ($$"\uFFFE"$$);
++INSERT INTO json_test_strings VALUES ($$"\uFFFF"$$);
++INSERT INTO json_test_strings VALUES ($$.$$);
++INSERT INTO json_test_strings VALUES ($$""$$);
++INSERT INTO json_test_strings VALUES ($$[]$$);
++INSERT INTO json_test_strings VALUES ($${}$$);
++INSERT INTO json_test_strings VALUES ($$+.$$);
++INSERT INTO json_test_strings VALUES ($$0.5$$);
++INSERT INTO json_test_strings VALUES ($$0.e1$$);
++INSERT INTO json_test_strings VALUES ($${"1":{}}$$);
++INSERT INTO json_test_strings VALUES ($${"1":2}$$);
++INSERT INTO json_test_strings VALUES ($${"1":2, "2.5" : [3, 4, {}, {"5": ["6"]}]}$$);
++INSERT INTO json_test_strings VALUES ($${"1":2, "2.5" : [3, 4, {}, {"5": ["6"], "7" :[8 ]}]}$$);
++INSERT INTO json_test_strings VALUES ($$1234$$);
++INSERT INTO json_test_strings VALUES ($$-1234$$);
++INSERT INTO json_test_strings VALUES ($${"1":2, "3":4}$$);
++INSERT INTO json_test_strings VALUES ($$+1234$$);
++INSERT INTO json_test_strings VALUES ($$++1234$$);
++INSERT INTO json_test_strings VALUES ($$123.456e14234$$);
++INSERT INTO json_test_strings VALUES ($$123.456e-14234$$);
++INSERT INTO json_test_strings VALUES ($$123.456e+14234$$);
++INSERT INTO json_test_strings VALUES ($$123.e-14234$$);
++INSERT INTO json_test_strings VALUES ($$"1\u2000"$$);
++INSERT INTO json_test_strings VALUES ($$"1\u20001"$$);
++INSERT INTO json_test_strings VALUES ($$2$$);
++INSERT INTO json_test_strings VALUES ($$.246e-14234$$);
++INSERT INTO json_test_strings VALUES ($$.2e-14234$$);
++INSERT INTO json_test_strings VALUES ($$3$$);
++INSERT INTO json_test_strings VALUES ($$.3$$);
++INSERT INTO json_test_strings VALUES ($$"3"$$);
++INSERT INTO json_test_strings VALUES ($$[3]$$);
++INSERT INTO json_test_strings VALUES ($$+3.$$);
++INSERT INTO json_test_strings VALUES ($$3.2e+1$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4]]$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4, [5]]]$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4, [5], 6]]$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4, [5], 6], 7]$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4, [5], 6], 7, 8]$$);
++INSERT INTO json_test_strings VALUES ($$[3, [4, [5], 6], 7, 8, 9]$$);
++INSERT INTO json_test_strings VALUES ($$+3.5$$);
++INSERT INTO json_test_strings VALUES ($$.3e$$);
++INSERT INTO json_test_strings VALUES ($$.3e1$$);
++INSERT INTO json_test_strings VALUES ($$.3e-1$$);
++INSERT INTO json_test_strings VALUES ($$.3e+1$$);
++INSERT INTO json_test_strings VALUES ($$3.e1$$);
++INSERT INTO json_test_strings VALUES ($$3.e+1$$);
++INSERT INTO json_test_strings VALUES ($$3e+1$$);
++INSERT INTO json_test_strings VALUES ($$.5$$);
++INSERT INTO json_test_strings VALUES ($$+.5$$);
++INSERT INTO json_test_strings VALUES ($$.5e+1$$);
++INSERT INTO json_test_strings VALUES ($$[ 7]$$);
++INSERT INTO json_test_strings VALUES ($$[7 ]$$);
++INSERT INTO json_test_strings VALUES ($$[7]$$);
++INSERT INTO json_test_strings VALUES ($$.e-14234$$);
++INSERT INTO json_test_strings VALUES ($$"hello"$$);
++INSERT INTO json_test_strings VALUES ($$["hello"]$$);
++INSERT INTO json_test_strings VALUES ($$["hello", "bye"]$$);
++INSERT INTO json_test_strings VALUES ($$["hello", "bye\n"]$$);
++INSERT INTO json_test_strings VALUES ($$["hello", "bye\n\r\t"]$$);
++INSERT INTO json_test_strings VALUES ($$["hello", "bye\n\r\t\b"]$$);
++INSERT INTO json_test_strings VALUES ($$["hello", "bye\n\r\t\b",true]$$);
++INSERT INTO json_test_strings VALUES ($$["hello", "bye\n\r\t\b",true , false]$$);
++INSERT INTO json_test_strings VALUES ($$["hello", "bye\n\r\t\b",true , false,    null]$$);
++INSERT INTO json_test_strings VALUES ($$["hello", "bye\n\r\t\v"]$$);
++INSERT INTO json_test_strings VALUES ($${"hello":true}$$);
++INSERT INTO json_test_strings VALUES ($${"hello":true, "bye":false}$$);
++INSERT INTO json_test_strings VALUES ($${"hello":true, "bye":false, "foo":["one","two","three"]}$$);
++INSERT INTO json_test_strings VALUES ($$"hi"$$);
++INSERT INTO json_test_strings VALUES ($$["hi"]$$);
++INSERT INTO json_test_strings VALUES ($$["hi", "bye"]$$);
++INSERT INTO json_test_strings VALUES ($${"hi": "bye"}$$);
++INSERT INTO json_test_strings VALUES ($$["hi", "bye", 3]$$);
++INSERT INTO json_test_strings VALUES ($$["hi", "bye[", 3]$$);
++INSERT INTO json_test_strings VALUES ($$"\u0007"$$);
++INSERT INTO json_test_strings VALUES ($$"\u0008"$$);
++INSERT INTO json_test_strings VALUES ($$"\u0009"$$);
++INSERT INTO json_test_strings VALUES ($$"\u0010"$$);
++INSERT INTO json_test_strings VALUES ($$"\u0020"$$);
++INSERT INTO json_test_strings VALUES ($$"\u10000"$$);
++INSERT INTO json_test_strings VALUES ($$"\u1234"$$);
++INSERT INTO json_test_strings VALUES ($$"\u99999"$$);
++INSERT INTO json_test_strings VALUES ($$"\ud800\udc00"$$);
++INSERT INTO json_test_strings VALUES ($$"\uD800\uDC00"$$);
++INSERT INTO json_test_strings VALUES ($$"\uD834\uDD1E"$$);
++INSERT INTO json_test_strings VALUES ($$"\uDBFF\uDFFF"$$);
++INSERT INTO json_test_strings VALUES ($$"\uFFFD"$$);
++INSERT INTO json_test_strings VALUES ($$"\uFFFF"$$);
++INSERT INTO json_test_strings VALUES ($$hello$$);
++INSERT INTO json_test_strings VALUES ($$[32, 1]$$);
++INSERT INTO json_test_strings VALUES ($$[32, $$);
++INSERT INTO json_test_strings VALUES ($$"\uD800\uDC00"$$);
++INSERT INTO json_test_strings VALUES ($$"\n"$$);
++INSERT INTO json_test_strings VALUES ($$"hello"$$);
++INSERT INTO json_test_strings VALUES ($$"hello\u0009world"$$);
++INSERT INTO json_test_strings VALUES ($$"hello"$$);
++INSERT INTO json_test_strings VALUES ($$"hello\n"$$);
++INSERT INTO json_test_strings VALUES ($$"hello"$$);
++INSERT INTO json_test_strings VALUES ($$3$$);
++INSERT INTO json_test_strings VALUES ($$3.$$);
++INSERT INTO json_test_strings VALUES ($$.3$$);
++INSERT INTO json_test_strings VALUES ($$0.3$$);
++INSERT INTO json_test_strings VALUES ($$0.3e$$);
++INSERT INTO json_test_strings VALUES ($$0.3e+$$);
++INSERT INTO json_test_strings VALUES ($$0.3e+5$$);
++INSERT INTO json_test_strings VALUES ($$0.3e-5$$);
++INSERT INTO json_test_strings VALUES ($$0.3e5$$);
++INSERT INTO json_test_strings VALUES ($$"hello"$$);
++INSERT INTO json_test_strings VALUES ($$+3$$);
++INSERT INTO json_test_strings VALUES ($$-3$$);
++INSERT INTO json_test_strings VALUES ($$-3.$$);
++INSERT INTO json_test_strings VALUES ($$-3.1$$);
++INSERT INTO json_test_strings VALUES ($$.5$$);
++INSERT INTO json_test_strings VALUES ($$5.$$);
++INSERT INTO json_test_strings VALUES ($$5.e1$$);
++INSERT INTO json_test_strings VALUES ($$0.5$$);
++INSERT INTO json_test_strings VALUES ($$.3e1$$);
++INSERT INTO json_test_strings VALUES ($$.3e+1$$);
++INSERT INTO json_test_strings VALUES ($$.3e-1$$);
++INSERT INTO json_test_strings VALUES ($$.3e-1 .5$$);
++INSERT INTO json_test_strings VALUES ($$.3e-1.5$$);
++INSERT INTO json_test_strings VALUES ($$.3e+1.5$$);
++INSERT INTO json_test_strings VALUES ($$.3e+.$$);
++INSERT INTO json_test_strings VALUES ($$.3e+.5$$);
++INSERT INTO json_test_strings VALUES ($$.3e+1.5$$);
++INSERT INTO json_test_strings VALUES ($$9.3e+1.5$$);
++INSERT INTO json_test_strings VALUES ($$9.e+1.5$$);
++INSERT INTO json_test_strings VALUES ($$9.e+$$);
++INSERT INTO json_test_strings VALUES ($$9.e+1$$);
++INSERT INTO json_test_strings VALUES ($$"\""$$);
++INSERT INTO json_test_strings VALUES ($$"\"3.5"$$);
++INSERT INTO json_test_strings VALUES ($$"\"."$$);
++INSERT INTO json_test_strings VALUES ($$"\".".$$);
++INSERT INTO json_test_strings VALUES ($$"\"....."$$);
++INSERT INTO json_test_strings VALUES ($$"\"\"\"\"""$$);
++INSERT INTO json_test_strings VALUES ($$["\"\"\"\"", .5]$$);
++INSERT INTO json_test_strings VALUES ($$[.5]$$);
++INSERT INTO json_test_strings VALUES ($$["\"\"\"\"", 0.5]$$);
++INSERT INTO json_test_strings VALUES ($$["\"\"\"\"", .5]$$);
++INSERT INTO json_test_strings VALUES ($$["\"\"\"\"",.5]$$);
++INSERT INTO json_test_strings VALUES ($$["\"",.5]$$);
++INSERT INTO json_test_strings VALUES ($$["\".5",.5]$$);
++INSERT INTO json_test_strings VALUES ($$["\".5",".5\"".5]$$);
++INSERT INTO json_test_strings VALUES ($$["\".5",".5\"", .5]$$);
++INSERT INTO json_test_strings VALUES ($$["\".5",".5\"",.5]$$);
++INSERT INTO json_test_strings VALUES ($$["\".5",".5\"",0.5]$$);
++INSERT INTO json_test_strings VALUES ($${"key":/*comment*/"value"}$$);
++INSERT INTO json_test_strings VALUES ($${"key":/*comment"value"}$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}/*$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}/**/$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}/***/$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}/**//$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}/**///$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}/**///----$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}#$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}#{$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}#{}$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"}#,$$);
++INSERT INTO json_test_strings VALUES ($${"key":"value"/**/, "k2":"v2"}$$);
++INSERT INTO json_test_strings VALUES ($$"\u0027"$$);
++INSERT INTO json_test_strings VALUES ($$"hello\'"$$);
++INSERT INTO json_test_strings VALUES ($$'hello\''$$);
++INSERT INTO json_test_strings VALUES ($$'hello'$$);
++INSERT INTO json_test_strings VALUES ($$'hell\'o'$$);
++INSERT INTO json_test_strings VALUES ($$'\'hello'$$);
++INSERT INTO json_test_strings VALUES ($$'\'hello\''$$);
++INSERT INTO json_test_strings VALUES ($$\'hello\'$$);
++INSERT INTO json_test_strings VALUES ($$'hello\'$$);
++INSERT INTO json_test_strings VALUES ($$['hello\']$$);
++INSERT INTO json_test_strings VALUES ($$['hello\'']$$);
++INSERT INTO json_test_strings VALUES ($$['hello"']$$);
++INSERT INTO json_test_strings VALUES ($$['hello\"']$$);
++INSERT INTO json_test_strings VALUES ($$['hello"o']$$);
++INSERT INTO json_test_strings VALUES ($$['"']$$);
++INSERT INTO json_test_strings VALUES ($$'"'$$);
++INSERT INTO json_test_strings VALUES ($$'"hello"'$$);
++INSERT INTO json_test_strings VALUES ($$'"hello'$$);
++INSERT INTO json_test_strings VALUES ($$'"hi"'$$);

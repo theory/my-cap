@@ -1,0 +1,219 @@
+diff --git a/doc/src/sgml/datatype.sgml b/doc/src/sgml/datatype.sgml
+index 548a3d7..59063f3 100644
+--- a/doc/src/sgml/datatype.sgml
++++ b/doc/src/sgml/datatype.sgml
+@@ -137,6 +137,12 @@
+       </row>
+ 
+       <row>
++       <entry><type>json</type></entry>
++       <entry></entry>
++       <entry>JSON-encoded value</entry>
++      </row>
++
++      <row>
+        <entry><type>line</type></entry>
+        <entry></entry>
+        <entry>infinite line on a plane</entry>
+@@ -4121,6 +4127,8 @@ SET xmloption TO { DOCUMENT | CONTENT };
+    </para>
+    </sect2>
+   </sect1>
++  
++  &json;
+ 
+   &array;
+ 
+diff --git a/doc/src/sgml/filelist.sgml b/doc/src/sgml/filelist.sgml
+index 98f7470..f871328 100644
+--- a/doc/src/sgml/filelist.sgml
++++ b/doc/src/sgml/filelist.sgml
+@@ -22,6 +22,7 @@
+ <!entity dml        SYSTEM "dml.sgml">
+ <!entity func       SYSTEM "func.sgml">
+ <!entity indices    SYSTEM "indices.sgml">
++<!entity json       SYSTEM "json.sgml">
+ <!entity mvcc       SYSTEM "mvcc.sgml">
+ <!entity perform    SYSTEM "perform.sgml">
+ <!entity queries    SYSTEM "queries.sgml">
+diff --git a/doc/src/sgml/json.sgml b/doc/src/sgml/json.sgml
+new file mode 100644
+index 0000000..4e9402f
+--- /dev/null
++++ b/doc/src/sgml/json.sgml
+@@ -0,0 +1,173 @@
++<sect1 id="datatype-json">
++ <title><acronym>JSON</> Type</title>
++
++ <indexterm zone="datatype-json">
++  <primary>JSON</primary>
++ </indexterm>
++
++ <para>
++  The <type>json</> data type can be used to store <ulink url="http://www.json.org/">JSON</ulink> data in <productname>PostgreSQL</>.  Its advantage over storing JSON data in a <type>text</> field is that it ensures input is valid JSON, and there are several type-safe functions for manipulating JSON content.
++ </para>
++
++ <para>
++  The <type>json</> type stores valid JSON <quote>values</quote> as defined by <ulink url="http://json.org/">json.org</ulink>.  This means that it can hold a string, number, object, array, 'true', 'false', or 'null'.  Note that the <ulink url="http://www.ietf.org/rfc/rfc4627.txt">JSON RFC</ulink> states that a JSON text can only be an object or array, and that some applications do not handle bare JSON values (values not wrapped in an object or array) well or at all.  The reason the <type>json</> type allows encoding bare values is because selection operations like <literal>json_get('[1,2,3]', '[0]')</literal> wouldn't make much sense otherwise.
++ </para>
++
++ <para>
++  The <type>json</> data type should be thought of as a specialization of <type>text</type> rather than a wrapper around <type>text</>, <type>int</>, <type>float</>, etc.  For instance, <literal>' "string" '::json::text</literal> will simply yield <literal>' "string" '</literal>.  Also, bear in mind that JSON null (<literal>'null'::json</literal>) and SQL NULL (<literal>NULL::json</literal>) are two different things.
++ </para>
++
++ <sect2>
++  <title><type>json</> Functions</title>
++
++  <table id="json-func-table">
++   <title><type>json</type> Functions</title>
++
++   <tgroup cols="5">
++    <thead>
++     <row>
++      <entry>Function</entry>
++      <entry>Return Type</entry>
++      <entry>Description</entry>
++      <entry>Example</entry>
++      <entry>Result</entry>
++     </row>
++    </thead>
++
++    <tbody>
++     <row>
++      <entry morerows="1"><function>to_json(anyelement)</function></entry>
++      <entry morerows="1"><type>json</type></entry>
++      <entry morerows="1">Encode a value as JSON.</entry>
++      <entry><literal>to_json('string'::TEXT)</literal></entry>
++      <entry><literal>'"string"'</literal></entry>
++     </row>
++     <row>
++      <entry><literal>to_json(array['one','two','three',null]::text[])</literal></entry>
++      <entry><literal>'["one","two","three",null]'</literal></entry>
++     </row>
++     <row>
++      <entry><function>from_json(json)</function></entry>
++      <entry><type>text</type></entry>
++      <entry>Decode a JSON-encoded value.</entry>
++      <entry><literal>from_json('"string"')</literal></entry>
++      <entry><literal>'string'</literal></entry>
++     </row>
++     <row>
++      <entry morerows="1"><function>json_validate(text)</function></entry>
++      <entry morerows="1"><type>boolean</type></entry>
++      <entry morerows="1">Determine if text is valid JSON.</entry>
++      <entry><literal>json_validate('{key: "value"}')</literal></entry>
++      <entry><literal>false</literal></entry>
++     </row>
++     <row>
++      <entry><literal>json_validate('{"key": "value"}')</literal></entry>
++      <entry><literal>true</literal></entry>
++     </row>
++     <row>
++      <entry morerows="2"><function>json_get(json, jsonpath text)</function></entry>
++      <entry morerows="2"><type>json</type></entry>
++      <entry morerows="2">Select a single value from a JSON tree using a JSONPath expression.</entry>
++      <entry><literal>json_get('[0,1,2]', '$[1]')</literal></entry>
++      <entry><literal>'1'</literal></entry>
++     </row>
++     <row>
++      <entry><literal>json_get('[0,1,2]', '$[100]')</literal></entry>
++      <entry><literal>NULL</literal></entry>
++     </row>
++     <row>
++      <entry><literal>json_get('[0,1,2]', '$[*]')</literal></entry>
++      <entry><literal>Error</literal></entry>
++     </row>
++     <row>
++      <entry morerows="2"><function>json_set(json, jsonpath text, json)</function></entry>
++      <entry morerows="2"><type>json</type></entry>
++      <entry morerows="2">Set items in a JSON tree that match a JSONPath expression.</entry>
++      <entry><literal>json_set('[0,1,2]', '$[1]', '"x"')</literal></entry>
++      <entry><literal>'[0,"x",2]'</literal></entry>
++     </row>
++     <row>
++      <entry><literal>json_set('[0,1,2]', '$[100]', '"x"')</literal></entry>
++      <entry><literal>'[0,1,2]'</literal></entry>
++     </row>
++     <row>
++      <entry><literal>json_set('[0,1,2]', '$[*]', '"x"')</literal></entry>
++      <entry><literal>'["x","x","x"]'</literal></entry>
++     </row>
++     <row>
++      <entry morerows="2"><function>json_path(json, jsonpath text)</function></entry>
++      <entry morerows="2"><type>setof json</type></entry>
++      <entry morerows="2">Select multiple values from a JSON tree using a JSONPath expression.</entry>
++      <entry><literal>json_path('[0,1,2]', '$[1]')</literal></entry>
++      <entry>
++<programlisting>
++ 1
++(1 row)
++</programlisting>
++      </entry>
++     </row>
++     <row>
++      <entry><literal>json_path('[0,1,2]', '$[100]')</literal></entry>
++      <entry>
++<programlisting>
++(0 rows)
++</programlisting>
++      </entry>
++     </row>
++     <row>
++      <entry><literal>json_path('[0,1,2]', '$[*]')</literal></entry>
++      <entry>
++<programlisting>
++ 0
++ 1
++ 2
++(3 rows)
++</programlisting>
++      </entry>
++     </row>
++     <row>
++      <entry morerows="1"><function>json_condense(json)</function></entry>
++      <entry morerows="1"><type>json</type></entry>
++      <entry morerows="1">Re-encodes JSON to form a string with minimal length (mainly removes whitespace).</entry>
++      <entry><literal>json_condense('    {  "key" : "value"}    ')</literal></entry>
++      <entry><literal>'{"key":"value"}'</literal></entry>
++     </row>
++     <row>
++      <entry><literal>json_condense($$  "\u266B"  $$)</literal></entry>
++      <entry><literal>'"&#9835;"' -- if encoding supports Unicode</literal></entry>
++     </row>
++     <row>
++      <entry><function>json_type(json)</function></entry>
++      <entry><type>json_type_t</type>&nbsp;-&nbsp;&nbsp;one&nbsp;of:
++<programlisting>
++'null'
++'string'
++'number'
++'bool'
++'object'
++'array'
++</programlisting>
++      </entry>
++      <entry>Get the type of a <type>json</type> value.</entry>
++      <entry><literal>json_type('{"pi": "3.14159", "e": "2.71828"}')</literal></entry>
++      <entry><literal>'object'</literal></entry>
++     </row>
++    </tbody>
++   </tgroup>
++  </table>
++
++ </sect2>
++
++ <sect2>
++  <title>Author</title>
++
++  <para>
++   Joey Adams <email>joeyadams3.14159@gmail.com</email>
++  </para>
++  
++  <para>
++   Development of this data type was sponsored by Google through its Google Summer of Code program (<ulink url="http://code.google.com/soc">code.google.com/soc</ulink>).
++  </para>
++ </sect2>
++
++</sect1>
+diff --git a/src/backend/utils/adt/Makefile b/src/backend/utils/adt/Makefile
+index 70e21b9..141f114 100644

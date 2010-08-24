@@ -12,6 +12,7 @@ echo Unpacking $file...
 rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
+#patch -p1  < `dirname $0`/../patches/pg-json.patch
 
 # Useful tutorial from depesz:
 # http://www.depesz.com/index.php/2010/02/26/installing-postgresql/
