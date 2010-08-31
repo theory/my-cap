@@ -155,7 +155,24 @@ namespace :build do
       sudo '/etc/init.d/ntp restart'
     end
   end
-  
+
+  namespace :dyndns do
+    desc 'Install ddclient'
+    task :default, :roles => :blog do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install ddclient libio-socket-ssl-perl'
+      config
+    end
+    task :config, :roles => :blog do
+      desc 'Configure ddclient.'
+      supload 'config/ddclient.conf', '/etc/ddclient.conf', :mode => 0600
+      pass = Capistrano::CLI.password_prompt('DynDNS Password: ')
+      sudo %{perl -i -pe 's/-PASSWORD-/q{#{pass}}/e' /etc/ddclient.conf}
+      sudo %{perl -i -pe 's/run_daemon="false"/run_daemon="true"/' /etc/default/ddclient}
+#      sudo '/etc/init.d/ddclient restart'
+    end
+  end
+
   namespace :ldap do
     desc 'Install and configure OpenLDAP with Kineticode’s directory.'
     # change password:
