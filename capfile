@@ -169,6 +169,7 @@ namespace :build do
       pass = Capistrano::CLI.password_prompt('DynDNS Password: ')
       sudo %{perl -i -pe 's/-PASSWORD-/q{#{pass}}/e' /etc/ddclient.conf}
       sudo %{perl -i -pe 's/run_daemon="false"/run_daemon="true"/' /etc/default/ddclient}
+      sudo %{perl -i -pe 's/daemon_interval="300"/daemon_interval="3600"/' /etc/default/ddclient}
       sudo '/etc/init.d/ddclient restart'
     end
   end
