@@ -6,7 +6,7 @@ export BASE=/usr/local/pgsql
 
 . `dirname $0`/functions.sh
 
-setup $BASE/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
+setup $BASE/share/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
 download http://ftp9.us.postgresql.org/pub/mirrors/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
 echo Unpacking $file...
 rm -rf postgresql-$VERSION
