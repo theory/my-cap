@@ -586,6 +586,11 @@ namespace :my do
       sudol_scripts( 'geos', 'proj', 'postgis' )
     end
 
+    task :plproxy, :roles => :local do
+      pg
+      sudol_scripts( 'plproxy' )
+    end
+
     task :pgbench, :roles => :local do
       pg
       sudol_scripts( 'pgbench' )

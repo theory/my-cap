@@ -80,7 +80,7 @@ build() {
         echo Unpacking $1.tbz2...
         tar jxf $1.tbz2 || exit $?
     fi
-    
+
     if [ $2 ]; then
         cd $2
     else
