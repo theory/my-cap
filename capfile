@@ -581,6 +581,11 @@ namespace :my do
       sudol_scripts( 'postgresql' )
     end
 
+    task :postgis, :roles => :local do
+      pg
+      sudol_scripts( 'geos', 'proj', 'postgis' )
+    end
+
     task :pgbench, :roles => :local do
       pg
       sudol_scripts( 'pgbench' )
