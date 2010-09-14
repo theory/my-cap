@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export VERSION=1.3.41
-export MODSSLVERSION=2.8.31
+export VERSION=1.3.42
+export MODSSLVERSION=2.8.31-1.3.41
 
 . `dirname $0`/functions.sh
 
@@ -14,10 +14,11 @@ tar jxf apache_$VERSION.tar.bz2
 
 # Download and configure mod_ssl.
 if [ ! $NOSSL ]; then
-    download http://www.modssl.org/source/mod_ssl-$MODSSLVERSION-$VERSION.tar.gz
-    rm -rf mod_ssl-$MODSSLVERSION-$VERSION
-    tar zxf mod_ssl-$MODSSLVERSION-$VERSION.tar.gz
-    cd mod_ssl-$MODSSLVERSION-$VERSION
+    download http://www.modssl.org/source/mod_ssl-$MODSSLVERSION.tar.gz
+    rm -rf mod_ssl-$MODSSLVERSION
+    tar zxf mod_ssl-$MODSSLVERSION.tar.gz
+    cd mod_ssl-$MODSSLVERSION
+    perl -i -pe "s/1[.]3[.]41/$VERSION/g" pkg.sslmod/libssl.version
     patch -p0 < `dirname $0`/../patches/mod_ssl_dylib.patch
     ./configure --with-ssl --with-mm --with-apache=/usr/local/src/apache_$VERSION
 
