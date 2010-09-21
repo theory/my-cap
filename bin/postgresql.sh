@@ -140,7 +140,7 @@ else
 fi
 sleep 5
 
-for lang in plpgsql plperl plperlu
+for lang in plperl plperlu
 do
     $BASE/bin/createlang -U postgres $lang template1
     $BASE/bin/createlang -U postgres $lang postgres
