@@ -492,6 +492,21 @@ namespace :build do
     end
   end
 
+  namespace :pgxn do
+    task :default, :roles => :web do
+      pg
+      sudo_script 'bin/pgxn_manager.sh'
+      config
+    end
+
+    task :config, :roles => :web do
+      supload 'config/init_pgxn_manager', '/etc/init.d/pgxn_manager', :mode => 0755
+      sudo 'update-rc.d pgxn_manager defaults'
+      sudo 'mkdir -p /var/run/pgxn_manager'
+      sudo '/etc/init.d/pgxn_manager restart'
+    end
+  end
+
   namespace :ircd do
     task :default, :roles => :irc do
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
