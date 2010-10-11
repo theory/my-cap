@@ -34,7 +34,7 @@ fi
  --enable-authz-group \
  --enable-authz-user \
  $LDAP \
- --enable-mods-shared="rewrite info worker proxy deflate mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl$SLDAP" || exit $?
+ --enable-mods-shared="rewrite info worker proxy deflate headers mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl$SLDAP" || exit $?
 # Debugging Apache:
 # ./configure \
 # --prefix=/usr/local/apache2 \
