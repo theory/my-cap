@@ -4,7 +4,7 @@ export VERSION=2.12
 
 . `dirname $0`/functions.sh
 
-setup /usr/local/apache/libexec/libfoo.so
+setup /usr/local/src/libapreq2-$VERSION
 download http://apache.oregonstate.edu/httpd/libapreq/libapreq2-$VERSION.tar.gz
 rm -rf libapreq2-$VERSION
 tar zxf libapreq2-$VERSION.tar.gz || exit $?
