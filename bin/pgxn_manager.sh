@@ -26,6 +26,9 @@ else
     git clone git://github.com/theory/pgxn-manager.git `basename $BASE`
 fi
 
+# Create the config file.
+cp conf/proxied.json conf/prod.json
+
 # Build it!
 $PERL Build.PL --db_super_user postgres \
                --db_client /usr/local/pgsql/bin/psql \
