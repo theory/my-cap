@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export DVERSION=1.5.5
+export DVERSION=2.0.1
 export MVERSION=1.0.1
 . `dirname $0`/functions.sh
 
