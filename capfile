@@ -500,6 +500,12 @@ namespace :build do
       config
     end
 
+    task :up, :roles => :web do
+      sudo_script 'bin/pgxn_manager.sh'
+      sudo '/etc/init.d/pgxn_manager restart'
+      sudo '/etc/init.d/httpd restart'
+    end
+    
     task :config, :roles => :web do
       supload 'config/init_pgxn_manager', '/etc/init.d/pgxn_manager', :mode => 0755
       sudo 'update-rc.d pgxn_manager defaults'
