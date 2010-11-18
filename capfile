@@ -687,6 +687,10 @@ namespace :my do
       sudol_scripts( 'git' )
     end
 
+    task :mercurial, :roles => :local do
+      sudol_scripts( 'mercurial' )
+    end
+
     task :php, :roles => :local do
       graphics
       pg
