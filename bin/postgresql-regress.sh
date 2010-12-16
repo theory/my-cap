@@ -5,7 +5,7 @@
 export PERL=/usr/local/bin/perl
 
 setup
-for VERSION in 8.4.5 8.3.12 8.2.18 8.1.22 8.0.26
+for VERSION in 8.4.6 8.3.13 8.2.19 8.1.23 8.0.26
 do
     BASE=/usr/local/pgsql-`echo $VERSION | awk -F. '{ print $1 "." $2 }'`
     if [ ! -e "$BASE" ]; then
