@@ -5,4 +5,4 @@ perl -E 'say scalar time' > /var/www/master.pgxn.org/meta/timestamp
 echo '# Do not delete this file' >> /var/www/master.pgxn.org/meta/timestamp
 
 # Check all mirrors.
-/usr/local/pgxn/bin/check_mirrors /var/www/master.pgxn.org/meta/mirrors.json
+/var/www/manager.pgxn.org/bin/check_mirrors /var/www/master.pgxn.org/meta/mirrors.json
