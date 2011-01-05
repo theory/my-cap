@@ -502,6 +502,7 @@ namespace :build do
 
     task :up, :roles => :web do
       sudo_script 'bin/pgxn_manager.sh'
+      supload '../Corporate/config/pgxn_manager.conf', '/var/www/manager.pgxn.org/conf/prod.json'
       sudo '/etc/init.d/pgxn_manager restart'
       sudo '/etc/init.d/httpd restart'
     end
@@ -514,6 +515,7 @@ namespace :build do
       supload '../Corporate/config/manager.pgxn.org.crt', '/etc/ssl/certs/manager.pgxn.org.crt', :mode => 444
       sudo 'wget -O /etc/ssl/certs/startssl.ca.pem http://www.startssl.com/certs/ca.pem'
       sudo 'wget -O /etc/ssl/certs/sub.class1.server.ca.pem http://www.startssl.com/certs/sub.class1.server.ca.pem'
+      supload '../Corporate/config/pgxn_manager.conf', '/var/www/manager.pgxn.org/conf/prod.json'
       sudo '/etc/init.d/pgxn_manager restart'
       sudo '/etc/init.d/httpd restart'
     end
