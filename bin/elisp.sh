@@ -67,5 +67,10 @@ download http://www.astro.princeton.edu/~rhl/skyserver/sql-indent.el
 emacs -batch -f batch-byte-compile sql-indent.el
 cp sql-indent.el* /usr/local/share/emacs/site-lisp
 
+# git-commit-mode
+download https://github.com/rafl/git-commit-mode/raw/master/git-commit.el
+emacs -batch -f batch-byte-compile git-commit.el
+cp git-commit.el* /usr/local/share/emacs/site-lisp
+
 # Return to src directory.
 cd ..
