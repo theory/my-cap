@@ -3,103 +3,102 @@
 use strict;
 use warnings;
 
-use File::Spec;
-use KinoSearch::InvIndexer;
-use KinoSearch::Analysis::PolyAnalyzer;
 use File::Find;
-use Carp;
-BEGIN { $SIG{__DIE__} =  \&confess; }
-BEGIN { $SIG{__WARN__} = \&cluck; }
+use HTML::Entities;
+use KinoSearch::Plan::Schema;
+use KinoSearch::Plan::FullTextType;
+use KinoSearch::Analysis::PolyAnalyzer;
+use KinoSearch::Index::Indexer;
 
-### In order for invindexer.pl to work correctly, you must modify
-### $source_dir, $path_to_invindex, and possibly $base_url.
-###
-### $source_dir must lead to the directory containing the US
-### Constitution html files.
-###
-### $path_to_invindex is the future location of the invindex.
-###
-### $base_url should reflect the location of the us_constitution directory
-### when accessed via a web browser.
-my $source_dir       = '/var/www/justatheory.blog';
-my $path_to_invindex = '/var/www/justatheory.plugins/invindex';
-my $base_url         = '';
+my $source_dir    = '/var/www/justatheory.blog';
+my $path_to_index = '/var/www/justatheory.plugins/index';
+my $base_url      = '';
 
-### STEP 1: Choose an Analyzer.
-my $analyzer = KinoSearch::Analysis::PolyAnalyzer->new(
+# Create Schema.
+my $schema = KinoSearch::Plan::Schema->new;
+my $polyanalyzer = KinoSearch::Analysis::PolyAnalyzer->new(
     language => 'en',
 );
+my $title_type = KinoSearch::Plan::FullTextType->new(
+    analyzer => $polyanalyzer,
+    boost    => 3.0,
+);
+my $body_type = KinoSearch::Plan::FullTextType->new(
+    analyzer      => $polyanalyzer,
+    highlightable => 1,
+);
 
-### STEP 2: Create a InvIndexer object.
-my $invindexer = KinoSearch::InvIndexer->new(
-    analyzer => $analyzer,
-    invindex => $path_to_invindex,
+my $tags_type = KinoSearch::Plan::FullTextType->new(
+    analyzer => $polyanalyzer,
+    boost    => 3.0,
+);
+
+my $url_type  = KinoSearch::Plan::StringType->new( indexed => 0, );
+my $cat_type  = KinoSearch::Plan::StringType->new( stored  => 0, );
+my $time_type = KinoSearch::Plan::StringType->new( indexed => 0, );
+
+$schema->spec_field( name => 'title',     type => $title_type );
+$schema->spec_field( name => 'body',      type => $body_type );
+$schema->spec_field( name => 'url',       type => $url_type );
+$schema->spec_field( name => 'tags',      type => $tags_type );
+$schema->spec_field( name => 'category',  type => $cat_type );
+$schema->spec_field( name => 'timestamp', type => $time_type );
+
+# Create an Indexer object.
+my $indexer = KinoSearch::Index::Indexer->new(
+    index    => $path_to_index,
+    schema   => $schema,
     create   => 1,
+    truncate => 1,
 );
 
-### STEP 3: Define fields.
-$invindexer->spec_field(
-    name  => 'title',
-    boost => 3,
-);
-$invindexer->spec_field(
-    name       => 'bodytext',
-    vectorized => 1,
-);
-$invindexer->spec_field(
-    name    => 'url',
-    indexed => 0,
-);
-$invindexer->spec_field(
-    name  => 'keywords',
-    boost => 3,
-);
-$invindexer->spec_field(
-    name     => 'modtime',
-    analyzed => 0,
-);
-
-find \&wanted, $source_dir;
-
-$invindexer->finish;
-
-sub wanted {
-    return unless /\.txt$/;
-    my $filepath = $_;
-    open my $fh, '<', $filepath
-        or die "couldn't open file '$filepath': $!";
+find sub {
+    return unless /[.]txt$/;
+    my $file = $_;
+    open my $fh, '<:encoding(utf-8)', $file or die "Couldn't open $file: $!\n";
 
     (my $uri = $File::Find::name) =~ s/\.txt$/.html/;
     $uri =~ s/^$source_dir\/?//;
 
     # The title is on the first line.
     my $title = <$fh>;
-    my $keywords;
+    my $tags = '';
 
-    # Get keywords from meta-keywords: line.
+    # Get tags from meta-keywords: line.
     while (<$fh>) {
         last unless /\S/;
-        $keywords = $_ if s/^meta-keywords:\s+//;
+        $tags = $_ if s/^meta-keywords:\s+//;
     }
 
     # Get the rest of the document.
-    my $bodytext = do { local $/; <$fh> };
-    close $fh;
+    my $body = do { local $/; <$fh> };
+    close $fh or die "Couldn't close $file: $!\n";
 
-    ### STEP 4: Start a new document.
-    my $doc = $invindexer->new_doc;
+    # quick and dirty tag stripping
+    $body =~ s/<[^>]+>//gsm;
+    decode_entities $body;
 
-    $bodytext =~ s/<[^>]+>//gsm;    # quick and dirty tag stripping
+    $indexer->add_doc({
+        url       => "$base_url/$uri",
+        tags      => $tags,
+        title     => $title,
+        body      => $body,
+        category  => get_cat($uri),
+        timestamp => (stat $file)[9],
+    });
+}, $source_dir;
 
-    ### STEP 5: Set the value for each field.
-    $doc->set_value( url      => "$base_url/$uri" );
-    $doc->set_value( keywords => $keywords)  if $keywords;
-    $doc->set_value( title    => $title )    if $title;
-    $doc->set_value( bodytext => $bodytext ) if $bodytext;
-    $doc->set_value( modtime => (stat $filepath)[9] );
+# Finalize the index.
+$indexer->commit;
 
-    ### STEP 6 Add the document to the invindex.
-    $invindexer->add_doc($doc);
+sub get_cat {
+    (my $dir = shift) =~ s{/[^/]+[.]html$}{};
 
-    ### STEP 7 Repeat steps 3-5 for each document in the collection.
+    my @parts;
+    for my $part ( split m{/}, $dir ) {
+        my $name = ucfirst join ' ', map { s/((?:\b(?:vcs|svn|dbi|tv|cvs|html|os|rt|pda)\b)|sql)/\U$1/g; ucfirst } split /_+/, $part;
+        push @parts => $name;
+    }
+
+    join ' | ', @parts;
 }
