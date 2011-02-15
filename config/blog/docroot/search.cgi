@@ -183,12 +183,14 @@ sub generate_paging_info {
 # Build up the HTML "select" object for the "category" field.
 sub generate_category_select {
     my $cat = shift;
-    my $select = qq|
-      <select name="category">
-        <option value="">All Sections</option>
-        <option value="article">Articles</option>
-        <option value="amendment">Amendments</option>
-      </select>|;
+
+    my $lex_reader = $searcher->get_reader->obtain("KinoSearch::Index::LexiconReader");
+    my $lexicon = $lex_reader->lexicon(field => "category");
+    my @cats;
+    push @cats => $lexicon->get_term while $lexicon->next;
+    my $select = '<select name="category"><option value="">Full Site</option>'
+        . join( '', map { qq{<option value="$_">$_</option>} } @cats)
+        . '</select>';
     if ($cat) {
         $select =~ s/"$cat"/"$cat" selected/;
     }
@@ -208,6 +210,7 @@ sub blast_out_content {
           <form id="usconsearch" action="/search.cgi">
             <label for="q">Search Just a Theory:</label>
             <input type="text" name="q" id="q" value="$q" />
+            $category_select
             <input type="submit" value="Search"" />
             <input type="hidden" name="offset" value="0" />
           </form>

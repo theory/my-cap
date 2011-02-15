@@ -33,8 +33,11 @@ my $tags_type = KinoSearch::Plan::FullTextType->new(
     boost    => 3.0,
 );
 
+my $cat_type  = KinoSearch::Plan::FullTextType->new(
+    analyzer => KinoSearch::Analysis::Tokenizer->new
+);
+
 my $url_type  = KinoSearch::Plan::StringType->new( indexed => 0, );
-my $cat_type  = KinoSearch::Plan::StringType->new( stored  => 0, );
 my $time_type = KinoSearch::Plan::StringType->new( indexed => 0, );
 
 $schema->spec_field( name => 'title',     type => $title_type );
@@ -96,7 +99,7 @@ sub get_cat {
 
     my @parts;
     for my $part ( split m{/}, $dir ) {
-        my $name = ucfirst join ' ', map { s/((?:\b(?:vcs|svn|dbi|tv|cvs|html|os|rt|pda)\b)|sql)/\U$1/g; ucfirst } split /_+/, $part;
+        my $name = ucfirst join ' ', map { s/((?:\b(?:vcs|svn|dbi|tv|cvs|html|os|rt|pda|pgx(?:ns))\b)|sql|bsd|oscon)/\U$1/g; ucfirst } split /_+/, $part;
         push @parts => $name;
     }
 
