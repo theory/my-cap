@@ -201,7 +201,7 @@ sub blast_out_content {
     my $escaped_q = CGI::escapeHTML($query_string);
     binmode( STDOUT, ":encoding(UTF-8)" );
     print qq|Content-type: text/html; charset=UTF-8\n\n|;
-    output_template("$blosxom_dir/head.html", "Just a Theory Search: $escaped_q");
+    output_template("$blosxom_dir/head.html", "Just a Theory Search: “$escaped_q”");
     print <<"    END_HTML";
       <div class="story">
         <div class="body">
@@ -217,7 +217,7 @@ sub blast_out_content {
 
     print <<"    END_HTML" if $report;
       <div class="story">
-        <h2 id="search">Search Results for <q>$q</q></h2>
+        <h2 id="search">Search Results for “$q”</h2>
         <div class="body">
          $report
          $paging_info
