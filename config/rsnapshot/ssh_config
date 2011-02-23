@@ -1,0 +1,5 @@
+Host crocker
+  HostName crocker.kineticode.com
+  User rsync
+  IdentityFile /root/.ssh/rsnapshot
+
