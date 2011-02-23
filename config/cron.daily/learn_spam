@@ -1,0 +1,29 @@
+#!/bin/sh
+
+DELETEAFTER=86400
+EPOCH=`date +%s`
+HOME=/var/lib/spamassassin
+
+for dir in $(find /home/*/Maildir/.Junk/ -type d -name cur -o -name new); do
+    target=/tmp/`basename ${dir}`.$$
+    cp -rf ${dir} ${target}
+    sa-learn --username spamd --spam ${target}/*
+    rm -rf ${target}
+    for email in $(find $dir -type f); do
+        if [ "$(($EPOCH-`stat --printf %Y ${email}`))" -gt "$DELETEAFTER" ]; then
+            rm -f ${email}
+        fi
+    done
+done
+
+for dir in $(find /home/*/Maildir/.Ham/ -type d -name cur -o -name new); do
+    target=/tmp/`basename ${dir}`.$$
+    cp -rf ${dir} ${target}
+    sa-learn --username spamd --ham ${target}/*
+    rm -rf ${target}
+    for email in $(find $dir -type f); do
+        if [ "$(($EPOCH-`stat --printf %Y ${email}`))" -gt "$DELETEAFTER" ]; then
+            rm -f ${email}
+        fi
+    done
+done

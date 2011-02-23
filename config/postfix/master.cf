@@ -7,6 +7,7 @@
 #               (yes)   (yes)   (yes)   (never) (100)
 # ==========================================================================
 smtp      inet  n       -       -       -       -       smtpd
+        -o content_filter=spamassassin
 submission inet n       -       n       -       -       smtpd
   -o smtpd_enforce_tls=yes
   -o smtpd_sasl_auth_enable=yes
@@ -79,3 +80,7 @@ mailman   unix  -       n       n       -       -       pipe
   ${nexthop} ${user}
 spfpolicy  unix  -       n       n       -       -       spawn
   user=nobody argv=/usr/bin/perl /usr/sbin/postfix-policyd-spf-perl
+
+spamassassin unix -     n       n       -       -       pipe
+        user=spamd argv=/usr/bin/spamc -f -e    
+        /usr/sbin/sendmail -oi -f ${sender} ${recipient}

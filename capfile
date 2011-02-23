@@ -255,18 +255,25 @@ namespace :build do
       build::authdaemon::default
       # swaks is a nice tool for testing SMTP.
       # grefix (no package), policyd,
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install maildrop postfix postfix-pcre swaks postfix-policyd-spf-perl postfix-ldap'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install maildrop postfix postfix-pcre swaks postfix-policyd-spf-perl postfix-ldap spamassassin spamc'
       # Add the postfix user to the sasl group so it can authenticate users.
       sudo 'gpasswd -a postfix sasl'
       # Add the mail user to the daemon group so that it can connect to authdaemond.
       sudo 'gpasswd -a mail daemon'
       # Make sure that maildrop is suid for root.
       sudo 'chmod u+s /usr/bin/maildrop'
+
+      # Set up spamassassin
+      sudo 'groupadd -g 5001 spamd'
+      sudo 'useradd -u 5001 -g spamd -s /sbin/nologin -d /var/lib/spamassassin spamd'
+      sudo 'mkdir /var/lib/spamassassin'
+      sudo 'chown spamd:spamd /var/lib/spamassassin'
+
       config
     end
     
     task :config, :roles => :mail do
-      %w[ master main mailbox_maps header_checks body_checks recipient_checks helo_checks sender_checks client_checks ].each do |f|
+      %w[ master main mailbox_maps header_checks body_checks recipient_checks helo_checks sender_checks client_checks  ].each do |f|
         supload "config/postfix/#{f}.cf", "/etc/postfix/#{f}.cf", :mode => 0644
       end
 
@@ -274,6 +281,9 @@ namespace :build do
       supload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
       supload 'config/maildroprc', '/etc/maildroprc', :mode => 0644
       supload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
+      supload 'config/spamassassin/spamassassin.default', '/etc/default/spamassassin', :mode => 0755
+      supload 'config/spamassassin/local.cf', '/etc/spamassassin/local.cf', :mode => 0755
+      supload 'config/cron.daily/learn_spam', '/etc/cron.daily/learn_spam', :mode => 0755
 
       %w[ mailbox_maps helo_checks sender_checks client_checks ]. each do |f|
         sudo "postmap /etc/postfix/#{f}.cf"
@@ -282,6 +292,7 @@ namespace :build do
       sudo 'newaliases'
       sudo 'postfix reload'
       sudo '/etc/init.d/saslauthd restart'
+      sudo '/etc/init.d/spamassassin restart'
     end
   end
 
