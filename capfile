@@ -255,7 +255,7 @@ namespace :build do
       build::authdaemon::default
       # swaks is a nice tool for testing SMTP.
       # grefix (no package), policyd,
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install maildrop postfix postfix-pcre swaks postfix-policyd-spf-perl postfix-ldap dspam'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install maildrop postfix postfix-pcre swaks postfix-policyd-spf-perl postfix-ldap'
       # Add the postfix user to the sasl group so it can authenticate users.
       sudo 'gpasswd -a postfix sasl'
       # Add the mail user to the daemon group so that it can connect to authdaemond.
@@ -266,7 +266,7 @@ namespace :build do
     end
     
     task :config, :roles => :mail do
-      %w[ master main mailbox_maps header_checks body_checks recipient_checks helo_checks sender_checks client_checks dspam_filter_access transport ].each do |f|
+      %w[ master main mailbox_maps header_checks body_checks recipient_checks helo_checks sender_checks client_checks ].each do |f|
         supload "config/postfix/#{f}.cf", "/etc/postfix/#{f}.cf", :mode => 0644
       end
 
@@ -274,11 +274,6 @@ namespace :build do
       supload '../Corporate/config/aliases', '/etc/aliases', :mode => 0644
       supload 'config/maildroprc', '/etc/maildroprc', :mode => 0644
       supload 'config/sasl_postfix.conf', '/etc/postfix/sasl/smtpd.conf', :mode => 0644
-
-      supload 'config/dspam/train.dspam', '/etc/dspam/train.dspam', :mode => 0755
-      supload 'config/dspam/dspam.conf', '/etc/dspam/dspam.conf', :mode => 0640, :owner => 'dspam', :group => 'dspam'
-      supload 'config/dspam/default.prefs', '/etc/dspam/default.prefs', :mode => 0644, :owner => 'dspam', :group => 'dspam'
-      supload 'config/cron.daily/dspam', '/etc/cron.daily/dspam', :mode => 0755
 
       %w[ mailbox_maps helo_checks sender_checks client_checks ]. each do |f|
         sudo "postmap /etc/postfix/#{f}.cf"

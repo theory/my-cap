@@ -7,8 +7,6 @@
 #               (yes)   (yes)   (yes)   (never) (100)
 # ==========================================================================
 smtp      inet  n       -       -       -       -       smtpd
-dspam     unix  -       n       n       -       10      pipe
-  flags=Ru user=dspam argv=/usr/bin/dspam --deliver=innocent --user $user -i -f $sender -- $recipient
 submission inet n       -       n       -       -       smtpd
   -o smtpd_enforce_tls=yes
   -o smtpd_sasl_auth_enable=yes

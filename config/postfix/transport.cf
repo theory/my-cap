@@ -1,2 +1,0 @@
-#/^spam@/   dspam-retrain:spam
-#/^ham@/    dspam-retrain:innocent
