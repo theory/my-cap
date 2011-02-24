@@ -4,6 +4,7 @@
 # (Note that if you followed the order suggested in the main.cf
 # examples, above, that machines in mynetworks will be okay.)
 
+wolf.kineticode.com     OK
 kineticode.com          REJECT You are not in kineticode.com
 .kineticode.com         REJECT You are not in kineticode.com
 strongrrl.com           REJECT You are not in strongrrl.com
