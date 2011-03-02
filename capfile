@@ -503,13 +503,16 @@ namespace :build do
       pg
       apache2
       sudo_script 'bin/pgxn_manager.sh'
+      sudo_script 'bin/pgxn_api.sh'
       config
     end
 
     task :up, :roles => :web do
       sudo_script 'bin/pgxn_manager.sh'
+      sudo_script 'bin/pgxn_api.sh'
       supload '../Corporate/config/pgxn_manager.conf', '/var/www/manager.pgxn.org/conf/prod.json'
       sudo '/etc/init.d/pgxn_manager restart'
+      sudo '/etc/init.d/pgxn_api restart'
       sudo '/etc/init.d/httpd restart'
     end
     
@@ -522,6 +525,13 @@ namespace :build do
       sudo 'wget -O /etc/ssl/certs/startssl.ca.pem http://www.startssl.com/certs/ca.pem'
       sudo 'wget -O /etc/ssl/certs/sub.class1.server.ca.pem http://www.startssl.com/certs/sub.class1.server.ca.pem'
       supload '../Corporate/config/pgxn_manager.conf', '/var/www/manager.pgxn.org/conf/prod.json'
+
+      supload 'config/init_pgxn_api', '/etc/init.d/pgxn_api', :mode => 0755
+      sudo 'update-rc.d pgxn_api defaults'
+      sudo 'mkdir -p /var/run/pgxn_api'
+
+      supload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
+      sudo '/etc/init.d/pgxn_api restart'
       sudo '/etc/init.d/pgxn_manager restart'
       sudo '/etc/init.d/httpd restart'
     end
