@@ -1,4 +1,5 @@
 #!/bin/bash
 
 /usr/bin/rsync -az --delete rsync://master.pgxn.org/pgxn /var/www/kineticode.com/pgxn
-
+cd /var/www/api.pgxn.org
+/usr/local/bin/perl bin/pgxn_api_sync /var/www/kineticode.com/pgxn
