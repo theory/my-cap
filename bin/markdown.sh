@@ -13,7 +13,7 @@ chmod +x /usr/local/bin/Markdown.pl
 download http://www.pell.portland.or.us/~orc/Code/discount/discount-$DVERSION.tar.bz2
 tar jxf discount-$DVERSION.tar.bz2 || exit $?
 cd discount-$DVERSION || exit $?
-./configure.sh --with-id-anchor --enable-all-features || exit $?
+./configure.sh --with-id-anchor --enable-all-features --shared || exit $?
 make || exit $?
 make install || exit $?
 
