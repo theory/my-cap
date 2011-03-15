@@ -2,7 +2,7 @@
 
 export BASE=/var/www/api.pgxn.org
 export PERL=/usr/local/bin/perl
-export VERSION=0.4.1
+export VERSION=0.5.0
 
 # Pull or clone the repository.
 if [ -d $BASE ]; then
