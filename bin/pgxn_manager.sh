@@ -4,7 +4,7 @@ export BASE=/var/www/manager.pgxn.org
 export PERL=/usr/local/bin/perl
 export ROOT=/var/www/master.pgxn.org
 export PGXNUSER=pgxn
-export VERSION=0.10.2
+export VERSION=0.10.3
 
 # Check for user ID.
 id -u $PGXNUSER >/dev/null 2>&1
