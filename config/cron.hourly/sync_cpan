@@ -1,4 +1,4 @@
 #!/bin/bash
 
-/usr/bin/rsync -az --delete --no-motd rsync://ftp.funet.fi/CPAN /var/www/kineticode.com/cpan
+/usr/bin/rsync -az --delete --no-motd rsync://cpan-rsync.perl.org/CPAN/ /var/www/kineticode.com/cpan
 
