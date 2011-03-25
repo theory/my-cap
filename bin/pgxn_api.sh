@@ -2,7 +2,15 @@
 
 export BASE=/var/www/api.pgxn.org
 export PERL=/usr/local/bin/perl
-export VERSION=0.5.5
+export VERSION=0.6.0
+
+cd github/pgxn-api-searcher
+git pull
+perl Build.PL
+./Build
+./Build test
+./Build install --uninst 1
+./Build realclean
 
 # Pull or clone the repository.
 if [ -d $BASE ]; then
