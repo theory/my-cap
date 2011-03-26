@@ -5,7 +5,8 @@ export PERL=/usr/local/bin/perl
 export VERSION=0.6.0
 
 cd github/pgxn-api-searcher
-git pull
+git fetch origin
+git pull origin tag v$VERSION
 perl Build.PL
 ./Build
 ./Build test
