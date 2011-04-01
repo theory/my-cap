@@ -1,33 +1,92 @@
 #!/usr/local/bin/perl -Tw
+
 use strict;
 use warnings;
+use utf8;
+
+# (Change configuration variables as needed.)
+my $path_to_index = '/var/www/justatheory.plugins/index';
+my $base_url      = '';
+my $blosxom_dir   = '/var/www/justatheory.blog';
 
 use CGI;
 use List::Util qw( max min );
 use POSIX qw( ceil strftime );
-use KinoSearch::Searcher;
-use KinoSearch::Analysis::PolyAnalyzer;
+use Encode qw( decode );
+use KinoSearch::Search::IndexSearcher;
 use KinoSearch::Highlight::Highlighter;
+use KinoSearch::Search::QueryParser;
+use KinoSearch::Search::TermQuery;
+use KinoSearch::Search::ANDQuery;
 
-# Get the query values and untaint them.
-my $cgi           = CGI->new;
-my ($q)           = ($cgi->param('q') || '' =~ /^(.*)$/g);
-my ($offset)      = (($cgi->param('offset') || '') =~ /^(\d*)$/g);
-my $hits_per_page = 10;
-$q      = '' unless defined $q;
-$offset = 0  unless $offset;
+my $cgi       = CGI->new;
+my $q         = decode( "UTF-8", $cgi->param('q') || '' );
+my $offset    = decode( "UTF-8", $cgi->param('offset') || 0 );
+my $category  = decode( "UTF-8", $cgi->param('category') || '' );
+my $page_size = 10;
 
-### In order for search.cgi to work, $path_to_invindex must be modified so
-### that it points to the invindex created by invindexer.plx, and
-### $base_url may have to change to reflect where a web-browser should
-### look for the us_constitution directory.
-my $path_to_invindex = '/var/www/justatheory.plugins/invindex';
-my $base_url         = '/';
-my $blosxom_dir      = '/var/www/justatheory.blog';
+# Create an IndexSearcher and a QueryParser.
+my $searcher = KinoSearch::Search::IndexSearcher->new(
+    index => $path_to_index,
+);
+my $qparser = KinoSearch::Search::QueryParser->new(
+    schema => $searcher->get_schema,
+);
+
+# Build up a Query.
+my $query = $qparser->parse($q);
+if ($category) {
+    my $category_query = KinoSearch::Search::TermQuery->new(
+        field => 'category',
+        term  => $category,
+    );
+    $query = KinoSearch::Search::ANDQuery->new(
+        children => [ $query, $category_query ]
+    );
+}
+
+# Execute the Query and get a Hits object.
+my $hits = $searcher->hits(
+    query      => $query,
+    offset     => $offset,
+    num_wanted => $page_size,
+);
+my $hit_count = $hits->total_hits;
+
+# Arrange for highlighted excerpts to be created.
+my $highlighter = KinoSearch::Highlight::Highlighter->new(
+    searcher => $searcher,
+    query    => $q,
+    field    => 'body'
+);
+
+# Create result list.
+my $report = '';
+while ( my $hit = $hits->next ) {
+    my $score   = sprintf( "%0.3f", $hit->get_score );
+    my $excerpt = $highlighter->create_excerpt($hit);
+    my $date = strftime('%Y-%m-%d %T UTC', gmtime $hit->{timestamp});
+    $report .= qq{
+        <div class="searchhit">
+            <h3><a href="$hit->{url}">$hit->{title}</a></h3>
+            <p>$excerpt</p>
+            <p class="searchurl">$score &#x2014; $hit->{url} &#x2014; $date</p>
+        </div>
+    };
+}
+
+# Generate html, print and exit.
+my $paging_links = generate_paging_info( $q, $hit_count );
+my $cat_select = generate_category_select($category);
+blast_out_content( $q, $report, $paging_links, $cat_select );
 
 # Blosxom variables:
 sub output_template {
     my $template = shift;
+    {
+        package breadcrumbs;
+        our $title = shift;
+    }
 
     package blosxom;
     our $blog_title = 'Just a Theory';
@@ -37,7 +96,7 @@ sub output_template {
     $meta::keywords = '';
     $meta::keywords = '';
 
-    open my $tf, '<', $template or die "Cannot open '$template': $!\n";
+    open my $tf, '<:encoding(UTF-8)', $template or die "Cannot open '$template': $!\n";
     while (<$tf>) {
         next if /<\?/;
         s/(\$\w+(?:::)?\w*)/"defined $1 ? $1 : ''"/gee;
@@ -46,132 +105,128 @@ sub output_template {
     close $tf;
 }
 
-### STEP 1: Specify the same Analyzer used to create the invindex.
-my $analyzer = KinoSearch::Analysis::PolyAnalyzer->new(
-    language => 'en',
-);
-
-### STEP 2: Create a Searcher object.
-my $searcher = KinoSearch::Searcher->new(
-    invindex => $path_to_invindex,
-    analyzer => $analyzer,
-);
-
-### STEP 3: Feed a query to the Search object.
-my $hits = $searcher->search($q);
-
-### STEP 4: Arrange for highlighted excerpts to be created.
-my $highlighter = KinoSearch::Highlight::Highlighter->new(
-    excerpt_field => 'bodytext'
-);
-$hits->create_excerpts( highlighter => $highlighter );
-
-### STEP 5: Process the search.
-$hits->seek( $offset, $hits_per_page );
-
-### STEP 6: Format the results however you like.
-
-# create result list
-my $report = '';
-while ( my $hit = $hits->fetch_hit_hashref ) {
-    my $date = strftime('%Y-%m-%d %T UTC', gmtime $hit->{modtime});
-    my $score = sprintf "%0.3f", $hit->{score};
-    $report .= qq{
-        <div class="searchhit">
-            <h3><a href="$hit->{url}">$hit->{title}</a></h3>
-            <p>$hit->{excerpt}</p>
-            <p class="searchurl">$score &#x2014; $hit->{url} &#x2014; $date</p>
-        </div>
-        };
-}
-
-$q = $cgi->escapeHTML($q);
-
-# display info about the number of hits, paging links
-my $total_hits = $hits->total_hits;
-my $num_hits_info = '';
-if (length $q) {
-    if ( $total_hits == 0 ) {
-        # alert the user that their search failed
-        $num_hits_info = qq|<p>No matches for <q>$q</strong></q>|;
+# Create html fragment with links for paging through results n-at-a-time.
+sub generate_paging_info {
+    my ( $query_string, $total_hits ) = @_;
+    my $escaped_q = CGI::escapeHTML($query_string);
+    my $paging_info;
+    if ( !length $query_string ) {
+        # No query?  No display.
+        $paging_info = '';
+    }
+    elsif ( $total_hits == 0 ) {
+        # Alert the user that their search failed.
+        $paging_info
+            = qq|<p>No matches for <strong>$escaped_q</strong></p>|;
     }
     else {
-        # calculate the nums for the first and last hit to display
-        my $last_result  = min( ( $offset + $hits_per_page ), $total_hits );
+        # Calculate the nums for the first and last hit to display.
+        my $last_result = min( ( $offset + $page_size ), $total_hits );
         my $first_result = min( ( $offset + 1 ), $last_result );
 
-        # display the result nums, start paging info
-        $num_hits_info = qq|
-        <p>Results <strong>$first_result-$last_result</strong>
-           of <strong>$total_hits</strong> for <strong>$q</strong>.</p>
-        <p> Results Page:
-        |;
+        # Display the result nums, start paging info.
+        $paging_info = qq|
+            <p>
+                Results <strong>$first_result-$last_result</strong>
+                of <strong>$total_hits</strong>
+                for <strong>$escaped_q</strong>.
+            </p>
+            <p>
+                Results Page:
+            |;
 
-        # calculate first and last hits pages to display / link to
-        my $current_page = int( $first_result / $hits_per_page ) + 1;
-        my $last_page    = ceil( $total_hits / $hits_per_page );
+        # Calculate first and last hits pages to display / link to.
+        my $current_page = int( $first_result / $page_size ) + 1;
+        my $last_page    = ceil( $total_hits / $page_size );
         my $first_page   = max( 1, ( $current_page - 9 ) );
         $last_page = min( $last_page, ( $current_page + 10 ) );
 
-        # create a url for use in paging links
-        my $href = $cgi->url( -relative => 1 ) . "?" . $cgi->query_string;
-        $href .= ";offset=0" unless $href =~ /offset=/;
+        # Create a url for use in paging links.
+        my $href = $cgi->url( -relative => 1 );
+        $href .= "?q=" . CGI::escape($query_string);
+        $href .= ";category=" . CGI::escape($category);
+        $href .= ";offset=" . CGI::escape($offset);
 
-        # generate the "Prev" link;
+        # Generate the "Prev" link.
         if ( $current_page > 1 ) {
-            my $new_offset = ( $current_page - 2 ) * $hits_per_page;
+            my $new_offset = ( $current_page - 2 ) * $page_size;
             $href =~ s/(?<=offset=)\d+/$new_offset/;
-            $num_hits_info .= qq|<a href="$href">&lt;= Prev</a>\n|;
+            $paging_info .= qq|<a href="$href">« Prev</a>\n|;
         }
 
-        # generate paging links
+        # Generate paging links.
         for my $page_num ( $first_page .. $last_page ) {
             if ( $page_num == $current_page ) {
-                $num_hits_info .= qq|$page_num \n|;
+                $paging_info .= qq|$page_num \n|;
             }
             else {
-                my $new_offset = ( $page_num - 1 ) * $hits_per_page;
+                my $new_offset = ( $page_num - 1 ) * $page_size;
                 $href =~ s/(?<=offset=)\d+/$new_offset/;
-                $num_hits_info .= qq|<a href="$href">$page_num</a>\n|;
+                $paging_info .= qq|<a href="$href">$page_num</a>\n|;
             }
         }
 
-        # generate the "Next" link
+        # Generate the "Next" link.
         if ( $current_page != $last_page ) {
-            my $new_offset = $current_page * $hits_per_page;
+            my $new_offset = $current_page * $page_size;
             $href =~ s/(?<=offset=)\d+/$new_offset/;
-            $num_hits_info .= qq|<a href="$href">Next &raquo;</a>\n|;
+            $paging_info .= qq|<a href="$href">Next »</a>\n|;
         }
 
-        # finish paging links
-        $num_hits_info .= "</p>\n";
+        # Close tag.
+        $paging_info .= "</p>\n";
     }
+
+    return $paging_info;
 }
 
-# blast it all out
-print "Content-type: text/html\n\n";
-output_template("$blosxom_dir/head.html");
-print <<END_HTML;
+# Build up the HTML "select" object for the "category" field.
+sub generate_category_select {
+    my $cat = shift;
+
+    my $lex_reader = $searcher->get_reader->obtain("KinoSearch::Index::LexiconReader");
+    my $lexicon = $lex_reader->lexicon(field => "category");
+    my @cats;
+    push @cats => $lexicon->get_term while $lexicon->next;
+    my $select = '<select name="category"><option value="">Full Site</option>'
+        . join( '', map { qq{<option value="$_">$_</option>} } @cats)
+        . '</select>';
+    if ($cat) {
+        $select =~ s/"$cat"/"$cat" selected/;
+    }
+    return $select;
+}
+
+# Print content to output.
+sub blast_out_content {
+    my ( $query_string, $report, $paging_info, $category_select ) = @_;
+    my $escaped_q = CGI::escapeHTML($query_string);
+    binmode( STDOUT, ":encoding(UTF-8)" );
+    print qq|Content-type: text/html; charset=UTF-8\n\n|;
+    output_template("$blosxom_dir/head.html", "Just a Theory Search: “$escaped_q”");
+    print <<"    END_HTML";
       <div class="story">
         <div class="body">
           <form id="usconsearch" action="/search.cgi">
             <label for="q">Search Just a Theory:</label>
             <input type="text" name="q" id="q" value="$q" />
+            $category_select
             <input type="submit" value="Search"" />
             <input type="hidden" name="offset" value="0" />
           </form>
         </div>
       </div>
-END_HTML
+    END_HTML
 
-print <<END_HTML if $report;
+    print <<"    END_HTML" if $report;
       <div class="story">
-        <h2 id="search">Search Results for <q>$q</q></h2>
+        <h2 id="search">Search Results for “$q”</h2>
         <div class="body">
          $report
-         $num_hits_info
+         $paging_info
         <p class="kinosearch">Powered by <a href="http://www.rectangular.com/kinosearch/">KinoSearch </a></p>
-    </div>
-    </div>
-END_HTML
-output_template("$blosxom_dir/foot.html");
+      </div>
+      </div>
+    END_HTML
+    output_template("$blosxom_dir/foot.html");
+}
