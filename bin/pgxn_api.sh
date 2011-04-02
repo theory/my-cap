@@ -14,6 +14,14 @@ perl Build.PL
 ./Build install --uninst 1
 ./Build realclean
 
+cd ../www-pgxn
+git pull
+perl Build.PL
+./Build
+./Build test
+./Build install --uninst 1
+./Build realclean
+
 # Pull or clone the repository.
 if [ -d $BASE ]; then
     cd $BASE
