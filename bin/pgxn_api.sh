@@ -23,16 +23,15 @@ perl Build.PL
 ./Build realclean
 
 # Pull or clone the repository.
-if [ -d $BASE ]; then
-    cd $BASE
-    git fetch origin
-    git pull origin tag v$VERSION
-else
+if [ !-d $BASE ]; then
     cd `dirname $BASE`
-    git clone git://github.com/theory/pgxn-api.git `basename $BASE`
+    git clone git://github.com/pgxn/pgxn-api.git `basename $BASE`
 fi
 
 # Build it!
+cd $BASE
+git fetch origin
+git pull origin tag v$VERSION
 $PERL Build.PL
 ./Build
 

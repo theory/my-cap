@@ -504,15 +504,18 @@ namespace :build do
       apache2
       sudo_script 'bin/pgxn_manager.sh'
       sudo_script 'bin/pgxn_api.sh'
+      sudo_script 'bin/pgxn_site.sh'
       config
     end
 
     task :up, :roles => :web do
       sudo_script 'bin/pgxn_manager.sh'
       sudo_script 'bin/pgxn_api.sh'
+      sudo_script 'bin/pgxn_site.sh'
       supload '../Corporate/config/pgxn_manager.conf', '/var/www/manager.pgxn.org/conf/prod.json'
       sudo '/etc/init.d/pgxn_manager restart'
       sudo '/etc/init.d/pgxn_api restart'
+      sudo '/etc/init.d/pgxn_site restart'
       sudo '/etc/init.d/httpd restart'
     end
     
@@ -530,9 +533,14 @@ namespace :build do
       sudo 'update-rc.d pgxn_api defaults'
       sudo 'mkdir -p /var/run/pgxn_api'
 
+      supload 'config/init_pgxn_site', '/etc/init.d/pgxn_site', :mode => 0755
+      sudo 'update-rc.d pgxn_site defaults'
+      sudo 'mkdir -p /var/run/pgxn_site'
+
       supload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
-      sudo '/etc/init.d/pgxn_api restart'
       sudo '/etc/init.d/pgxn_manager restart'
+      sudo '/etc/init.d/pgxn_api restart'
+      sudo '/etc/init.d/pgxn_site restart'
       sudo '/etc/init.d/httpd restart'
     end
   end
