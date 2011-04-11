@@ -72,5 +72,11 @@ download https://github.com/rafl/git-commit-mode/raw/master/git-commit.el
 emacs -batch -f batch-byte-compile git-commit.el
 cp git-commit.el* /usr/local/share/emacs/site-lisp
 
+# solarized-theme
+download https://github.com/monotux/emacs-d/raw/master/themes/solarized-dark-theme.el
+download https://github.com/monotux/emacs-d/raw/master/themes/solarized-light-theme.el
+emacs -batch -f batch-byte-compile solarized-dark-theme.el solarized-light-theme.el
+cp solarized-*.el* /usr/local/share/emacs/site-lisp
+
 # Return to src directory.
 cd ..
