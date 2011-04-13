@@ -1,8 +1,8 @@
 #!/bin/sh
 
-export BASE=/var/www/site.pgxn.org
+export BASE=/var/www/pgxn.org
 export PERL=/usr/local/bin/perl
-export VERSION=0.4.0
+export VERSION=0.5.0
 
 # Pull or clone the repository.
 if [ -d $BASE ]; then

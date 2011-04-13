@@ -20,7 +20,7 @@
 . /lib/lsb/init-functions
 
 APPNAME="PGXN::Site"
-APPDIR=/var/www/site.pgxn.org
+APPDIR=/var/www/pgxn.org
 UNIXNAME=$(echo $APPNAME | perl -pe 's/::/_/;$_=lc')
 PLACKUP="/usr/local/bin/plackup"
 PSGI="$APPDIR/bin/$UNIXNAME.psgi"
