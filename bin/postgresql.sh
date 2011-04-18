@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=9.0.3
+export VERSION=9.0.4
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 
