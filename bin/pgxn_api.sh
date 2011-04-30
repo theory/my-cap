@@ -2,8 +2,8 @@
 
 export BASE=/var/www/api.pgxn.org
 export PERL=/usr/local/bin/perl
-export VERSION=0.12.9
-export SVERSION=0.9.1
+export VERSION=0.13.0
+export SVERSION=0.9.2
 export WVERSION=0.12.0
 
 cd github/pgxn-api-searcher
