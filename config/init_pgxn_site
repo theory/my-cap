@@ -24,7 +24,7 @@ APPDIR=/var/www/pgxn.org
 UNIXNAME=$(echo $APPNAME | perl -pe 's/::/_/;$_=lc')
 PLACKUP="/usr/local/bin/plackup"
 PSGI="$APPDIR/bin/$UNIXNAME.psgi"
-PSGI_OPTS="errors_to pgxn-admins@googlegroups.com errors_from pgxn@pgexperts.com feedback_to pgxn-admins@googlegroups.com api_url http://api.pgxn.org/ private_api_url file:/var/www/api.pgxn.org/www/ reverse_proxy 1"
+PSGI_OPTS="errors_to pgxn-admins@googlegroups.com errors_from pgxn@pgexperts.com feedback_to pgxn@pgexperts.com api_url http://api.pgxn.org/ private_api_url file:/var/www/api.pgxn.org/www/ reverse_proxy 1"
 PLACK_SERVER=Starman
 PLACK_SERVER_OPTS="-E prod --workers 5 --preload-app --max-requests 100"
 SOCKET=127.0.0.1:7498
