@@ -22,7 +22,7 @@
 APPNAME="PGXN::API"
 APPDIR=/var/www/api.pgxn.org
 UNIXNAME=$(echo $APPNAME | perl -pe 's/::/_/;$_=lc')
-PLACKUP="$APPDIR/bin/$(UNIXNAME)d"
+PLACKUP="$APPDIR/bin/${UNIXNAME}_server"
 PSGI=""
 PSGI_OPTS="--errors-to pgxn-admins@googlegroups.com --errors-from pgxn@pgexperts.com"
 PLACK_SERVER=Starman
@@ -70,7 +70,7 @@ check_running() {
 
 check_compile() {
     if [ -n "$USER" ] ; then
-        if su $USER -c "cd $APPDIR ; perl -Ilib -M$APPNAME -c $PSGI" ; then
+        if su $USER -c "cd $APPDIR ; perl -Ilib -M$APPNAME -c $PLACKUP" ; then
             return 0
         fi
         return 1
