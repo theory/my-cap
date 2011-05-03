@@ -513,6 +513,7 @@ namespace :build do
       sudo_script 'bin/pgxn_api.sh'
       sudo_script 'bin/pgxn_site.sh'
       supload '../Corporate/config/pgxn_manager.conf', '/var/www/manager.pgxn.org/conf/prod.json'
+      supload 'config/init_pgxn_site', '/etc/init.d/pgxn_site', :mode => 0755
       sudo '/etc/init.d/pgxn_manager restart'
       sudo '/etc/init.d/pgxn_api restart'
       sudo '/etc/init.d/pgxn_site restart'
