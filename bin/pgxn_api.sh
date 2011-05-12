@@ -2,7 +2,7 @@
 
 export BASE=/var/www/api.pgxn.org
 export PERL=/usr/local/bin/perl
-export VERSION=0.14.1
+export VERSION=0.15.0
 export SVERSION=0.9.3
 export WVERSION=0.12.1
 
