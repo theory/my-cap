@@ -51,25 +51,6 @@
         <p class="trati"><a href="http://www.twitter.com/Theory">Follow me on Twitter »</a></p>
       </div>
       <div class="links">
-	    <h2>Recent PGXN Releases</h2>
-	    <script	type="text/javascript">
-function pgxn_distros(data) {
-    document.write('<dl>');
-    for (dist in data.releases) {
-        document.write(
-            '<dt><a href=http://pgxn.org/dist/' + dist +
-            '>' + dist + '</a></dt>' +
-            '<dd>' + data.releases[dist].abstract + '</dd>'
-        );
-    }
-    document.write('</dl>');
-}
-        </script>
-        <script type="text/javascript"
-                src="http://api.pgxn.org/user/theory.json?callback=pgxn_distros">
-        </script>
-      </div>
-      <div class="links">
         <h2>Stuff I Read</h2>
         <ul>
           <li><a href="http://strongrrl.blogspot.com/" title="">Strongrrl</a></li>
@@ -92,17 +73,34 @@ function pgxn_distros(data) {
         </ul>
       </div>
       <div class="links">
-        <h2>Code</h2>
+	    <h2>PGXN Code</h2>
+	    <script	type="text/javascript">
+function pgxn_distros(data) {
+    document.write('<dl>');
+    for (dist in data.releases) {
+        document.write(
+            '<dt><a href=http://pgxn.org/dist/' + dist +
+            '>' + dist + '</a></dt>' +
+            '<dd>' + data.releases[dist].abstract + '</dd>'
+        );
+    }
+    document.write('</dl>');
+}
+        </script>
+        <script type="text/javascript"
+                src="http://api.pgxn.org/user/theory.json?callback=pgxn_distros">
+        </script>
+      </div>
+      <div class="links">
+        <h2>CPAN Code</h2>
         <dl>
           <dt><a href="http://www.bricolagecms.org/" title="Bricolage">Bricolage</a></dt>
           <dd>A full-featured, open-source, enterprise-class content management and publishing system.</dd>
-          <dt><a href="http://pgtap.org/" title="pgTAP">pgTAP</a></dt>
-          <dd>A comprehensive, <a href="http://testanything.org/" title="Test Anything Protocol">TAP</a>-emitting unit testing suite for <a href="http://www.postgresql.org/" title="PostgreSQL">PostgreSQL</a>.</dd>
           <dt><a href="http://search.cpan.org/dist/DBIx-Connector/" title="DBIx::Connector on CPAN">DBIx::Connector</a></dt>
           <dd>Fast, safe Perl/DBI connection and transaction management.</dd>
           <dt><a href="http://search.cpan.org/dist/Test-XPath/" title="Test::XPath on CPAN">Test::XPath</a></dt>
-          <dd>est XML and HTML content and structure with XPath expressions.</dd>
-          <dt><a href="http://www.openjsan.org/doc/t/th/theory/Test/Simple/" title="Test.Simple on JSAN">Test.Simple</a></dt>
+          <dd>Test XML and HTML content and structure with XPath expressions.</dd>
+          <dt><a href="http://search.cpan.org/dist/JS-Test-Simple/" title="Test.Simple on CPAN">Test.Simple</a></dt>
           <dd>Port of Perl's Test::Simple and Test::Harness to JavaScript.</dd>
           <dt><a href="http://search.cpan.org/dist/FSA-Rules/" title="FSA::Rules on CPAN">FSA::Rules</a></dt>
           <dd>Build simple rules-based state machines in Perl.</dd>
