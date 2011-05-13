@@ -51,20 +51,24 @@
         <p class="trati"><a href="http://www.twitter.com/Theory">Follow me on Twitter »</a></p>
       </div>
       <div class="links">
-        <script type="text/javascript" src="http://feeds.delicious.com/v2/js/Theory?title=Bookmarked&amp;icon=m&amp;count=3&amp;sort=date&amp;extended"></script>
-        <p class="trati"><a href="http://delicious.com/network?add=Theory">Follow me on Delicious »</a></p>
+	    <h2>Recent PGXN Releases</h2>
+	    <script	type="text/javascript">
+function pgxn_distros(data) {
+    document.write('<dl>');
+    for (dist in data.releases) {
+        document.write(
+            '<dt><a href=http://pgxn.org/dist/' + dist +
+            '>' + dist + '</a></dt>' +
+            '<dd>' + data.releases[dist].abstract + '</dd>'
+        );
+    }
+    document.write('</dl>');
+}
+        </script>
+        <script type="text/javascript"
+                src="http://api.pgxn.org/user/theory.json?callback=pgxn_distros">
+        </script>
       </div>
-      <div class="links">
-      <h2>Technorati</h2>
-      <ul>
-        <li><a href="http://www.technorati.com/search/http://www.justatheory.com" title="">Blogs that link here</a></li>
-	<li><a href="http://www.technorati.com/profile/justatheory" title="">View my profile</a></li>
-      </ul>
-      </div>
-      <!-- <div class="links"> -->
-      <!--   <h2>Cork&#x2019;d Journal</h2> -->
-      <!--   <script type="text/javascript" src="http://corkd.com/remote/?member=theory&amp;count=10&amp;output=li&amp;list=journal"></script> -->
-      <!-- </div> -->
       <div class="links">
         <h2>Stuff I Read</h2>
         <ul>
