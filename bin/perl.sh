@@ -1,15 +1,15 @@
 #!/bin/bash
 
-export VERSION=5.12.2
+export VERSION=5.14.0
 
 . `dirname $0`/functions.sh
 
 setup /usr/local/bin/perl$VERSION
-download http://cpan.cpantesters.org/src/perl-$VERSION.tar.bz2
+download http://cpan.cpantesters.org/src/perl-$VERSION.tar.gz
 rm -rf perl-$VERSION
-tar jxf perl-$VERSION.tar.bz2 || exit $?
+tar zxf perl-$VERSION.tar.gz || exit $?
 cd perl-$VERSION
-sh Configure -des -Duseshrplib -Dusemultiplicity -Duseithreads -Dperladmin=david@kineticode.com -Dcf_email=david@kineticode.com || exit $?
+sh Configure -des -Duseshrplib -Dusemultiplicity -Duseithreads -Dinc_version_list=none -Dperladmin=david@kineticode.com -Dcf_email=david@kineticode.com || exit $?
 # * -Dusershrplib required for embedding, e.g. PL/Perl.
 # * -Dusemultiplicity required to allow multiple interpreters in one process,
 #   e.g., to allow both PL/Perl and PL/PerlU functions to be used in a single
