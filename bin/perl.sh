@@ -17,6 +17,6 @@ sh Configure -des -Duseshrplib -Dusemultiplicity -Duseithreads -Dinc_version_lis
 # * For a test build, add  -Dprefix='/usr/local/perl-5.12' or similar
 # * For debugging Perl, add -Dprefix=/usr/local/perl-5.10.0.d -Doptimize='-g'
 make -j3 || exit $?
-#make test || exit $?
-TEST_JOBS=3 make test_harness || exit $?
+make test || exit $?
+#TEST_JOBS=3 make test_harness || exit $?
 make install || exit $?
