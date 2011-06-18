@@ -689,6 +689,12 @@ namespace :my do
       sudol_scripts 'modperl2', 'apreq2'
     end
 
+    task :svn, :roles => :local do
+      perl
+      xml
+      sudol_scripts 'subversion'
+    end
+
     task :cert, :roles => :local do
       sudol_scripts  'sslcert'
     end
