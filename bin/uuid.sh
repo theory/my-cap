@@ -5,7 +5,8 @@ export VERSION=1.6.2
 . `dirname $0`/functions.sh
 
 setup /usr/local/include/ossp/uuid.h
-download ftp://ftp.ossp.org/pkg/lib/uuid/uuid-$VERSION.tar.gz
+#download ftp://ftp.ossp.org/pkg/lib/uuid/uuid-$VERSION.tar.gz
+download http://www.mirrorservice.org/sites/ftp.ossp.org/pkg/lib/uuid/uuid-$VERSION.tar.gz
 rm -rf uuid-$VERSION
 tar zxf uuid-$VERSION.tar.gz
 cd uuid-$VERSION
