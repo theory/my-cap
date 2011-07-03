@@ -3,7 +3,7 @@
 . `dirname $0`/functions.sh
 
 mkdir -p ~/.cpan/CPAN
-mkdir ~p ~/.cpanreporter
+mkdir -p ~/.cpanreporter
 
 if [ $OS = 'Darwin' ]; then
     cp `dirname $0`/../config/cpan/DarwinCPANConfig.pm ~/.cpan/CPAN/MyConfig.pm
