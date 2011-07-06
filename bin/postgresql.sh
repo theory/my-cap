@@ -12,6 +12,8 @@ echo Unpacking $file...
 rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
+download 'http://git.postgresql.org/gitweb?p=postgresql.git;a=patch;h=cb252c2acd415d304e3254e99f82058d11a69e04'
+patch -p1 < 'gitweb?p=postgresql.git;a=patch;h=cb252c2acd415d304e3254e99f82058d11a69e04' || exit $?
 #patch -p1  < `dirname $0`/../patches/pg-json.patch
 
 # Useful tutorial from depesz:
@@ -132,7 +134,7 @@ if [ $OS = 'Darwin' ]; then
     SystemStarter start PostgreSQL || exit $?
     cd $BACKTO
 else
-    download https://svn.kineticode.com/cap/config/postgresql-crocker.conf
+    download https://raw.github.com/theory/my-cap/master/config/postgresql-crocker.conf
     cp postgresql-crocker.conf $BASE/data/postgresql.conf
     chown postgres:postgres $BASE/data/postgresql.conf
     /etc/init.d/postgresql stop
