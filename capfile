@@ -1,6 +1,6 @@
 load 'lib/util.rb'
 
-role :backup, 'theory.kineticode.com'
+role :backup, '10.0.1.201'
 role :dns,    'crocker.kineticode.com'
 role :svn,    'svn.kineticode.com'
 role :local,  'localhost'
@@ -326,8 +326,8 @@ namespace :build do
 
     task :config, :roles => :backup do
       supload 'config/offlineimap.conf', '/root/.offlineimaprc'
-      %w[david julie anna].each { |who|
-        sudo "mkdir -p /data/backup/imap/#{ who }"
+      %w[theory strongrrl].each { |who|
+        sudo "mkdir -p /mnt/backup/imap/#{ who }"
       }
     end
   end
