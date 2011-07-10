@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Must have /root/.offlineimaprc
+/usr/bin/offlineimap

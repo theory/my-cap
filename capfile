@@ -325,10 +325,11 @@ namespace :build do
     end
 
     task :config, :roles => :backup do
-      supload 'config/offlineimap.conf', '/root/.offlineimaprc'
+#      supload 'config/offlineimap.conf', '/root/.offlineimaprc'
       %w[theory strongrrl].each { |who|
         sudo "mkdir -p /mnt/backup/imap/#{ who }"
       }
+      supload 'config/cron.daily/backupimap', '/etc/cron.daily/backupimap', :mode => 0755
     end
   end
 
