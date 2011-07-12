@@ -134,8 +134,8 @@ if [ $OS = 'Darwin' ]; then
     SystemStarter start PostgreSQL || exit $?
     cd $BACKTO
 else
-    download https://raw.github.com/theory/my-cap/master/config/postgresql-crocker.conf
-    cp postgresql-crocker.conf $BASE/data/postgresql.conf
+    download https://raw.github.com/theory/my-cap/master/config/postgresql-wolf.conf
+    cp postgresql-wolf.conf $BASE/data/postgresql.conf
     chown postgres:postgres $BASE/data/postgresql.conf
     /etc/init.d/postgresql stop
     /etc/init.d/postgresql start || exit $?

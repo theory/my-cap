@@ -9,7 +9,7 @@ role :ldap,   'ldap.kineticode.com'
 role :mail,   'smtp.kineticode.com'
 role :web,    'crocker.kineticode.com'
 role :irc,    'smtp.kineticode.com'
-role :db,     'smtp.kineticode.com'
+role :db,     '10.0.1.201'
 role :blog,   '10.0.1.201'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
