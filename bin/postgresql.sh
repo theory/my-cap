@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=9.0.4
+export VERSION=9.1beta3
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 
@@ -12,9 +12,6 @@ echo Unpacking $file...
 rm -rf postgresql-$VERSION
 tar jxf postgresql-$VERSION.tar.bz2 || exit $?
 cd postgresql-$VERSION
-download 'http://git.postgresql.org/gitweb?p=postgresql.git;a=patch;h=cb252c2acd415d304e3254e99f82058d11a69e04'
-patch -p1 < 'gitweb?p=postgresql.git;a=patch;h=cb252c2acd415d304e3254e99f82058d11a69e04' || exit $?
-#patch -p1  < `dirname $0`/../patches/pg-json.patch
 
 # Useful tutorial from depesz:
 # http://www.depesz.com/index.php/2010/02/26/installing-postgresql/
@@ -22,29 +19,21 @@ patch -p1 < 'gitweb?p=postgresql.git;a=patch;h=cb252c2acd415d304e3254e99f82058d1
 if [ $OS = 'Darwin' ]; then
      # For debugging: --enable-cassert --enable-debug
     ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
-    --with-openssl --with-pam --with-krb5 --with-libxml --with-ldap \
+    --with-openssl --with-pam --with-krb5 --with-libxml \
     --with-ossp-uuid --with-includes=/usr/local/include \
     --enable-integer-datetimes --with-zlib \
     --with-libs=/usr/local/lib --prefix=$BASE || exit $?
 else
     ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
-    --with-libxml --with-ldap --with-ossp-uuid --with-libs=/usr/local/lib \
+    --with-libxml --with-ossp-uuid --with-libs=/usr/local/lib \
     --enable-integer-datetimes --with-zlib -with-gnu-ld \
     --with-includes=/usr/local/include || exit $?    
 fi
 
-make world -j3 || exit $?
+make world -j3 # || exit $?
 #LD_LIBRARY_PATH=./src/interfaces/libpq ./src/bin/pg_dump/pg_dumpall -U postgres > db.backup
 cd /usr/local/src/postgresql-$VERSION
 make install-world || exit $?
-
-# Download and build the temporal package.
-cd contrib
-git clone git://github.com/davidfetter/PostgreSQL-Temporal.git temporal
-cd temporal
-make -j3 || exit $?
-make install || exit $?
-cd ../..
 
 if [ $OS = 'Darwin' ]; then
     if [ "`dscl . -list /Groups | grep postgres`" = '' ]; then
@@ -140,24 +129,3 @@ else
     /etc/init.d/postgresql stop
     /etc/init.d/postgresql start || exit $?
 fi
-sleep 5
-
-for lang in plperl plperlu
-do
-    $BASE/bin/createlang -U postgres $lang template1
-    $BASE/bin/createlang -U postgres $lang postgres
-done
-
-# Add the contrib modules to the contrib schema.
-perl -i -pe 's/SET\s+search_path\s*=\s*public;/SET search_path = contrib;/i;' $BASE/share/contrib/*.sql
-OPTS='-XU postgres --set ON_ERROR_ROLLBACK=1 --set ON_ERROR_STOP=1'
-$BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib' template1
-$BASE/bin/psql $OPTS -c 'CREATE SCHEMA contrib' postgres
-export PGOPTIONS="--search_path=contrib --client_min_messages=warning"
-
-# Install some contrib modules now.
-for file in adminpack fuzzystrmatch hstore isn pgcrypto dblink lo ltree uuid-ossp citext intarray btree_gist period
-do
-    $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql template1
-    $BASE/bin/psql $OPTS -f $BASE/share/contrib/$file.sql postgres
-done
