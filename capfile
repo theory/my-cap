@@ -796,8 +796,13 @@ namespace :blog do
         sudo_script 'bin/apache2.sh'
       end
 
+
       task :config, :roles => :blog do
         sudo 'mkdir -p /etc/httpd'
+        sudo 'mkdir -p /var/www/kineticode.com'
+        sudo 'mkdir -p /var/www/preview.kineticode.com'
+        sudo 'mkdir -p /var/www/strongrrl.com'
+        sudo 'mkdir -p /var/www/preview.strongrrl.com'
         sudo 'mkdir -p /var/www/justatheory.com'
         sudo 'chown -R david:david /var/www/justatheory.com'
         sudo 'mkdir -p /var/www/justatheory.blog'
@@ -812,9 +817,11 @@ namespace :blog do
         # Configure the blog.
         supload 'config/blog/blosxom.cgi', '/var/www/justatheory.com/blosxom.cgi', :mode => 0755;
         supload 'config/blog/search.cgi', '/var/www/justatheory.com/search.cgi', :mode => 0755;
-        supload 'config/blog/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
+        supload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
         sudo 'rm /usr/local/apache2/conf/httpd.conf'
         sudo 'ln -s /etc/httpd/httpd.conf /usr/local/apache2/conf/httpd.conf'
+        supload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
+        supload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
 
         # Upload the blosxom configuration and templats.
         upload 'config/blog/docroot', '/tmp/blog-docroot'
