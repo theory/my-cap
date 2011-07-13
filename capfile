@@ -754,7 +754,7 @@ namespace :blog do
         supload 'config/rsnapshot/rsnapshot.conf', '/etc/rsnapshot.conf', :mode => 0644
         supload 'config/cron.d/rsnapshot', '/etc/cron.d/rsnapshot', :mode => 0644
         supload 'config/rsnapshot/ssh_config', '/root/.ssh/config', :mode => 0600
-        supload '../Corporate/config/rsnapshot.priv', '/root/.ssh/rsnapshot', :mode => 0600
+        supload '../kineticode/config/rsnapshot.priv', '/root/.ssh/rsnapshot', :mode => 0600
       end
     end
 
