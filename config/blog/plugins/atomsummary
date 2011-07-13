@@ -9,7 +9,7 @@ use strict;
 
 sub start {
     return 1 if $blosxom::template{atomsum}{head};
-    for my $tmpl qw(content_type date head foot story) {
+    for my $tmpl (qw(content_type date head foot story)) {
         $blosxom::template{atomsum}{$tmpl} = $blosxom::template{atom}{$tmpl};
     }
     return 1;
