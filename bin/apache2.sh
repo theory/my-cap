@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=2.2.17
+export VERSION=2.2.19
 
 . `dirname $0`/functions.sh
 
@@ -14,14 +14,6 @@ export CFLAGS="-DAP_UNSAFE_ERROR_LOG_UNESCAPED"
 # Debugging Apache.
 #export CFLAGS="-DAP_UNSAFE_ERROR_LOG_UNESCAPED -g"
 
-if [ "`ps ax | grep slapd | grep -v grep`" = '' ]; then
-    LDAP=''
-    SLDAP=''
-else
-    LDAP=' --with-ldap --enable-ldap --enable-authnz-ldap'
-    SLDAP=' authnz_ldap ldap'
-fi
-
 ./configure \
  --prefix=/usr/local/apache2 \
  --with-mpm=prefork \
@@ -33,8 +25,7 @@ fi
  --enable-authz-host \
  --enable-authz-group \
  --enable-authz-user \
- $LDAP \
- --enable-mods-shared="rewrite info worker proxy deflate headers mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl$SLDAP" || exit $?
+ --enable-mods-shared="rewrite info worker proxy deflate headers mod_auth include ssl env mime-magic auth_digest expires dav dav_fs perl" || exit $?
 # Debugging Apache:
 # ./configure \
 # --prefix=/usr/local/apache2 \

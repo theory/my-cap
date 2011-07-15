@@ -379,7 +379,6 @@ namespace :build do
       sudo 'mkdir -p /etc/httpd'
       sudo 'mkdir -p /var/www/kineticode.com'
       sudo 'mkdir -p /var/www/strongrrl.com'
-      sudo 'mkdir -p /var/www/back.openjsan.org'
       sudo 'mkdir -p /var/log/httpd'
       sudo 'mkdir -p /var/lock/httpd'
       supload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
@@ -390,15 +389,11 @@ namespace :build do
       supload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
       supload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
       supload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
-      supload 'config/cron.daily/syncjsan', '/etc/cron.daily/syncjsan', :mode => 0755
       sudo 'update-rc.d httpd defaults'
 
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_apreq2.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+apreq_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
       sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_dav_svn.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+(?:dav|authz)_svn)/\\$1/gm' /etc/httpd/httpd.conf; fi"}
-
-      pass = Capistrano::CLI.password_prompt('Password for uid=nobody,ou=daemons,dc=kineticode,dc=com: ')
-      sudo %{perl -i -pe 's/-PASSWORD-/#{pass}/g' /etc/httpd/httpd-vhosts.conf}
       sudo '/etc/init.d/httpd restart'
     end
   end
@@ -472,15 +467,12 @@ namespace :build do
       puts %{Be sure to run\n\n    EDITOR=emacs visudo\n\n to add\n\n    rsync ALL=NOPASSWD: /usr/bin/rsync\n\n}
     end
 
-    task :config, :roles => :mail do
+    task :config, :roles => :web do
       supload 'config/rsnapshot/authorized_keys', '/home/rsync/.ssh/authorized_keys', :mode => 0600, :owner => 'rsync', :group => 'rsync'
       sudo 'mkdir -p /usr/local/bin'
       supload 'config/rsnapshot/validate_rsync', '/usr/local/bin/validate_rsync', :mode => 0755
       supload 'config/rsnapshot/sudo_rsync', '/usr/local/bin/sudo_rsync', :mode => 0755
       supload 'config/rsyncd.conf', '/etc/rsyncd.conf', :mode => 0644
-      supload 'config/cron.hourly/sync_pgxn', '/etc/cron.hourly/sync_pgxn', :mode => 0755
-      supload 'config/cron.daily/sync_cpan', '/etc/cron.daily/sync_cpan', :mode => 0755
-      supload 'config/cron.daily/check_pgxn_mirrors', '/etc/cron.daily/check_pgxn_mirrors', :mode => 0755
       sudo '/etc/init.d/rsync restart'
     end
   end
@@ -521,6 +513,7 @@ namespace :build do
     end
     
     task :config, :roles => :web do
+      supload 'config/cron.daily/check_pgxn_mirrors', '/etc/cron.daily/check_pgxn_mirrors', :mode => 0755
       supload 'config/init_pgxn_manager', '/etc/init.d/pgxn_manager', :mode => 0755
       sudo 'update-rc.d pgxn_manager defaults'
       sudo 'mkdir -p /var/run/pgxn_manager'
@@ -845,6 +838,10 @@ namespace :blog do
         # Enable mod_perl and mod_apreq, if appropriate.
         sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_perl.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+perl_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
         sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_apreq2.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+apreq_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
+
+        # Set up related cron jobs.
+        supload 'config/cron.hourly/sync_pgxn', '/etc/cron.hourly/sync_pgxn', :mode => 0755
+        # supload 'config/cron.daily/sync_cpan', '/etc/cron.daily/sync_cpan', :mode => 0755
 
         # Make it so!
         sudo '/etc/init.d/httpd restart'
