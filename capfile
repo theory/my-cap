@@ -840,7 +840,7 @@ namespace :blog do
         sudo %q{bash -c "if [ -f /usr/local/apache2/modules/mod_apreq2.so ]; then perl -i -pe 's/^#\\s+(LoadModule\\s+apreq_module)/\\$1/m' /etc/httpd/httpd.conf; fi"}
 
         # Set up related cron jobs.
-        supload 'config/cron.hourly/sync_pgxn', '/etc/cron.hourly/sync_pgxn', :mode => 0755
+        supload 'config/cron.daily/sync_pgxn', '/etc/cron.daily/sync_pgxn', :mode => 0755
         # supload 'config/cron.daily/sync_cpan', '/etc/cron.daily/sync_cpan', :mode => 0755
 
         # Make it so!

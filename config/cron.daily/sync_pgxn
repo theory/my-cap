@@ -1,0 +1,3 @@
+#!/bin/sh
+
+sudo -u david /usr/bin/rsync -az --delete rsync://master.pgxn.org/pgxn /var/www/pgxn.justatheory.com/

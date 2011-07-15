@@ -1,3 +1,0 @@
-#!/bin/bash
-
-#rsync -avz --exclude=/js/script/mirror.js rsync://master.openjsan.org/jsan /var/www/back.openjsan.org
