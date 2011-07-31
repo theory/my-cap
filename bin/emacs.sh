@@ -1,27 +1,29 @@
 #!/bin/sh
 
-export VERSION=22.3
+export VERSION=23.3
 
 . `dirname $0`/functions.sh
 
-#setup /Applications/Emacs.app/Contents/MacOS/Emacs
-cd /usr/local/src
-if [ ! -d emacs ]; then
-    git clone git://git.sv.gnu.org/emacs || exit $?
-fi
-cd emacs
-git pull || exit $?
-# Get rid of the $CC setting once Emacs can be built with 64 bit support on Snow Leopard.
-CC='gcc -arch i386' ./configure --with-carbon --without-x --without-pop --with-xpm --with-jpeg --with-tiff --with-png --with-gif --with-x-toolkit=lucid --with-ns || exit $?
-make bootstrap -j3 || exit $?
+# Download and unpack.
+setup
+download http://ftp.gnu.org/gnu/emacs/emacs-$VERSION.tar.gz
+tar zxf emacs-$VERSION.tar.gz
+cd emacs-$VERSION
+
+# Patches from https://gist.github.com/1109223.
+curl 'http://repo.or.cz/w/emacs.git/commitdiff_plain/c8bba48c5889c4773c62a10f7c3d4383881f11c1' | patch -p1
+curl 'https://raw.github.com/gist/1098107' | patch -p1
+curl 'https://raw.github.com/gist/1012927' | patch -p1
+curl 'https://raw.github.com/gist/1101856' | patch -p1
+
+# Make it so.
+./configure --without-x --without-pop --with-xpm --with-jpeg --with-tiff --with-png --with-gif --with-x-toolkit=lucid --with-ns --without-dbus || exit $?
 make -j3 || exit $?
 sudo make install || exit $?
-cd nextstep
-make install || exit $?
-cp -rf Emacs.app /Applications
+
+# Install the bundle and the shell script that points to it.
+cp -rf nextstep/Emacs.app /Applications
 rm /usr/local/bin/emacs
 echo '#!/bin/sh' > /usr/local/bin/emacs
 echo '/Applications/Emacs.app/Contents/MacOS/Emacs "$@"' >> /usr/local/bin/emacs
 chmod +x /usr/local/bin/emacs
-rm /usr/bin/emacs
-ln /usr/local/bin/emacs /usr/bin
