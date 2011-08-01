@@ -36,7 +36,7 @@ cd /usr/local/src/postgresql-$VERSION
 make install-world || exit $?
 
 if [ $OS = 'Darwin' ]; then
-    if [ "`dscl . -list /Groups | grep postgres`" = '' ]; then
+    if [ "`dscl . -list /Groups | grep ^postgres`" = '' ]; then
         ID=`echo \`(dscl . list /Groups gid|awk '{print $2}'|sort -n|tail -1)\`+1 | bc`
         # Create the "postgres" group.
         dscl . -create /Groups/postgres
@@ -46,7 +46,7 @@ if [ $OS = 'Darwin' ]; then
         dscl . -create /Groups/postgres PrimaryGroupID $ID
     fi
 
-    if [ "`dscl . -list /Users | grep postgres`" = '' ]; then
+    if [ "`dscl . -list /Users | grep ^postgres`" = '' ]; then
         # Create the "postgres" user.
         ID=`echo \`(dscl . list /Users UniqueID|awk '{print $2}'|sort -n|tail -1)\`+1 | bc`
         GID=`dscl . read /Groups/postgres PrimaryGroupID|awk '{print $2}'`
@@ -99,6 +99,7 @@ fi
 if [ ! -d $BASE/data ]; then
     # Create and initialize the data directory.
     mkdir $BASE/data
+    chmod 0700 $BASE/data
     chown -R postgres:postgres $BASE/data
     sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding utf-8 -D $BASE/data
 #    sudo -u postgres $BASE/bin/initdb --no-locale --encoding utf-8 -D $BASE/data

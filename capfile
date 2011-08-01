@@ -596,6 +596,11 @@ namespace :my do
       sudol_scripts( 'uuid' )
     end
 
+    task :libreadline, :roles => :local do
+      perl
+      sudol_scripts( 'readline' )
+    end
+
     task :emacs, :roles => :local do
       graphics
       git
@@ -625,6 +630,7 @@ namespace :my do
     task :pg, :roles => :local do
       perl
       uuid
+      libreadline
       sudol_scripts( 'postgresql' )
     end
 
