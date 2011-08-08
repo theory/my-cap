@@ -19,7 +19,7 @@ cd postgresql-$VERSION
 if [ $OS = 'Darwin' ]; then
     export CC=clang
      # For debugging: --enable-cassert --enable-debug
-    ./configure --with-libedit-preferred --with-bonjour --with-perl PERL=$PERL \
+    ./configure --with-bonjour --with-perl PERL=$PERL \
     --with-openssl --with-pam --with-krb5 --with-libxml \
     --with-ossp-uuid --with-includes=/usr/local/include \
     --enable-integer-datetimes --with-zlib \
