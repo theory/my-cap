@@ -17,7 +17,6 @@ cd postgresql-$VERSION
 # http://www.depesz.com/index.php/2010/02/26/installing-postgresql/
 
 if [ $OS = 'Darwin' ]; then
-    export CC=clang
      # For debugging: --enable-cassert --enable-debug
     ./configure --with-bonjour --with-perl PERL=$PERL \
     --with-openssl --with-pam --with-krb5 --with-libxml \

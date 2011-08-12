@@ -7,4 +7,3 @@ export VERSION=4.7.0
 setup /usr/local/include/proj_api.h
 download http://download.osgeo.org/proj/proj-$VERSION.tar.gz
 build proj-$VERSION
-
