@@ -421,6 +421,7 @@ namespace :build do
     perl
     xml
     sudo_script 'bin/libssh2.sh'
+    sudo_script 'bin/libgmp.sh'
     run_script 'bin/cpan.sh'
     run 'env PERL_MM_USE_DEFAULT=1 /usr/local/bin/cpan Bundle::Theory'
   end
