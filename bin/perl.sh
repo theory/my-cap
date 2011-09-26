@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=5.14.1
+export VERSION=5.14.2
 
 . `dirname $0`/functions.sh
 
@@ -9,11 +9,6 @@ download http://cpan.cpantesters.org/src/perl-$VERSION.tar.gz
 rm -rf perl-$VERSION
 tar zxf perl-$VERSION.tar.gz || exit $?
 cd perl-$VERSION
-
-# Patch Perl for newer Xcode: https://github.com/gugod/App-perlbrew/issues/128
-if [ $OS = 'Darwin' ]; then
-    curl 'http://perl5.git.perl.org/perl.git/patch/60a655a1ee05c577268377c1135ffabc34dbff43?hp=17f2f4a89572b1fc2df3bb61fe31eaab28f9b315' | patch -p1
-fi
 
 sh Configure -des -Duseshrplib -Dusemultiplicity -Duseithreads -Dinc_version_list=none -Dperladmin=david@kineticode.com -Dcf_email=david@kineticode.com || exit $?
 # * -Dusershrplib required for embedding, e.g. PL/Perl.
