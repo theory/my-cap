@@ -2,14 +2,14 @@
 
 . `dirname $0`/functions.sh
 
-export PERL=/usr/local/bin/perl
+export PERL=/usr/bin/perl
 
 setup
 for VERSION in 9.0.5 8.4.9 8.3.16 8.2.22 8.1.23 8.0.26
 do
     BASE=/usr/local/pgsql-`echo $VERSION | awk -F. '{ print $1 "." $2 }'`
     if [ ! -e "$BASE" ]; then
-        download ftp://ftp10.us.postgresql.org/pub/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
+        download http://ftp9.us.postgresql.org/pub/mirrors/postgresql/source/v$VERSION/postgresql-$VERSION.tar.bz2
         echo "Unpacking postgresql-$VERSION.tar.bz2"
         rm -rf postgresql-$VERSION
         tar jxf postgresql-$VERSION.tar.bz2 || exit $?
