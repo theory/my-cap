@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export MMMVERSION=0.4.8
-export PODVERSION=0.502
+export PODVERSION=1.03
 
 . `dirname $0`/functions.sh
 mkdir -p /usr/local/share/emacs/site-lisp
@@ -12,9 +12,9 @@ download http://softlayer.dl.sourceforge.net/project/mmm-mode/mmm-mode/$MMMVERSI
 build mmm-mode-$MMMVERSION
 
 # pod-mode
-download http://cpan.org/authors/id/S/SC/SCHWIGON/pod-mode/pod-mode-$PODVERSION.tgz
+download http://cpan.org/authors/id/S/SC/SCHWIGON/pod-mode/pod-mode-$PODVERSION.tar.gz
 rm -rf pod-mode-$PODVERSION
-tar zxf pod-mode-$PODVERSION.tgz
+tar zxf pod-mode-$PODVERSION.tar.gz
 cd pod-mode-$PODVERSION
 emacs -batch -f batch-byte-compile pod-mode.el
 cp pod-mode.el* /usr/local/share/emacs/site-lisp
