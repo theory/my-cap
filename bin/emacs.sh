@@ -1,13 +1,14 @@
 #!/bin/sh
 
 export VERSION=23.3
+export TARVERSION=23.3a
 
 . `dirname $0`/functions.sh
 
 # Download and unpack.
 setup
-download http://ftp.gnu.org/gnu/emacs/emacs-$VERSION.tar.gz
-tar zxf emacs-$VERSION.tar.gz
+download http://ftp.gnu.org/gnu/emacs/emacs-$TARVERSION.tar.gz
+tar zxf emacs-$TARVERSION.tar.gz
 cd emacs-$VERSION
 
 # Patches from https://gist.github.com/1109223.
