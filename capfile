@@ -580,6 +580,10 @@ namespace :my do
       sudol_scripts( 'expat', 'libxml2', 'libxslt' )
     end
 
+    task :jansson, :roles => :local do
+      sudol_scripts( 'jansson' )
+    end
+
     task :siege, :roles => :local do
       sudol_scripts( 'siege' )
     end
