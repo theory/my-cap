@@ -80,8 +80,8 @@ function pgxn_distros(data) {
     document.write('<dl>');
     for (dist in data.releases) {
         document.write(
-            '<dt><a href=http://pgxn.org/dist/' + dist +
-            '>' + dist + '</a></dt>' +
+            '<dt><a href=http://pgxn.org/dist/' + dist.toLowerCase() +
+            '/>' + dist + '</a></dt>' +
             '<dd>' + data.releases[dist].abstract + '</dd>'
         );
     }
