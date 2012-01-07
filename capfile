@@ -606,6 +606,11 @@ namespace :my do
       sudol_scripts( 'readline' )
     end
 
+    task :rlwrap, :roles => :local do
+      libreadline
+      sudol_scripts( 'rlwrap' )
+    end
+
     task :emacs, :roles => :local do
       graphics
       git
