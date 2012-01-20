@@ -592,6 +592,15 @@ namespace :my do
       sudol_scripts( 'zlib' )
     end
 
+    task :curses, :roles => :local do
+      sudol_scripts( 'curses' )
+    end
+
+    task :watch, :roles => :local do
+      curses
+      sudol_scripts( 'watch' )
+    end
+
     task :graphics, :roles => :local do
       sudol_scripts( 'libpng', 'libjpeg', 'libtiff', 'giflib', 'freetype' )
     end
