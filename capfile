@@ -663,6 +663,16 @@ namespace :my do
       sudol_scripts( 'plproxy' )
     end
 
+    task :libevent, :roles => :local do
+      sudol_scripts( 'libevent' )
+    end
+
+    task :pgbouncer, :roles => :local do
+      pg
+      libevent
+      sudol_scripts( 'pgbouncer' )
+    end
+
     task :pgbench, :roles => :local do
       pg
       sudol_scripts( 'pgbench' )
