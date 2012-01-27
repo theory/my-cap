@@ -12,9 +12,3 @@ cd pgbouncer-$VERSION
 ./configure
 make
 make install
-
-     INSTALL  pgbouncer /usr/local/bin
-     INSTALL  README /usr/local/share/doc/pgbouncer
-     INSTALL  NEWS /usr/local/share/doc/pgbouncer
-     INSTALL  etc/pgbouncer.ini /usr/local/share/doc/pgbouncer
-     INSTALL  etc/userlist.txt /usr/local/share/doc/pgbouncer
