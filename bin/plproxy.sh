@@ -1,11 +1,11 @@
 #!/bin/bash
 
-export VERSION=2.2
+export VERSION=2.3
 
 . `dirname $0`/functions.sh
 
 setup
-download http://pgfoundry.org/frs/download.php/2949/plproxy-$VERSION.tar.gz
+download http://pgfoundry.org/frs/download.php/3160/plproxy-$VERSION.tar.gz
 rm -rf plproxy-$VERSION
 tar zxf plproxy-$VERSION.tar.gz
 cd plproxy-$VERSION
