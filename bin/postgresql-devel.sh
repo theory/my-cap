@@ -4,7 +4,7 @@ export VERSION=devel
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql-$VERSION
 
-cd ~/dev/postgresql
+cd ~/dev/postgresql/postgresql
 if [ -f GNUmakefile ]; then
     make maintainer-clean
 fi
