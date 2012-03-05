@@ -26,7 +26,7 @@ if [ $OS = 'Darwin' ]; then
 else
     ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
     --with-libxml --with-ossp-uuid --with-libs=/usr/local/lib \
-    --enable-integer-datetimes --with-zlib -with-gnu-ld \
+    --enable-integer-datetimes --with-zlib --with-gnu-ld \
     --with-includes=/usr/local/include || exit $?    
 fi
 
