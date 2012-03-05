@@ -9,7 +9,7 @@ for VERSION in 9.0.7 8.4.11 8.3.18 8.2.23 8.1.23 8.0.26
 do
     BASE=/usr/local/pgsql-`echo $VERSION | awk -F. '{ print $1 "." $2 }'`
     if [ ! -e "$BASE" ]; then
-        download download http://ftp.postgresql.org/pub/source/v$VERSION/postgresql-$VERSION.tar.bz2
+        download http://ftp.postgresql.org/pub/source/v$VERSION/postgresql-$VERSION.tar.bz2
         echo "Unpacking postgresql-$VERSION.tar.bz2"
         rm -rf postgresql-$VERSION
         tar jxf postgresql-$VERSION.tar.bz2 || exit $?
