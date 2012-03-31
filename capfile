@@ -10,7 +10,7 @@ role :mail,   'smtp.kineticode.com'
 role :web,    '10.0.1.201'
 role :irc,    'smtp.kineticode.com'
 role :db,     '10.0.1.201'
-role :blog,   '10.0.1.201'
+role :blog,   'blog.justatheory.com'
 
 # For prompt stuff, see http://highline.rubyforge.org/doc/, and call HighLine
 # methods on Capistrano::CLI.ui, e.g., Capistrano::CLI.ui.ask().
@@ -100,20 +100,22 @@ namespace :build do
 
   desc 'Installs the base packages that I needs, and upgrades all existing packages.'
   namespace :ubuntu do
-    task :default, :roles => :mail do
+    task :default, :roles => :blog do
       config
       upgrade
-      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install emacs screen sysstat make gcc libc6-dev path'
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install emacs screen sysstat make gcc libc6-dev build-essential'
+      # Make sure LD_LIBARY_PATH knows about /usr/local/lib
+      sudo "sh -c 'echo /usr/local/lib > /etc/ld.so.conf.d/local.conf'"
     end
 
     desc 'Upgrade all installed packages.'
-    task :upgrade, :roles => :mail do
+    task :upgrade, :roles => :blog do
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y upgrade'
     end
 
     desc 'Configure apt.'
-    task :config, :roles => :mail do
+    task :config, :roles => :blog do
       supload 'config/ubuntu/sources.list', '/etc/apt/sources.list'
       supload 'config/ubuntu/preferences', '/etc/apt/preferences'
     end
@@ -365,6 +367,20 @@ namespace :build do
   task :uuid, :roles => :web do
     perl
     sudo_script 'bin/uuid.sh'
+  end
+
+  namespace :pcre do
+    task :default, :roles => :blog do
+      sudo_script 'bin/pcre.sh'
+    end
+  end
+  
+  namespace :nginx do
+    task :default, :roles => :blog do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install zlib1g zlib1g-dev libssl-dev cronolog'
+      pcre
+      sudo_script 'bin/nginx.sh'
+    end
   end
 
   namespace :apache2 do
