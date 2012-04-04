@@ -427,9 +427,10 @@ namespace :build do
     sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libjpeg62 libjpeg62-dev libpng3 libpng12-dev libtiff4 libtiff4-dev libgif4 libgif-dev'
   end
 
-  task :xml, :roles => :web do
-    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get update'
-    sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libxml2 libxml2-dev libxslt1-dev libexpat1 libexpat1-dev'
+  task :xml, :roles => :blog do
+    sudo_script 'bin/expat.sh'
+    sudo_script 'bin/libxml2.sh'
+    sudo_script 'bin/libxslt.sh'
   end
 
   task :cpan, :roles => :web do

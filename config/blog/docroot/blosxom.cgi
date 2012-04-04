@@ -13,13 +13,13 @@ package blosxom;
 our $blog_title = 'Just a Theory';
 
 # What's this blog's description (for outgoing RSS feed)?
-our $blog_description = 'Theory waxes practical. By David Wheeler.';
+our $blog_description = 'Theory waxes practical. By David E. Wheeler.';
 
 # What's this blog's primary language (for outgoing RSS feed)?
 our $blog_language = 'en-us';
 
 # Where are this blog's entries kept?
-our $datadir = '/var/www/justatheory.blog';
+our $datadir = "$ENV{HOME}blog/entries";
 
 # What's my preferred base URL for this blog (leave blank for automatic)?
 our $url = '';
@@ -44,7 +44,7 @@ our $show_future_entries = 0;
 # --- Plugins (Optional) -----
 
 # Where are my plugins kept?
-our $plugin_dir = '/var/www/justatheory.plugins';
+our $plugin_dir = "$ENV{HOME}blog/plugins";
 
 # Where should my modules keep their state information?
 our $plugin_state_dir = "$plugin_dir/state";
@@ -52,17 +52,17 @@ our $plugin_state_dir = "$plugin_dir/state";
 # --- Static Rendering -----
 
 # Where are this blog's static files to be created?
-our $static_dir = '/Library/WebServer/Documents/blog';
+our $static_dir = '/var/www/justatheory.com';
 
 # What's my administrative password (you must set this for static rendering)?
-our $static_password = '';
+our $static_password = 'foo';
 
 # What flavours should I generate statically?
 our @static_flavours = qw/html rss/;
 
 # Should I statically generate individual entries?
 # 0 = no, 1 = yes
-our $static_entries = 0;
+our $static_entries = 1;
 
 # --------------------------------
 
@@ -124,7 +124,7 @@ my @path_info = split m{/}, path_info() || param('path');
 shift @path_info;
 
 # DEW 2008-12-09: Changed this so that directories can just be numbers. This
-# allows permalinks to, e.g. /travel/france/2008/ to work, withouth assuming
+# allows permalinks to, e.g. /travel/france/2008/ to work, without assuming
 # that the "2008" means a date that's not really the path. Seriously thinking I
 # need to dump blosxom soon. :-(
 

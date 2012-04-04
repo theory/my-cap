@@ -18,3 +18,4 @@ build nginx-$VERSION
 wget https://raw.github.com/JasonGiedymin/nginx-init-ubuntu/master/nginx -O /etc/init.d/nginx
 chmod +x /etc/init.d/nginx
 /usr/sbin/update-rc.d -f nginx defaults
+perl -i -pE 's{^DAEMON=.+}{DAEMON=/usr/local/nginx/sbin/nginx}' /etc/init.d/nginx
