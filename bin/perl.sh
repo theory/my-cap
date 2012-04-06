@@ -10,7 +10,7 @@ rm -rf perl-$VERSION
 tar zxf perl-$VERSION.tar.gz || exit $?
 cd perl-$VERSION
 
-sh Configure -des -Duseshrplib -Dusemultiplicity -Duseithreads -Dinc_version_list=none -Dperladmin=david@kineticode.com -Dcf_email=david@kineticode.com || exit $?
+sh Configure -des -Duseshrplib -Dusemultiplicity -Duseithreads -Dinc_version_list=none -Dperladmin=david@justatheory.com -Dcf_email=david@justatheory.com || exit $?
 # * -Dusershrplib required for embedding, e.g. PL/Perl.
 # * -Dusemultiplicity required to allow multiple interpreters in one process,
 #   e.g., to allow both PL/Perl and PL/PerlU functions to be used in a single
