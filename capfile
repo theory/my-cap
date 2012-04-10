@@ -411,8 +411,6 @@ namespace :build do
 
     task :config, :roles => :web do
       sudo 'mkdir -p /etc/httpd'
-      sudo 'mkdir -p /var/www/kineticode.com'
-      sudo 'mkdir -p /var/www/strongrrl.com'
       sudo 'mkdir -p /var/log/httpd'
       sudo 'mkdir -p /var/lock/httpd'
       supload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
@@ -494,7 +492,7 @@ namespace :build do
   end
 
   namespace :rsync do
-    task :default, :roles => :mail do
+    task :default, :roles => :blog do
       sudo 'useradd -m rsync -s /bin/bash'
       sudo 'mkdir -p /home/rsync/.ssh'
       sudo 'chown rsync:rsync /home/rsync/.ssh'
@@ -503,7 +501,7 @@ namespace :build do
       puts %{Be sure to run\n\n    EDITOR=emacs visudo\n\n to add\n\n    rsync ALL=NOPASSWD: /usr/bin/rsync\n\n}
     end
 
-    task :config, :roles => :web do
+    task :config, :roles => :blog do
       supload 'config/rsnapshot/authorized_keys', '/home/rsync/.ssh/authorized_keys', :mode => 0600, :owner => 'rsync', :group => 'rsync'
       sudo 'mkdir -p /usr/local/bin'
       supload 'config/rsnapshot/validate_rsync', '/usr/local/bin/validate_rsync', :mode => 0755
