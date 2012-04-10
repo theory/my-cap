@@ -381,6 +381,24 @@ namespace :build do
       pcre
       sudo_script 'bin/nginx.sh'
     end
+    task :config, :roles => :blog do
+      supload 'config/nginx.conf', '/usr/local/nginx/conf/nginx.conf', :mode => 0755
+      sudo '/etc/init.d/nginx restart'
+    end
+  end
+
+  namespace :varnish do
+    task :default, :roles => :blog do
+      sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install pkg-config'
+      pcre
+      sudo_script 'bin/varnish.sh'
+    end
+    task :config, :roles => :blog do
+      supload 'config/init_varnish', '/etc/init.d/varnish', :mode => 0755
+      supload 'config/varnish.vcl', '/usr/local/etc/varnish/default.vcl', :mode => 0755
+      sudo 'update-rc.d varnish defaults'
+      sudo '/etc/init.d/varnish restart'
+    end
   end
 
   namespace :apache2 do
