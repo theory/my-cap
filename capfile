@@ -503,9 +503,9 @@ namespace :build do
 
     task :config, :roles => :blog do
       supload 'config/rsnapshot/authorized_keys', '/home/rsync/.ssh/authorized_keys', :mode => 0600, :owner => 'rsync', :group => 'rsync'
-      sudo 'mkdir -p /usr/local/bin'
-      supload 'config/rsnapshot/validate_rsync', '/usr/local/bin/validate_rsync', :mode => 0755
-      supload 'config/rsnapshot/sudo_rsync', '/usr/local/bin/sudo_rsync', :mode => 0755
+      # sudo 'mkdir -p /usr/local/bin'
+      # supload 'config/rsnapshot/validate_rsync', '/usr/local/bin/validate_rsync', :mode => 0755
+      # supload 'config/rsnapshot/sudo_rsync', '/usr/local/bin/sudo_rsync', :mode => 0755
       supload 'config/rsyncd.conf', '/etc/rsyncd.conf', :mode => 0644
       sudo '/etc/init.d/rsync restart'
     end

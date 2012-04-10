@@ -1,5 +1,5 @@
-Host crocker
-  HostName crocker.kineticode.com
+Host justatheory
+  HostName justatheory.com
   User rsync
   IdentityFile /root/.ssh/rsnapshot
 
