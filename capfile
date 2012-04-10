@@ -804,7 +804,7 @@ namespace :my do
 end
 
 namespace :backup do
-  task :update, :roles => :blog do
+  task :update, :roles => :backup do
     sudo 'env DEBIAN_FRONTEND=noninteractive apt-get update'
   end
 
@@ -823,37 +823,23 @@ namespace :backup do
       end
     end
 
-    task :sqlite, :roles => :blog do
+    task :sqlite, :roles => :backup do
       sudo_script 'bin/sqlite.sh'
     end
 
-    task :perl, :roles => :blog do
+    task :perl, :roles => :backup do
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y update'
       sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install libdb4.6 libdb4.6-dev'
       sudo_script 'bin/perl.sh'
     end
 
-    task :cpan, :roles => :blog do
+    task :cpan, :roles => :backup do
       run_script 'bin/cpan.sh'
       run 'env PERL_MM_USE_DEFAULT=1 /usr/local/bin/cpan KinoSearch'
     end
 
-    namespace :postfix do
-      task :default, :roles => :blog do
-        sudo 'env DEBIAN_FRONTEND=noninteractive apt-get -y install postfix postfix-pcre mailx'
-        config
-      end
-
-      task :config, :roles => :blog do
-        supload 'config/blog/main.cf', '/etc/postfix/main.cf', :mode => 0644
-        supload '../Corporate/config/blog_sasl_passwd', '/etc/postfix/sasl/passwd', :mode => 0600
-        sudo 'postmap /etc/postfix/sasl/passwd'
-        sudo 'postfix reload'
-      end
-    end
-    
     namespace :httpd do
-      task :default, :roles => :blog do
+      task :default, :roles => :backup do
         perl
         cpan
         sudo 'env PERL_MM_USE_DEFAULT=1 cpan KinoSearch'
@@ -862,18 +848,17 @@ namespace :backup do
       end
 
 
-      task :config, :roles => :blog do
+      task :config, :roles => :backup do
         sudo 'mkdir -p /etc/httpd'
         sudo 'mkdir -p /var/log/httpd'
         sudo 'mkdir -p /var/lock/httpd'
 
         supload 'config/httpd/httpd.conf', '/etc/httpd/httpd.conf', :mode => 0644
-        sudo 'rm /usr/local/apache2/conf/httpd.conf'
-        sudo 'ln -s /etc/httpd/httpd.conf /usr/local/apache2/conf/httpd.conf'
+        sudo 'ln -fsn /etc/httpd/httpd.conf /usr/local/apache2/conf/httpd.conf'
         supload 'config/httpd/httpd-vhosts.conf', '/etc/httpd/httpd-vhosts.conf', :mode => 0644
         supload 'config/httpd/httpd-ssl.conf', '/etc/httpd/httpd-ssl.conf', :mode => 0644
 
-        # Upload the scripts to run the blog.
+        # Upload the scripts to run Apache.
         supload 'config/httpd/apachectl', '/usr/bin/apachectl', :mode => 0755
         supload 'config/httpd/httpd', '/etc/init.d/httpd', :mode => 0755
         supload 'config/cron.daily/clean_errorlogs', '/etc/cron.daily/clean_errorlogs', :mode => 0755
