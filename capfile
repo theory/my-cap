@@ -625,6 +625,10 @@ namespace :my do
       sudol_scripts( 'siege' )
     end
 
+    task :gettext, :roles => :local do
+      sudol_scripts( 'gettext' )
+    end
+
     task :zlib, :roles => :local do
       sudol_scripts( 'zlib' )
     end
