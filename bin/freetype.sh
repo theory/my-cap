@@ -8,5 +8,5 @@ if [ -e /usr/local/bin/freetype-config ] && [ "`/usr/local/bin/freetype-config -
     exit 0
 fi
 setup
-download http://mirrors.zerg.biz/nongnu/freetype/freetype-$VERSION.tar.bz2
+download ftp://gnu.mirrors.pair.com/savannah/freetype/freetype-$VERSION.tar.bz2
 build freetype-$VERSION
