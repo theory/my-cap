@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=1.5.6
+export VERSION=1.5.11 # the old version, 1.5.6, is no longer available by FTP
 
 . `dirname $0`/functions.sh
 
