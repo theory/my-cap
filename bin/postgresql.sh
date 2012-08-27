@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=9.1.4
+export VERSION=9.2rc1
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 
@@ -115,6 +115,7 @@ if [ ! -d $BASE/data ]; then
     fi
 fi
 
+cp $BASE/data/postgresql.conf $BASE/data/postgresql.conf.default
 if [ $OS = 'Darwin' ]; then
     cp `dirname $0`/../config/postgresql.conf $BASE/data/
     chown postgres:postgres $BASE/data/postgresql.conf
