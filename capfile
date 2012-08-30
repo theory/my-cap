@@ -667,7 +667,12 @@ namespace :my do
       sudol_scripts( 'aspell', 'emacs', 'elisp' )
     end
 
+    task :groff, :roles => :local do
+      sudol_scripts( 'groff' )
+    end
+
     task :perl, :roles => :local do
+      groff
       sudol_scripts( 'perl' )
     end
 

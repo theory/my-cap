@@ -21,6 +21,12 @@ setup() {
             else
                 exit 0
             fi
+        else
+            if [ -e "$1" ]; then
+                if [ ! -n "$2" ]; then
+                    exit 0
+                fi
+            fi
         fi
     fi
 
