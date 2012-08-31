@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=24.1
+export VERSION=24.2
 export TARVERSION=$VERSION
 
 . `dirname $0`/functions.sh
