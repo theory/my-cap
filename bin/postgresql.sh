@@ -122,7 +122,9 @@ if [ $OS = 'Darwin' ]; then
     chown postgres:postgres $BASE/data/postgresql.conf
     BACKTO=`pwd`
     cd $BASE/data
-    SystemStarter stop PostgreSQL
+    if [ -e $BASE/data/postmaster.pid ]; then
+        SystemStarter stop PostgreSQL
+    fi
     SystemStarter start PostgreSQL || exit $?
     cd $BACKTO
 else
