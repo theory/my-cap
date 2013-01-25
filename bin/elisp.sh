@@ -78,5 +78,15 @@ download https://github.com/monotux/emacs-d/raw/master/themes/solarized-light-th
 emacs -batch -f batch-byte-compile solarized-dark-theme.el solarized-light-theme.el
 cp solarized-*.el* /usr/local/share/emacs/site-lisp
 
+# flex-mode
+download http://ftp.sunet.se/pub/gnu/emacs-lisp/incoming/flex-mode.el
+emacs -batch -f batch-byte-compile *.el
+cp flex-mode.el* /usr/local/share/emacs/site-lisp
+
+# lemon-mode
+download https://raw.github.com/mooz/lemon-mode/master/lemon-mode.el
+emacs -batch -f batch-byte-compile *.el
+cp lemon-mode.el* /usr/local/share/emacs/site-lisp
+
 # Return to src directory.
 cd ..
