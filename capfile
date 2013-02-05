@@ -809,6 +809,10 @@ namespace :my do
       sudol_scripts( 'gettext', 'php' )
     end
 
+    task :autoconf, :roles => :local do
+      sudol_scripts( 'autoconf' )
+    end
+
   end
 end
 
