@@ -19,9 +19,9 @@ make check
 make install
 
 cd perl
-perl Makefile.PL COMPAT=1
-make -j3
-make test
-make install UNINST=1
+# perl Makefile.PL COMPAT=1
+# make -j3
+# make test
+# make install UNINST=1
 
 cd ../..
