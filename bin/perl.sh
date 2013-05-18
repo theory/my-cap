@@ -5,9 +5,9 @@ export VERSION=5.18.0
 . `dirname $0`/functions.sh
 
 setup /usr/local/bin/perl$VERSION
-download http://cpan.metacpan.org/src/perl-$VERSION.tar.gz
+download http://cpan.metacpan.org/src/perl-$VERSION.tar.bz2
 rm -rf perl-$VERSION
-tar zxf perl-$VERSION.tar.gz || exit $?
+tar zxf perl-$VERSION.tar.bz2 || exit $?
 cd perl-$VERSION
 
 sh Configure -des -Duseshrplib -Dusemultiplicity -Duseithreads -Dinc_version_list=none -Dperladmin=david@justatheory.com -Dcf_email=david@justatheory.com || exit $?
