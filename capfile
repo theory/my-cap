@@ -676,6 +676,10 @@ namespace :my do
       sudol_scripts( 'perl' )
     end
 
+    task :ruby, :roles => :local do
+      sudol_scripts( 'ruby' )
+    end
+
     task :perlregress, :roles => :local do
       sudol_scripts( 'perl-regress' )
     end
