@@ -14,4 +14,3 @@ download ftp://mirror.x10.com/mysql/Downloads/MySQL-5.0/mysql-$VERSION.dmg
 # Shut down and configure.
 /usr/local/mysql/bin/mysqladmin -u root shutdown
 cp `dirname $0`/../config/my.cnf /etc
-

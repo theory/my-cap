@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export DVERSION=2.1.5a
+export DVERSION=2.1.6
 export MVERSION=1.0.1
 . `dirname $0`/functions.sh
 
@@ -13,7 +13,7 @@ chmod +x /usr/local/bin/Markdown.pl
 download http://www.pell.portland.or.us/~orc/Code/discount/discount-$DVERSION.tar.bz2
 tar jxf discount-$DVERSION.tar.bz2 || exit $?
 cd discount-$DVERSION || exit $?
-./configure.sh --with-id-anchor --enable-all-features --shared || exit $?
+./configure.sh --with-id-anchor --enable-all-features --shared --with-dl=both || exit $?
 make || exit $?
 make install || exit $?
 
