@@ -677,6 +677,7 @@ namespace :my do
     end
 
     task :ruby, :roles => :local do
+      sudol_scripts( 'yaml' )
       sudol_scripts( 'ruby' )
     end
 
