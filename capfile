@@ -818,6 +818,11 @@ namespace :my do
       sudol_scripts( 'autoconf' )
     end
 
+    task :v8, :roles => :local do
+      libreadline
+      sudol_scripts( 'v8' )
+    end
+
   end
 end
 
