@@ -613,6 +613,10 @@ namespace :my do
       sudol_scripts( 'expat', 'libxml2', 'libxslt' )
     end
 
+    task :libssh2, :roles => :local do
+      sudol_scripts( 'libssh2' )
+    end
+    
     task :asciidoc, :roles => :local do
       sudol_scripts( 'asciidoc' )
     end
