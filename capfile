@@ -827,6 +827,15 @@ namespace :my do
       sudol_scripts( 'v8' )
     end
 
+    task :cmake, :roles => :local do
+      sudol_scripts( 'cmake' )
+    end
+
+    task :yajl, :roles => :local do
+      cmake
+      sudol_scripts( 'yajl' )
+    end
+
   end
 end
 
