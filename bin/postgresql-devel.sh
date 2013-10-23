@@ -3,6 +3,7 @@
 export VERSION=devel
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql-$VERSION
+export CPPFLAGS=-D_XOPEN_SOURCE
 
 cd ~/dev/postgresql/postgresql
 if [ -f GNUmakefile ]; then
