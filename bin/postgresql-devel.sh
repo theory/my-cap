@@ -9,7 +9,7 @@ cd ~/dev/postgresql/postgresql
 if [ -f GNUmakefile ]; then
     make maintainer-clean
 fi
-git checkout master
+# git checkout master
 git pull
 sudo rm -rf $BASE
 # Add  --enable-cassert --enable-debug for debugging.
