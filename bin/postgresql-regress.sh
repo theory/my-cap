@@ -33,3 +33,16 @@ do
         cd ..
     fi
 done
+
+# Patch for 8.1
+# --- src/pl/plperl/plperl.c.saf	2014-01-06 16:45:27.000000000 -0800
+# +++ src/pl/plperl/plperl.c	2014-01-06 16:45:29.000000000 -0800
+# @@ -694,7 +694,7 @@
+#  		if (!isGV_with_GP(sv) || !GvCV(sv))
+#  			continue;
+#  		SvREFCNT_dec(GvCV(sv)); /* free the CV */
+# -		GvCV(sv) = NULL;		/* prevent call via GV */
+# +		GvCV_set(sv, NULL);		/* prevent call via GV */
+#  	}
+ 
+#  	hv_clear(stash);
