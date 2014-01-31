@@ -742,6 +742,13 @@ namespace :my do
       sudol_scripts( 'postgresql-regress' )
     end
 
+    task :pgxc, :roles => :local do
+      perl
+      uuid
+      libreadline
+      sudol_scripts( 'pgxc' )
+    end
+
     task :sqlite, :roles => :local do
       sudol_scripts( 'sqlite' )
     end

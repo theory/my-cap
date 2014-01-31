@@ -33,7 +33,7 @@ fi
 
 make world -j3 # || exit $?
 #LD_LIBRARY_PATH=./src/interfaces/libpq ./src/bin/pg_dump/pg_dumpall -U postgres > db.backup
-cd /usr/local/src/postgresql-$VERSION
+#cd /usr/local/src/postgresql-$VERSION
 make install-world || exit $?
 
 if [ $OS = 'Darwin' ]; then
