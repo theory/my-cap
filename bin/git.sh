@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=1.8.1.3
+export VERSION=1.9.1
 
 . `dirname $0`/functions.sh
 
@@ -14,9 +14,16 @@ setup
 
 # Download the Subversion dependencies.
 rm -rf git-$VERSION
-download http://git-core.googlecode.com/files/git-$VERSION.tar.gz
-build git-$VERSION
+download https://github.com/git/git/archive/v$VERSION.tar.gz
+tar zxf v$VERSION.tar.gz || exit $?
+cd git-$VERSION
+make prefix=/usr/local all doc info
+make prefix=/usr/local install install-doc install-html install-info
+cd contrib/subtree
+make prefix=/usr/local
+make prefix=/usr/local install
+make prefix=/usr/local install-doc
 
-rm -rf git-manpages-$VERSION
-download http://git-core.googlecode.com/files/git-manpages-$VERSION.tar.gz
-sudo tar xzv -C /usr/local/share/man -f git-manpages-$VERSION.tar.gz
+#rm -rf git-manpages-$VERSION
+#download http://git-core.googlecode.com/files/git-manpages-$VERSION.tar.gz
+#sudo tar xzv -C /usr/local/share/man -f git-manpages-$VERSION.tar.gz
