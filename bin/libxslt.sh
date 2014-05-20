@@ -1,10 +1,10 @@
 #!/bin/bash
 
-export VERSION=1.1.26
+export VERSION=1.1.28
 
 . `dirname $0`/functions.sh
 
-setup /usr/local/include/libxslt/xslt.h
+setup # /usr/local/include/libxslt/xslt.h
 download ftp://xmlsoft.org/libxslt/libxslt-$VERSION.tar.gz
 rm -rf libxslt-$VERSION
 tar zxf libxslt-$VERSION.tar.gz
