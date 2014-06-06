@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=9.3.2
+export VERSION=9.4beta1
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 export CPPFLAGS=-D_XOPEN_SOURCE
@@ -20,18 +20,18 @@ cd postgresql-$VERSION
 if [ $OS = 'Darwin' ]; then
      # For debugging: --enable-cassert --enable-debug
     ./configure --with-bonjour --with-perl PERL=$PERL \
-    --with-openssl --with-pam --with-krb5 --with-libxml \
-    --with-ossp-uuid --with-includes=/usr/local/include \
+    --with-openssl --with-pam --with-libxml \
+    --with-uuid=e2fs --with-includes=/usr/local/include \
     --enable-integer-datetimes --with-zlib \
     --with-libs=/usr/local/lib --prefix=$BASE || exit $?
 else
-    ./configure --with-perl PERL=$PERL --with-openssl --with-pam --with-krb5 \
-    --with-libxml --with-ossp-uuid --with-libs=/usr/local/lib \
+    ./configure --with-perl PERL=$PERL --with-openssl --with-pam \
+    --with-libxml --with-uuid=e2fs --with-libs=/usr/local/lib \
     --enable-integer-datetimes --with-zlib --with-gnu-ld \
     --with-includes=/usr/local/include || exit $?    
 fi
 
-make world -j3 # || exit $?
+make world -j3 || exit $?
 #LD_LIBRARY_PATH=./src/interfaces/libpq ./src/bin/pg_dump/pg_dumpall -U postgres > db.backup
 #cd /usr/local/src/postgresql-$VERSION
 make install-world || exit $?
