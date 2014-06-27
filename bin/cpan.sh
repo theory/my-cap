@@ -11,8 +11,8 @@ if [ $OS = 'Darwin' ]; then
     cp `dirname $0`/../config/cpan/DarwinCPANConfig.pm '~/Library/Application Support/.cpan/CPAN/MyConfig.pm'
     cp `dirname $0`/../config/cpan/cpanreporter.ini ~/.cpanreporter/config.ini
 else
-    wget --no-check-certificate -O ~/.cpan/CPAN/MyConfig.pm https://svn.kineticode.com/cap/config/cpan/UbuntuCPANConfig.pm
-    wget --no-check-certificate -O ~/.cpanreporter/config.ini https://svn.kineticode.com/cap/config/cpan/cpanreporter.ini
+    wget --no-check-certificate -O ~/.cpan/CPAN/MyConfig.pm https://raw.githubusercontent.com/theory/my-cap/master/config/cpan/RedHatCPANConfig.pm
+    wget --no-check-certificate -O ~/.cpanreporter/config.ini https://raw.githubusercontent.com/theory/my-cap/master/config/cpan/cpanreporter.ini
 fi
 
 # Mac::Carbon currently has a failing test. Delete this section when fixed.
