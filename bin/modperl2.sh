@@ -1,11 +1,11 @@
 #!/bin/bash
 
-export VERSION=2.0.5
+export VERSION=2.0.8
 
 . `dirname $0`/functions.sh
 
 setup /usr/local/apache2/include/modperl_trace.h "MP_VERSION_STRING \"mod_perl/$VERSION\""
-download http://perl.apache.org/dist/mod_perl-$VERSION.tar.gz
+download http://apache.osuosl.org/perl/mod_perl-$VERSION.tar.gz
 tar zxf mod_perl-$VERSION.tar.gz || exit $?
 cd mod_perl-$VERSION
 /usr/local/bin/perl Makefile.PL \
