@@ -1,9 +1,11 @@
 #!/bin/sh
 
-export VERSION=9.4beta2
+export VERSION=9.4beta3
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 export CPPFLAGS=-D_XOPEN_SOURCE
+export PGUSER=postgres
+export PGGROUP=postgres
 
 . `dirname $0`/functions.sh
 
@@ -60,28 +62,8 @@ if [ $OS = 'Darwin' ]; then
         dscl . -create /Users/postgres NFSHomeDirectory '/var/empty'
         dscl . -create /Users/postgres PrimaryGroupID $GID
     fi
-
     # Set up the start script.
-    mkdir -p /Library/StartupItems/PostgreSQL
-    cp contrib/start-scripts/osx/PostgreSQL /Library/StartupItems/PostgreSQL
-    perl -i -pe 's/ROTATELOGS=1/ROTATELOGS=/' /Library/StartupItems/PostgreSQL/PostgreSQL
-    cp contrib/start-scripts/osx/StartupParameters.plist /Library/StartupItems/PostgreSQL
-    if [ "`grep POSTGRESQL /etc/hostconfig`" = '' ]; then
-        echo "POSTGRESQL=-YES-" >> /etc/hostconfig
-    fi
-
-    if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
-        echo kern.sysv.shmmax=167772160 >> /etc/sysctl.conf
-        echo kern.sysv.shmmin=1         >> /etc/sysctl.conf
-        echo kern.sysv.shmmni=32        >> /etc/sysctl.conf
-        echo kern.sysv.shmseg=8         >> /etc/sysctl.conf
-        echo kern.sysv.shmall=65536     >> /etc/sysctl.conf
-        sysctl -w kern.sysv.shmmax=167772160
-        sysctl -w kern.sysv.shmmin=1
-        sysctl -w kern.sysv.shmmni=32
-        sysctl -w kern.sysv.shmseg=8
-        sysctl -w kern.sysv.shmall=65536
-    fi
+    cp $(cd "$(dirname "$0")"; pwd)/../config/org.postgresql.postgresql.plist  /Library/LaunchDaemons/
 else
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
         sysctl -w kern.sysv.shmmax=167772160
@@ -101,11 +83,11 @@ if [ ! -d $BASE/data ]; then
     # Create and initialize the data directory.
     mkdir $BASE/data
     chmod 0700 $BASE/data
-    chown -R postgres:postgres $BASE/data
-    sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding utf-8 -D $BASE/data
-#    sudo -u postgres $BASE/bin/initdb --no-locale --encoding utf-8 -D $BASE/data
+    chown -R $PGUSER:$PGGROUP $BASE/data
+    sudo -u $PGUSER $BASE/bin/initdb --locale en_US.UTF-8 --encoding utf-8 -D $BASE/data
+#    sudo -u $PGUSER $BASE/bin/initdb --no-locale --encoding utf-8 -D $BASE/data
     mkdir $BASE/data/logs
-    chown -R postgres:postgres $BASE/data/logs
+    chown -R $PGUSER:$PGGROUP $BASE/data/logs
     if [ $OS = 'Linux' ]; then
         # Keep the data in /var on Linux.
         mkdir -p /var/db
@@ -118,19 +100,16 @@ fi
 
 cp $BASE/data/postgresql.conf $BASE/data/postgresql.conf.default
 if [ $OS = 'Darwin' ]; then
-    cp `dirname $0`/../config/postgresql.conf $BASE/data/
-    chown postgres:postgres $BASE/data/postgresql.conf
-    BACKTO=`pwd`
-    cd $BASE/data
+    cp $(cd "$(dirname "$0")"; pwd)/../config/postgresql.conf $BASE/data/
+    chown $PGUSER:$PGGROUP $BASE/data/postgresql.conf
     if [ -e $BASE/data/postmaster.pid ]; then
-        SystemStarter stop PostgreSQL
+        launchctl unload /Library/LaunchDaemons/org.postgresql.postgresql.plist || exit $?
     fi
-    SystemStarter start PostgreSQL || exit $?
-    cd $BACKTO
+    launchctl load -w /Library/LaunchDaemons/org.postgresql.postgresql.plist || exit $?
 else
     download https://raw.github.com/theory/my-cap/master/config/postgresql-wolf.conf
     cp postgresql-wolf.conf $BASE/data/postgresql.conf
-    chown postgres:postgres $BASE/data/postgresql.conf
+    chown $PGUSER:$PGGROUP $BASE/data/postgresql.conf
     /etc/init.d/postgresql stop
     /etc/init.d/postgresql start || exit $?
 fi

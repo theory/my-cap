@@ -34,6 +34,20 @@ do
     fi
 done
 
+# Older versions need more shared memory allocated.
+if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
+    echo kern.sysv.shmmax=167772160 >> /etc/sysctl.conf
+    echo kern.sysv.shmmin=1         >> /etc/sysctl.conf
+    echo kern.sysv.shmmni=32        >> /etc/sysctl.conf
+    echo kern.sysv.shmseg=8         >> /etc/sysctl.conf
+    echo kern.sysv.shmall=65536     >> /etc/sysctl.conf
+    sysctl -w kern.sysv.shmmax=167772160
+    sysctl -w kern.sysv.shmmin=1
+    sysctl -w kern.sysv.shmmni=32
+    sysctl -w kern.sysv.shmseg=8
+    sysctl -w kern.sysv.shmall=65536
+fi
+
 # Patch for 8.1
 # --- src/pl/plperl/plperl.c.saf	2014-01-06 16:45:27.000000000 -0800
 # +++ src/pl/plperl/plperl.c	2014-01-06 16:45:29.000000000 -0800

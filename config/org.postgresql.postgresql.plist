@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+
+<!--
+sudo cp contrib/start-scripts/osx/org.postgresql.postgresql.plist /Library/LaunchDaemons/
+sudo launchctl load -w /Library/LaunchDaemons/org.postgresql.postgresql.plist
+-->
+
+<plist version="1.0">
+<dict>
+	<key>Disabled</key>
+	<true/>
+	<key>Label</key>
+	<string>org.postgresql.postgresql</string>
+	<key>UserName</key>
+	<string>postgres</string>
+	<key>GroupName</key>
+	<string>postgres</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/pgsql/bin/postgres</string>
+		<string>-D</string>
+		<string>/usr/local/pgsql/data</string>
+		<string>-c</string>
+		<string>logging_collector=on</string>
+		<string>-c</string>
+		<string>log_directory=/usr/local/pgsql/data/pg_log</string>
+	</array>
+	<key>OnDemand</key>
+	<false/>
+</dict>
+</plist>
