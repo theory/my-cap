@@ -24,9 +24,11 @@ sudo launchctl load -w /Library/LaunchDaemons/org.postgresql.postgresql.plist
 		<string>-c</string>
 		<string>logging_collector=on</string>
 		<string>-c</string>
+		<string>log_rotation_age=7d</string>
+		<string>-c</string>
 		<string>log_directory=/usr/local/pgsql/data/pg_log</string>
 	</array>
-	<key>OnDemand</key>
-	<false/>
+	<key>KeepAlive</key>
+	<true/>
 </dict>
 </plist>
