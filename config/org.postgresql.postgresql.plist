@@ -9,7 +9,7 @@ sudo launchctl load -w /Library/LaunchDaemons/org.postgresql.postgresql.plist
 <plist version="1.0">
 <dict>
 	<key>Disabled</key>
-	<true/>
+	<false/>
 	<key>Label</key>
 	<string>org.postgresql.postgresql</string>
 	<key>UserName</key>
@@ -21,14 +21,14 @@ sudo launchctl load -w /Library/LaunchDaemons/org.postgresql.postgresql.plist
 		<string>/usr/local/pgsql/bin/postgres</string>
 		<string>-D</string>
 		<string>/usr/local/pgsql/data</string>
-		<string>-c</string>
-		<string>logging_collector=on</string>
-		<string>-c</string>
-		<string>log_rotation_age=7d</string>
-		<string>-c</string>
-		<string>log_directory=/usr/local/pgsql/data/pg_log</string>
 	</array>
-	<key>KeepAlive</key>
+    <key>StandardOutPath</key>
+    <string>/usr/local/pgsql/data/launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/pgsql/data/launchd.log</string>
+	<key>OnDemand</key><!-- OS X 10.4 -->
+	<false/>
+	<key>KeepAlive</key><!-- OS X 10.5+ -->
 	<true/>
 </dict>
 </plist>
