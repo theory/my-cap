@@ -1,6 +1,8 @@
 #!/bin/bash
 
-export VERSION=1.9.1
+export VERSION=2.2.1
+export CPPFLAGS="-I/usr/local/include"
+export LDFLAGS="-L/usr/local/lib"
 
 . `dirname $0`/functions.sh
 
@@ -14,15 +16,22 @@ setup
 
 # Download the Subversion dependencies.
 rm -rf git-$VERSION
-download https://github.com/git/git/archive/v$VERSION.tar.gz
-tar zxf v$VERSION.tar.gz || exit $?
+download https://www.kernel.org/pub/software/scm/git/git-$VERSION.tar.gz
+
+# Build Git.
+tar zxf git-$VERSION.tar.gz || exit $?
 cd git-$VERSION
-make prefix=/usr/local all doc info
-make prefix=/usr/local install install-doc install-html install-info
+make prefix=/usr/local all
+make prefix=/usr/local install
 cd contrib/subtree
 make prefix=/usr/local
 make prefix=/usr/local install
-make prefix=/usr/local install-doc
+cd ../..
+
+# Download and install the docs.
+download https://www.kernel.org/pub/software/scm/git/git-manpages-$VERSION.tar.gz
+mkdir -p /usr/local/share/man
+tar zx -C /usr/local/share/man -f git-manpages-$VERSION.tar.gz || exit $?
 
 #rm -rf git-manpages-$VERSION
 #download http://git-core.googlecode.com/files/git-manpages-$VERSION.tar.gz
