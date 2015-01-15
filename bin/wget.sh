@@ -4,7 +4,7 @@ export VERSION=1.16.1
 
 . `dirname $0`/functions.sh
 
-setup
+setup /usr/local/bin/wget
 download http://ftp.gnu.org/gnu/wget/wget-$VERSION.tar.gz
 rm -rf wget-$VERSION
 tar zxf wget-$VERSION.tar.gz
