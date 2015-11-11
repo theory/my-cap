@@ -88,5 +88,11 @@ download https://raw.github.com/mooz/lemon-mode/master/lemon-mode.el
 emacs -batch -f batch-byte-compile *.el
 cp lemon-mode.el* /usr/local/share/emacs/site-lisp
 
+# go-mode
+download https://raw.githubusercontent.com/dominikh/go-mode.el/master/go-mode.el
+download https://raw.githubusercontent.com/dominikh/go-mode.el/master/go-mode-autoloads.el
+emacs -batch -f batch-byte-compile go-*.el
+cp go-*.el* /usr/local/share/emacs/site-lisp
+
 # Return to src directory.
 cd ..
