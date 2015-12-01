@@ -100,7 +100,7 @@ fi
 
 cp $BASE/data/postgresql.conf $BASE/data/postgresql.conf.default
 if [ $OS = 'Darwin' ]; then
-    cp $(cd "$(dirname "$0")"; pwd)/../config/postgresql.conf $BASE/data/
+    cp $(dirname "$0")/../config/postgresql.conf $BASE/data/
     chown $PGUSER:$PGGROUP $BASE/data/postgresql.conf
     if [ -e $BASE/data/postmaster.pid ]; then
         launchctl unload /Library/LaunchDaemons/org.postgresql.postgresql.plist || exit $?
