@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=9.4.4
+export VERSION=9.5beta2
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 export CPPFLAGS=-D_XOPEN_SOURCE
@@ -22,7 +22,7 @@ cd postgresql-$VERSION
 if [ $OS = 'Darwin' ]; then
      # For debugging: --enable-cassert --enable-debug
     ./configure --with-bonjour --with-perl PERL=$PERL \
-    --with-openssl --with-pam --with-libxml \
+    --with-pam --with-libxml \
     --with-uuid=e2fs --with-includes=/usr/local/include \
     --enable-integer-datetimes --with-zlib \
     --with-libs=/usr/local/lib --prefix=$BASE || exit $?
