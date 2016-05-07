@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=9.5beta2
+export VERSION=9.5.2
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 export CPPFLAGS=-D_XOPEN_SOURCE
@@ -63,7 +63,7 @@ if [ $OS = 'Darwin' ]; then
         dscl . -create /Users/postgres PrimaryGroupID $GID
     fi
     # Set up the start script.
-    cp $(cd "$(dirname "$0")"; pwd)/../config/org.postgresql.postgresql.plist  /Library/LaunchDaemons/
+    cp config/org.postgresql.postgresql.plist  /Library/LaunchDaemons/
 else
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
         sysctl -w kern.sysv.shmmax=167772160
@@ -100,7 +100,7 @@ fi
 
 cp $BASE/data/postgresql.conf $BASE/data/postgresql.conf.default
 if [ $OS = 'Darwin' ]; then
-    cp $(dirname "$0")/../config/postgresql.conf $BASE/data/
+    cp config/postgresql.conf $BASE/data/
     chown $PGUSER:$PGGROUP $BASE/data/postgresql.conf
     if [ -e $BASE/data/postmaster.pid ]; then
         launchctl unload /Library/LaunchDaemons/org.postgresql.postgresql.plist || exit $?
