@@ -1,8 +1,8 @@
 #!/bin/bash
 
-export VERSION=2.2.1
-export CPPFLAGS="-I/usr/local/include"
-export LDFLAGS="-L/usr/local/lib"
+export VERSION=2.9.0
+export CPPFLAGS="-I/usr/local/ssl/include"
+export LDFLAGS="-L/usr/local/ssl/lib"
 
 . `dirname $0`/functions.sh
 

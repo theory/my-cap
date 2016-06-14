@@ -807,7 +807,7 @@ namespace :my do
     end
 
     task :git, :roles => :local do
-      sudol_scripts( 'git' )
+      sudol_scripts( 'openssl', 'git' )
     end
 
     task :mercurial, :roles => :local do
