@@ -1,11 +1,12 @@
 #!/bin/sh
 
-export VERSION=9.5.4
+export VERSION=9.6.1
 export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql
 export CPPFLAGS=-D_XOPEN_SOURCE
 export PGUSER=postgres
 export PGGROUP=postgres
+export SHELLDIR=`pwd`
 
 . `dirname $0`/functions.sh
 
@@ -63,7 +64,7 @@ if [ $OS = 'Darwin' ]; then
         dscl . -create /Users/postgres PrimaryGroupID $GID
     fi
     # Set up the start script.
-    cp config/org.postgresql.postgresql.plist  /Library/LaunchDaemons/
+    cp $SHELLDIR/config/org.postgresql.postgresql.plist /Library/LaunchDaemons/
 else
     if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
         sysctl -w kern.sysv.shmmax=167772160
@@ -100,15 +101,15 @@ fi
 
 cp $BASE/data/postgresql.conf $BASE/data/postgresql.conf.default
 if [ $OS = 'Darwin' ]; then
-    cp config/postgresql.conf $BASE/data/
+    cp $SHELLDIR/config/postgresql.conf $BASE/data/
     chown $PGUSER:$PGGROUP $BASE/data/postgresql.conf
     if [ -e $BASE/data/postmaster.pid ]; then
         launchctl unload /Library/LaunchDaemons/org.postgresql.postgresql.plist || exit $?
     fi
     launchctl load -w /Library/LaunchDaemons/org.postgresql.postgresql.plist || exit $?
 else
-    download https://raw.github.com/theory/my-cap/master/config/postgresql-wolf.conf
-    cp postgresql-wolf.conf $BASE/data/postgresql.conf
+    download https://raw.github.com/theory/my-cap/master/config/postgresql-mac.conf
+    cp $SHELLDIR/postgresql-wolf.conf $BASE/data/postgresql.conf
     chown $PGUSER:$PGGROUP $BASE/data/postgresql.conf
     /etc/init.d/postgresql stop
     /etc/init.d/postgresql start || exit $?
