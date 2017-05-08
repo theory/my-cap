@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=2.9.0
+export VERSION=2.12.2
 export CPPFLAGS="-I/usr/local/ssl/include"
 export LDFLAGS="-L/usr/local/ssl/lib"
 
@@ -21,8 +21,8 @@ download https://www.kernel.org/pub/software/scm/git/git-$VERSION.tar.gz
 # Build Git.
 tar zxf git-$VERSION.tar.gz || exit $?
 cd git-$VERSION
-make prefix=/usr/local all
-make prefix=/usr/local install
+make prefix=/usr/local NO_GETTEXT=1 all
+make prefix=/usr/local NO_GETTEXT=1 install
 cd contrib/subtree
 make prefix=/usr/local
 make prefix=/usr/local install
