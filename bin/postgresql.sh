@@ -1,8 +1,8 @@
 #!/bin/sh
 
-export VERSION=9.6.5
-export PERL=/usr/local/bin/perl
-export BASE=/usr/local/pgsql
+export VERSION=10.0
+#export PERL=/usr/local/bin/perl
+export BASE=/usr/local/pgsql-10
 export CPPFLAGS=-D_XOPEN_SOURCE
 export PGUSER=postgres
 export PGGROUP=postgres
@@ -10,7 +10,7 @@ export SHELLDIR=`pwd`
 
 . `dirname $0`/functions.sh
 
-setup $BASE/share/doc/html/release-`perl -e "\\$f = '$VERSION'; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
+setup $BASE/share/doc/html/release-`perl -e "\\$f = shift; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;"`.html
 download http://ftp.postgresql.org/pub/source/v$VERSION/postgresql-$VERSION.tar.bz2
 echo Unpacking $file...
 rm -rf postgresql-$VERSION
