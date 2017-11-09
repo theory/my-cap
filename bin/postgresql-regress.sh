@@ -5,7 +5,7 @@
 export PERL=/usr/bin/perl
 
 setup
-for VERSION in 10.0 9.6.5 9.5.9 9.4.14 9.3.19 9.2.19 9.1.24 # 9.0.19 8.4.22 8.3.23 8.2.23 8.1.23 8.0.26
+for VERSION in 10.1 9.6.6 9.5.10 9.4.15 9.3.20 9.2.24 9.1.24 # 9.0.19 8.4.22 8.3.23 8.2.23 8.1.23 8.0.26
 do
     BASE=/usr/local/pgsql-`perl -E 'my @p = split /[.]/, $ARGV[0]; pop @p; print join ".", @p' $VERSION`
     DOC=$BASE/share/doc/html/release-`perl -e "\\$f = shift; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;" $VERSION`.html
@@ -24,6 +24,7 @@ do
 
         # Build PGDATA.
         if [ ! -e "$BASE/data" ]; then
+            sudo mkdir $BASE/data || exit $?
             sudo chown -R postgres:postgres $BASE/data
             sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding UNICODE -D $BASE/data
             sudo mkdir $BASE/data/logs || exit $?

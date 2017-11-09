@@ -1,6 +1,6 @@
 #!/bin/sh
 
-export VERSION=10.0
+export VERSION=10.1
 #export PERL=/usr/local/bin/perl
 export BASE=/usr/local/pgsql-10
 export CPPFLAGS=-D_XOPEN_SOURCE
