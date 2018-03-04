@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export VERSION=2.12.2
+export VERSION=2.16.2
 export CPPFLAGS="-I/usr/local/ssl/include"
 export LDFLAGS="-L/usr/local/ssl/lib"
 
