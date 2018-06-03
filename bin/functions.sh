@@ -76,6 +76,9 @@ build() {
     if [ -f $1.tar.gz ]; then
         echo Unpacking $1.tar.gz...
         tar zxf $1.tar.gz || exit $?
+    elif [ -f $1.tar.xz ]; then
+        echo Unpacking $1.tar.xz...
+        tar zxf $1.tar.xz || exit $?
     elif [ -f $1.tgz ]; then
         echo Unpacking $1.tgz...
         tar zxf $1.tgz || exit $?

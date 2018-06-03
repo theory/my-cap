@@ -1,7 +1,10 @@
 #!/bin/sh
 
-export VERSION=24.2
+export VERSION=26.1
 export TARVERSION=$VERSION
+
+echo Just download and install from https://emacsformacosx.com.
+exit 1
 
 . `dirname $0`/functions.sh
 
