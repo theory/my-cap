@@ -2,6 +2,7 @@
 
 OS=`uname`
 PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:/Developer/Tools:/usr/X11/bin
+RUNDIR=`pwd`
 
 # Pass the name of a file to check. If the file is found and there is no
 # second argument, the script exits. If there is a second argument, its value
