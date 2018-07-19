@@ -12,7 +12,8 @@ cd aspell-$VERSION
 patch -p0 < $RUNDIR/patches/aspell.patch
 ./configure || exit $?
 make -j3 || exit $?
-ldconfig
+make install || exit $?
+#ldconfig
 cp scripts/ispell /usr/local/bin 
 cp scripts/spell /usr/local/bin 
 chmod +x /usr/local/bin/ispell
