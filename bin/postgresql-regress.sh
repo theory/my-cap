@@ -1,15 +1,27 @@
 #!/bin/sh
 
-. `dirname $0`/functions.sh
+WORKDIR=$HOME/pg
+SRCDIR=$WORKDIR/src
 
 export PERL=/usr/bin/perl
 
-setup
-for VERSION in 10.1 9.6.6 9.5.10 9.4.15 9.3.20 9.2.24 9.1.24 # 9.0.19 8.4.22 8.3.23 8.2.23 8.1.23 8.0.26
+. `dirname $0`/functions.sh
+
+if [ ! -e $WORKDIR ]; then
+    mkdir $WORKDIR
+fi
+
+if [ ! -e $SRCDIR ]; then
+    mkdir $SRCDIR
+fi
+
+
+for VERSION in 10.4 9.6.9 9.5.13 9.4.18 9.3.23 9.2.24 9.1.24 # 9.0.19 8.4.22 8.3.23 8.2.23 8.1.23 8.0.26
 do
-    BASE=/usr/local/pgsql-`perl -E 'my @p = split /[.]/, $ARGV[0]; pop @p; print join ".", @p' $VERSION`
+    BASE=$WORKDIR/pgsql-`perl -E 'my @p = split /[.]/, $ARGV[0]; pop @p; print join ".", @p' $VERSION`
     DOC=$BASE/share/doc/html/release-`perl -e "\\$f = shift; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;" $VERSION`.html
     if [ ! -f "$DOC" ]; then
+        cd $SRCDIR
         download http://ftp.postgresql.org/pub/source/v$VERSION/postgresql-$VERSION.tar.bz2
         echo "Unpacking postgresql-$VERSION.tar.bz2"
         rm -rf postgresql-$VERSION
@@ -20,15 +32,13 @@ do
                     --prefix=$BASE \
                     --with-perl PERL=$PERL || exit $?
         make world -j3 || exit $?
-        sudo make install-world || exit $?
+        make install-world || exit $?
 
         # Build PGDATA.
         if [ ! -e "$BASE/data" ]; then
-            sudo mkdir $BASE/data || exit $?
-            sudo chown -R postgres:postgres $BASE/data
-            sudo -u postgres $BASE/bin/initdb --locale en_US.UTF-8 --encoding UNICODE -D $BASE/data
-            sudo mkdir $BASE/data/logs || exit $?
-            sudo chown -R postgres:postgres $BASE/data/logs
+            mkdir $BASE/data || exit $?
+            $BASE/bin/initdb --locale en_US.UTF-8 --encoding UNICODE -D $BASE/data
+            mkdir $BASE/data/logs || exit $?
         fi
         cd ..
     fi
@@ -36,16 +46,16 @@ done
 
 # Older versions need more shared memory allocated.
 if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
-    echo kern.sysv.shmmax=167772160 >> /etc/sysctl.conf
-    echo kern.sysv.shmmin=1         >> /etc/sysctl.conf
-    echo kern.sysv.shmmni=32        >> /etc/sysctl.conf
-    echo kern.sysv.shmseg=8         >> /etc/sysctl.conf
-    echo kern.sysv.shmall=65536     >> /etc/sysctl.conf
-    sysctl -w kern.sysv.shmmax=167772160
-    sysctl -w kern.sysv.shmmin=1
-    sysctl -w kern.sysv.shmmni=32
-    sysctl -w kern.sysv.shmseg=8
-    sysctl -w kern.sysv.shmall=65536
+    sudo -c 'echo kern.sysv.shmmax=167772160 >> /etc/sysctl.conf'
+    sudo -c 'echo kern.sysv.shmmin=1         >> /etc/sysctl.conf'
+    sudo -c 'echo kern.sysv.shmmni=32        >> /etc/sysctl.conf'
+    sudo -c 'echo kern.sysv.shmseg=8         >> /etc/sysctl.conf'
+    sudo -c 'echo kern.sysv.shmall=65536     >> /etc/sysctl.conf'
+    sudo sysctl -w kern.sysv.shmmax=167772160
+    sudo sysctl -w kern.sysv.shmmin=1
+    sudo sysctl -w kern.sysv.shmmni=32
+    sudo sysctl -w kern.sysv.shmseg=8
+    sudo sysctl -w kern.sysv.shmall=65536
 fi
 
 # Patch for 8.1
