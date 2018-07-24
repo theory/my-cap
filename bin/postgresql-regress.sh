@@ -16,7 +16,7 @@ if [ ! -e $SRCDIR ]; then
 fi
 
 
-for VERSION in 10.4 9.6.9 9.5.13 9.4.18 9.3.23 9.2.24 9.1.24 # 9.0.19 8.4.22 8.3.23 8.2.23 8.1.23 8.0.26
+for VERSION in 10.4 9.6.9 9.5.13 9.4.18 9.3.23 9.2.24 9.1.24 9.0.19 # 8.4.22 8.3.23 8.2.23 8.1.23 8.0.26
 do
     BASE=$WORKDIR/pgsql-`perl -E 'my @p = split /[.]/, $ARGV[0]; pop @p; print join ".", @p' $VERSION`
     DOC=$BASE/share/doc/html/release-`perl -e "\\$f = shift; \\$f =~ s/[.]0$//; \\$f =~ s/[.]/-/g; print \\$f;" $VERSION`.html
