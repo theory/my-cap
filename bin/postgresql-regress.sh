@@ -46,11 +46,11 @@ done
 
 # Older versions need more shared memory allocated.
 if [ "`sysctl -n kern.sysv.shmmax`" -lt 167772160 ]; then
-    sudo -c 'echo kern.sysv.shmmax=167772160 >> /etc/sysctl.conf'
-    sudo -c 'echo kern.sysv.shmmin=1         >> /etc/sysctl.conf'
-    sudo -c 'echo kern.sysv.shmmni=32        >> /etc/sysctl.conf'
-    sudo -c 'echo kern.sysv.shmseg=8         >> /etc/sysctl.conf'
-    sudo -c 'echo kern.sysv.shmall=65536     >> /etc/sysctl.conf'
+    sudo sh -c 'echo kern.sysv.shmmax=167772160 >> /etc/sysctl.conf'
+    sudo sh -c 'echo kern.sysv.shmmin=1         >> /etc/sysctl.conf'
+    sudo sh -c 'echo kern.sysv.shmmni=32        >> /etc/sysctl.conf'
+    sudo sh -c 'echo kern.sysv.shmseg=8         >> /etc/sysctl.conf'
+    sudo sh -c 'echo kern.sysv.shmall=65536     >> /etc/sysctl.conf'
     sudo sysctl -w kern.sysv.shmmax=167772160
     sudo sysctl -w kern.sysv.shmmin=1
     sudo sysctl -w kern.sysv.shmmni=32
